@@ -17,7 +17,7 @@
 	import { publishMap } from './controls';
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import { buildStyle } from './style';
-	import { loadTextures, sizeForScreen, texturePalette } from './textures';
+	import { type LoadedTexture, loadTextures, sizeForScreen, texturePalette } from './textures';
 	import type { MapState } from '$lib/state/map-view.svelte';
 	import type { LngLat } from '$lib/domain/card';
 
@@ -33,7 +33,6 @@
 
 	let map: MapLibre | undefined;
 	let applied: unknown;
-	let texturesInstalled = false;
 
 	const style = $derived(
 		buildStyle({
@@ -46,24 +45,30 @@
 	);
 
 	/**
-	 * Patterns live in the image registry, not a sprite sheet, so the print path
-	 * can swap the 2048 set in under the same ids without rebuilding a sprite.
-	 * setStyle clears the registry, so this runs again on every styledata.
+	 * Patterns live in the image registry rather than a sprite sheet, so the print
+	 * path can swap the 2048px set in under the same ids.
+	 *
+	 * They are decoded once and kept. Every setStyle empties the registry, and the
+	 * old one-shot latch meant the second time anyone touched a setting the
+	 * patterns never came back and the whole seabed went flat. Re-adding only what
+	 * is missing is cheap, cannot loop, and survives any number of style rebuilds.
 	 */
-	const installTextures = async (m: MapLibre): Promise<void> => {
-		// addImage mutates the style, which fires styledata again. Without this the
-		// install loops forever and isStyleLoaded() never becomes true.
-		if (texturesInstalled) return;
-		texturesInstalled = true;
-		const size = sizeForScreen(
-			window.devicePixelRatio,
-			window.matchMedia('(pointer: coarse)').matches
-		);
-		const loaded = await loadTextures(texturePalette(), size);
-		for (const { name, bitmap } of loaded) {
-			if (m.hasImage(name)) m.updateImage(name, bitmap);
-			else m.addImage(name, bitmap, { pixelRatio: 2 });
+	let patterns: readonly LoadedTexture[] = [];
+
+	const restorePatterns = (m: MapLibre): void => {
+		for (const { name, bitmap } of patterns) {
+			if (!m.hasImage(name)) m.addImage(name, bitmap, { pixelRatio: 2 });
 		}
+	};
+
+	const loadPatterns = async (m: MapLibre): Promise<void> => {
+		if (patterns.length > 0) return;
+		patterns = await loadTextures(
+			texturePalette(),
+			sizeForScreen(window.devicePixelRatio, window.matchMedia('(pointer: coarse)').matches)
+		);
+		restorePatterns(m);
+		m.triggerRepaint();
 	};
 
 	const mount = (container: HTMLElement) => {
@@ -104,7 +109,10 @@
 		m.on('move', syncCamera);
 		syncCamera();
 
-		m.on('styledata', () => void installTextures(m));
+		m.on('styledata', () => {
+			restorePatterns(m);
+		});
+		void loadPatterns(m);
 		m.on('load', () => {
 			view.ready = true;
 			onready?.(m);
@@ -130,8 +138,6 @@
 		// the in-flight load and rebuild from scratch, and `load` never fires.
 		if (map === undefined || style === applied) return;
 		applied = style;
-		// setStyle clears the image registry, so the patterns have to go back in.
-		texturesInstalled = false;
 		// setStyle diffs, so toggling a layer does not tear down the loaded tiles.
 		map.setStyle(style, { diff: true });
 	});

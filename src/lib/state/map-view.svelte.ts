@@ -1,4 +1,5 @@
 import { SvelteSet } from 'svelte/reactivity';
+import { type LiveView, PrintState } from '$lib/print/print-state.svelte';
 // Types only: these erase at compile time, so the state layer keeps no runtime
 // dependency on the interface layer.
 import type { PanelSection } from '$lib/ui/panel';
@@ -27,10 +28,22 @@ export class MapState {
 	groundLayer = $state<'habitats' | 'substrate'>('habitats');
 	/** The survey is a 10m raster. Off shows it as measured, staircase and all. */
 	smoothed = $state(true);
+
+	readonly print = new PrintState();
+
+	/** What the print path needs from the live map, and nothing more. */
+	get live(): LiveView {
+		return {
+			centre: this.centre,
+			bearing: this.bearing,
+			layers: [...this.visible],
+			isobaths: this.isobaths,
+			groundLayer: this.groundLayer,
+			smoothed: this.smoothed
+		};
+	}
 	locale = $state<Locale>('ca');
 
-	/** Print framing mode. The crop overlay only exists while this is on. */
-	framing = $state(false);
 
 	/**
 	 * Which settings section is open, and which feature is selected. Both are

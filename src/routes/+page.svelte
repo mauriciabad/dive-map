@@ -3,8 +3,6 @@
 	import ControlRail from '$lib/ui/ControlRail.svelte';
 	import LocationControl from '$lib/ui/LocationControl.svelte';
 	import CropOverlay from '$lib/ui/CropOverlay.svelte';
-	import PrintPanel from '$lib/print/PrintPanel.svelte';
-	import { type LiveView, PrintState } from '$lib/print/print-state.svelte';
 	import FeatureCard from '$lib/ui/FeatureCard.svelte';
 	import { GROUND_PICK_LAYERS, OSM_PICK_LAYERS, pickFrom } from '$lib/ui/feature-card';
 	import { whenMapReady } from '$lib/map/controls';
@@ -17,29 +15,6 @@
 	const START_ZOOM = 13.4;
 
 	const view = new MapState(navigator.languages);
-	const print = new PrintState();
-
-	/** What the print path needs from the live map, and nothing more. */
-	const live: LiveView = {
-		get centre() {
-			return view.centre;
-		},
-		get bearing() {
-			return view.bearing;
-		},
-		get layers() {
-			return [...view.visible];
-		},
-		get isobaths() {
-			return view.isobaths;
-		},
-		get groundLayer() {
-			return view.groundLayer;
-		},
-		get smoothed() {
-			return view.smoothed;
-		}
-	};
 
 	/** Wet fingers need slack; the seabed needs more, so a site on a habitat
 	 *  boundary names both sides rather than whichever pixel was under the thumb. */
@@ -98,8 +73,7 @@
 	{/if}
 
 	{#if view.panelOpen === 'print'}
-		<CropOverlay {print} {live} zoom={view.zoom} />
-		<PrintPanel {print} {live} zoom={view.zoom} locale={view.locale} />
+		<CropOverlay print={view.print} live={view.live} zoom={view.zoom} />
 	{/if}
 
 	<FeatureCard

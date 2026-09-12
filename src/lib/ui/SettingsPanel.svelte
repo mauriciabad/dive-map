@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PrintPanel from '$lib/print/PrintPanel.svelte';
 	import Icon from './Icon.svelte';
 	import { PANEL_ID, SECTIONS, type PanelSection } from './panel';
 	import type { IconName } from './icons';
@@ -159,17 +160,7 @@
 				<span class="pip" aria-hidden="true"></span>
 			</button>
 		{:else if section === 'print'}
-			<button
-				type="button"
-				class="row"
-				aria-pressed={view.framing}
-				onclick={() => (view.framing = !view.framing)}
-			>
-				<Icon name="frame" size={20} />
-				<span class="label">{t(view.locale, 'framing')}</span>
-				<span class="pip" aria-hidden="true"></span>
-			</button>
-			<p class="note">{t(view.locale, 'framingHint')}</p>
+			<PrintPanel print={view.print} live={view.live} zoom={view.zoom} locale={view.locale} />
 		{:else}
 			<ul class="rows">
 				{#each LOCALES as locale (locale)}
