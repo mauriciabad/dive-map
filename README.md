@@ -138,3 +138,40 @@ The service worker itself needs a browser. Build, `pnpm run preview`, load the p
 kill the preview server and reload. The page still loads from the shell cache, byte ranges
 already read come back from the chunk cache, and anything never fetched fails, which is how
 you tell the cache apart from a network that is quietly still there.
+
+## Where the work is tracked
+
+Open work is in GitHub issues, not in a file. Start there:
+
+```sh
+gh issue list
+gh issue view <n>
+```
+
+`HANDOFF.md` is background: how the thing is built, and the mistakes already paid
+for. Two are worth reading before touching the map, because both fail silently
+and look like slowness rather than breakage.
+
+## Checking your work
+
+`pnpm run check` passing is not proof it builds. Run all four:
+
+```sh
+CI=true pnpm run check          # svelte-check, 0 errors and 0 warnings
+pnpm exec eslint .
+CI=true node node_modules/vitest/vitest.mjs run
+CI=true pnpm run build
+```
+
+Then look at the real thing. These drive a browser and read pixels, because a
+flat blue rectangle and a rendered seabed are indistinguishable to everything
+above:
+
+```sh
+node pipeline/scripts/verify-render.mjs <url>       # does the seabed actually draw
+node pipeline/scripts/verify-interaction.mjs <url>  # does tapping a site open the panel
+node pipeline/scripts/verify-options.mjs <url>      # do the settings do anything
+node pipeline/scripts/verify-export.mjs <url>       # does a real A3 PDF come out
+node pipeline/scripts/find-seabed-centre.mjs <url>  # a centre with seabed under it
+node pipeline/scripts/validate-style.mjs            # the style against the MapLibre spec
+```

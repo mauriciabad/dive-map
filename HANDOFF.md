@@ -1,6 +1,10 @@
 # Handoff
 
-State at the end of the first session, 2026-09-12.
+**Outstanding work lives in GitHub issues, not here.** `gh issue list` is the
+current state of the project. This file is background: how things are built and
+which mistakes have already been paid for.
+
+State as of 2026-09-12.
 
 ## Where things stand
 
@@ -39,7 +43,17 @@ failed on `import fontkit from 'fontkit'`; fontkit 2.x has named exports only in
 its browser build, and dev had happily resolved it. Run `pnpm run build` before
 pushing.
 
-## What the user asked for that is still open
+## Where the open work went
+
+Every outstanding request is an issue now. Read them before starting anything:
+
+    gh issue list
+    gh issue view <n>
+
+What follows is the state as of the first session, kept because the reasoning
+behind the closed items is not repeated in the issues.
+
+## What the user asked for that was still open then
 
 From their message, in their order:
 
