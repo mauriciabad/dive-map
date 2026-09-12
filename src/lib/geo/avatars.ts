@@ -1,4 +1,4 @@
-import type { GeoKey } from './messages.ts';
+import type { MessageKey } from '$lib/i18n/messages';
 
 /**
  * The thing that marks where you are. A blue dot is what every other map does,
@@ -29,14 +29,13 @@ export const AVATARS = [
 	{ id: 'grouper', key: 'avatarGrouper' },
 	/** Pop. Radial, unmistakable from above, and on every menu in every port. */
 	{ id: 'octopus', key: 'avatarOctopus' }
-] as const satisfies readonly { readonly id: string; readonly key: GeoKey }[];
+] as const satisfies readonly { readonly id: string; readonly key: MessageKey }[];
 
 export type AvatarId = (typeof AVATARS)[number]['id'];
 
 export const DEFAULT_AVATAR: AvatarId = 'pirate-boat';
 
-export const isAvatarId = (value: string): value is AvatarId =>
-	AVATARS.some((a) => a.id === value);
+export const isAvatarId = (value: string): value is AvatarId => AVATARS.some((a) => a.id === value);
 
 /**
  * Rasterised at 256 px and registered at pixelRatio 4, so the sprite is 64 CSS

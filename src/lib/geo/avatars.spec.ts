@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import built from '../../../static/avatars/index.json' with { type: 'json' };
 import { AVATARS, DEFAULT_AVATAR, isAvatarId } from './avatars.ts';
-import { gt } from './messages.ts';
 import { LOCALES } from '$lib/i18n/locale';
+import { t } from '$lib/i18n/messages';
 
 const manifest: { readonly ids: readonly string[] } = built;
 
@@ -23,7 +23,7 @@ describe('avatar catalogue', () => {
 
 	it('names every figure in all three languages', () => {
 		const missing = LOCALES.flatMap((locale) =>
-			AVATARS.filter((a) => gt(locale, a.key).length === 0).map((a) => `${locale}/${a.id}`)
+			AVATARS.filter((a) => t(locale, a.key).length === 0).map((a) => `${locale}/${a.id}`)
 		);
 		expect(missing).toEqual([]);
 	});
