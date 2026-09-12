@@ -1,11 +1,15 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_ISOBATHS, DEFAULT_LAYERS } from '$lib/domain/card';
 import { HABITATS, SUBSTRATES, substrateByCode } from '$lib/domain/habitat';
+import { buildStyle } from '$lib/map/style';
 import { type DiveFeature, parseDiveFeature } from '$lib/domain/osm';
 import { LOCALES } from '$lib/i18n/locale';
 import {
 	type FeatureProperties,
+	GROUND_PICK_LAYERS,
 	KIND_LABEL,
+	OSM_PICK_LAYERS,
 	detailRowsOf,
 	difficultyPips,
 	difficultyText,
@@ -219,5 +223,20 @@ describe('every feature the shipped file carries', () => {
 			)
 		);
 		expect(hollow).toEqual([]);
+	});
+});
+
+describe('the layers a tap is allowed to hit', () => {
+	// A renamed layer in style.ts would leave the panel silently dead on the boat,
+	// because queryRenderedFeatures answers an unknown id with nothing.
+	it.each(['habitats', 'substrate'] as const)('all exist in the %s style', (groundLayer) => {
+		const style = buildStyle({
+			isobaths: DEFAULT_ISOBATHS,
+			visible: [...DEFAULT_LAYERS],
+			groundLayer
+		});
+		const ids = new Set(style.layers.map((layer) => layer.id));
+		const missing = [...OSM_PICK_LAYERS, ...GROUND_PICK_LAYERS].filter((id) => !ids.has(id));
+		expect(missing).toEqual([]);
 	});
 });
