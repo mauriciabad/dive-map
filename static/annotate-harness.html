@@ -56,7 +56,12 @@
 			};
 
 			try {
-				const { Map: MapLibre, addProtocol } = await import('/node_modules/maplibre-gl/dist/maplibre-gl.mjs');
+				// The app's own maplibre instance, taken from a module Vite compiled. A second
+				// copy would give this page a different GeoJSONSource class, and the panel's
+				// `instanceof` narrowing would quietly refuse to write to the source.
+				const panelSource = await (await fetch('/src/lib/annotate/AnnotatePanel.svelte')).text();
+				const maplibreUrl = /from "([^"]*maplibre-gl\.mjs[^"]*)"/.exec(panelSource)[1];
+				const { Map: MapLibre, addProtocol } = await import(maplibreUrl);
 				const { Protocol } = await import('/node_modules/pmtiles/dist/esm/index.js');
 				const { buildStyle } = await import('/src/lib/map/style.ts');
 
@@ -91,16 +96,22 @@
 				});
 
 				try {
-					const { mount } = await import('/node_modules/svelte/src/index-client.js');
-					const { publishMap } = await import('/src/lib/map/controls.ts');
+					// Mount through the app's own SvelteControl. Importing `mount` here would
+					// pull a second Svelte instance whose scheduler never flushes these effects.
+					// Vite stamps HMR-updated modules with ?t=. Importing the bare path would
+					// hand this page a second copy of controls.ts whose map registry the
+					// component never sees, so take the exact URL the component was served.
+					const compiled = await (await fetch('/src/lib/ui/AnnotateTools.svelte')).text();
+					const controlsUrl = /from "(\/src\/lib\/map\/controls\.ts[^"]*)"/.exec(compiled)[1];
+					const { SvelteControl, publishMap } = await import(controlsUrl);
 					const AnnotateTools = (await import('/src/lib/ui/AnnotateTools.svelte')).default;
-					mount(AnnotateTools, {
-						target: document.getElementById('tools'),
-						props: { locale: 'ca' }
-					});
-					if (map.loaded()) publishMap(map);
-					else map.on('load', () => { publishMap(map); });
-					window.toolsMounted = true;
+					const register = () => {
+						publishMap(map);
+						map.addControl(new SvelteControl(AnnotateTools, { props: { locale: 'ca' }, className: '' }), 'bottom-left');
+						window.toolsMounted = true;
+					};
+					if (map.loaded()) register();
+					else map.on('load', register);
 				} catch (e) {
 					window.toolsError = String(e && e.stack ? e.stack : e);
 				}

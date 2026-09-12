@@ -25,7 +25,7 @@ export const SECTIONS: readonly SectionTab[] = [
 
 /**
  * Which section is showing. The buttons are mounted into MapLibre's corner and
- * the panel is rendered in the page, so the two share this one proxy rather
+ * the panel is rendered in the page, so the two share this one object rather
  * than passing events across the boundary.
  */
 export interface PanelState {

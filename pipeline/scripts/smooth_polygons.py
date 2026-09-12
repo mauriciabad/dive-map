@@ -244,6 +244,22 @@ def shoelace(coords) -> float:
     return s / 2.0
 
 
+def interior_probe(ring):
+    """A vertex is useless as a probe when a hole touches its shell there, so take a point inside."""
+    n = len(ring) - 1
+    for i in range(n):
+        a, b, c = ring[i], ring[(i + 1) % n], ring[(i + 2) % n]
+        mid = ((a[0] + b[0] + c[0]) / 3.0, (a[1] + b[1] + c[1]) / 3.0)
+        if point_in_ring(mid, ring):
+            return mid
+    for i in range(n):
+        a, b = ring[i], ring[(i + 1) % n]
+        mid = ((a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0)
+        if point_in_ring(mid, ring):
+            return mid
+    return ring[0]
+
+
 def point_in_ring(pt, ring) -> bool:
     x, y = pt
     inside = False
@@ -257,34 +273,63 @@ def point_in_ring(pt, ring) -> bool:
 
 
 def boundary_loops(arr: Arrangement, partner):
-    """Chains the directed edges with no reverse partner into the coverage outline."""
-    outgoing: dict[int, list[int]] = defaultdict(list)
-    edges: set[tuple[int, int]] = set()
-    for (a, b), _rid in partner.items():
-        if (b, a) not in partner:
-            edges.add((a, b))
-            outgoing[a].append(b)
+    """Traces the directed edges no second polygon claims, which is the coverage outline.
+
+    Source rings wind counter-clockwise, so the surveyed side is on the left of every such
+    edge. Where several boundary edges meet, taking the smallest counter-clockwise turn keeps
+    the walk on the same side; picking greedily instead strands edges and shatters the outline.
+    """
+    uses: Counter[tuple[int, int]] = Counter()
+    for seq in arr.rings:
+        n = len(seq)
+        for i in range(n):
+            uses[(seq[i], seq[(i + 1) % n])] += 1
+
+    outgoing: dict[int, set[int]] = defaultdict(set)
+    remaining: Counter[tuple[int, int]] = Counter()
+    for (a, b), count in uses.items():
+        if not uses[(b, a)]:
+            outgoing[a].add(b)
+            remaining[(a, b)] = count
+
+    def bearing(a: int, b: int) -> float:
+        ax, ay = metres(arr.pts[a])
+        bx, by = metres(arr.pts[b])
+        return math.atan2(by - ay, bx - ax)
+
+    two_pi = 2.0 * math.pi
     loops: list[list[int]] = []
-    remaining = set(edges)
+    broken = 0
     while remaining:
-        a0, b0 = min(remaining)
-        loop = [a0]
-        cur = (a0, b0)
-        while cur in remaining:
-            remaining.discard(cur)
+        start = min(k for k, v in remaining.items() if v > 0)
+        loop = [start[0]]
+        cur = start
+        while True:
+            remaining[cur] -= 1
+            if remaining[cur] <= 0:
+                del remaining[cur]
             loop.append(cur[1])
-            nxt = None
-            for cand in sorted(outgoing.get(cur[1], ())):
-                if (cur[1], cand) in remaining:
-                    nxt = (cur[1], cand)
-                    break
-            if nxt is None:
+            u, v = cur
+            incoming = bearing(u, v)
+            best = None
+            best_turn = 0.0
+            for w in outgoing.get(v, ()):
+                if remaining.get((v, w), 0) <= 0:
+                    continue
+                turn = (bearing(v, w) - incoming) % two_pi
+                if best is None or turn < best_turn:
+                    best, best_turn = w, turn
+            if best is None:
+                if loop[0] != loop[-1]:
+                    broken += 1
                 break
-            cur = nxt
+            cur = (v, best)
         while len(loop) > 1 and loop[0] == loop[-1]:
             loop.pop()
         if len(loop) >= 3:
             loops.append(loop)
+    if broken:
+        print(f"boundary walks that did not close  {broken}")
     return loops
 
 
@@ -400,12 +445,19 @@ def main() -> int:
             if len(run) > 1:
                 lines.append((cur if cur is not None else 0, run))
 
-        shells.sort(key=lambda r: -abs(shoelace(r)))
+        shells.sort(key=lambda r: abs(shoelace(r)))
+        boxes = [
+            (min(p[0] for p in s), min(p[1] for p in s), max(p[0] for p in s), max(p[1] for p in s))
+            for s in shells
+        ]
         assembled = [[s] for s in shells]
         orphan = 0
         for hole in holes:
-            probe = hole[0]
+            probe = interior_probe(hole)
             for si, shell in enumerate(shells):
+                bx = boxes[si]
+                if not (bx[0] <= probe[0] <= bx[2] and bx[1] <= probe[1] <= bx[3]):
+                    continue
                 if point_in_ring(probe, shell):
                     assembled[si].append(hole)
                     break

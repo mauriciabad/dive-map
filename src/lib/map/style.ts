@@ -336,6 +336,36 @@ const osmLayers = (options: StyleOptions): LayerSpecification[] => {
 			}
 		},
 		{
+			// Lights, harbours, slipways, ladders and dive centres. Quiet on purpose:
+			// they are the furniture of getting in and out of the water, not the dive.
+			// They exist mainly so a diver can tap one and read it.
+			id: 'osm-minor',
+			type: 'circle',
+			source: 'osm',
+			minzoom: 12,
+			filter: [
+				'all',
+				['==', ['geometry-type'], 'Point'],
+				isKind('light', 'harbour', 'slipway', 'ladder', 'dive-centre')
+			],
+			layout: { visibility },
+			paint: {
+				'circle-color': [
+					'match',
+					['get', 'kind'],
+					'light',
+					PALETTE.buoy,
+					'dive-centre',
+					PALETTE.paper,
+					PALETTE.brass
+				],
+				'circle-opacity': 0.85,
+				'circle-stroke-color': PALETTE.ink,
+				'circle-stroke-width': 1.2,
+				'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 2.2, 18, 5]
+			}
+		},
+		{
 			id: 'osm-dive-site-label',
 			type: 'symbol',
 			source: 'osm',

@@ -6,8 +6,9 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 RAW="$ROOT/data/raw"
 BUILD="$ROOT/data/build/tiles"
 OUT="$ROOT/static/tiles"
-LAYERS=(isobaths habitats substrate)
+LAYERS=(isobaths habitats substrate habitats-raw substrate-raw coverage)
 MAX_BYTES=104857600
+SMOOTH="$ROOT/pipeline/scripts/smooth_polygons.py"
 
 for tool in ogr2ogr tippecanoe python3; do
   command -v "$tool" >/dev/null || { printf 'missing %s on PATH\n' "$tool" >&2; exit 1; }
@@ -90,16 +91,54 @@ tile_substrate() {
     "$1"
 }
 
+tile_coverage() {
+  tippecanoe -o "$1" -f -n "ICGC habitat survey coverage" \
+    -Z5 -z15 -P --no-simplification-of-shared-nodes --tiny-polygon-size=0 \
+    --coalesce-densest-as-needed --drop-densest-as-needed \
+    -L "coverage:$BUILD/coverage.geojsonseq" -L "limit:$BUILD/limit.geojsonseq"
+}
+
+# Rounds the raster staircase off the shared topology. One pass emits the smoothed
+# polygons and, from the same arcs, the dissolved survey coverage and its outline.
+smooth_habitats() {
+  python3 "$SMOOTH" --in "$BUILD/habitats.geojsonseq" \
+    --out "$1" \
+    --coverage-out "$BUILD/coverage.geojsonseq" \
+    --limit-out "$BUILD/limit.geojsonseq"
+}
+
+smooth_substrate() {
+  python3 "$SMOOTH" --in "$BUILD/substrate.geojsonseq" --out "$1"
+}
+
+ensure_extract() {
+  local name=$1 src=$2 extract=$3
+  [ -e "$BUILD/$name.geojsonseq" ] && return 0
+  [ -e "$src" ] || { printf 'missing %s\n' "$src" >&2; exit 1; }
+  stage "$BUILD/$name.geojsonseq" "$extract" "$src"
+}
+
 run_layer() {
-  local name=$1 src=$2 extract=$3 tile=$4
-  local inter="$BUILD/$name.geojsonseq" out="$OUT/$name.pmtiles"
+  local name=$1 inter=$2 src=$3 extract=$4 tile=$5
+  local out="$OUT/$name.pmtiles"
 
   [ -e "$out" ] && { printf 'have %s\n' "$out"; return 0; }
-  [ -e "$src" ] || { printf 'missing %s\n' "$src" >&2; exit 1; }
-
   printf 'building %s\n' "$name"
-  stage "$inter" "$extract" "$src"
-  stage "$out" "$tile" "$inter"
+  ensure_extract "$inter" "$src" "$extract"
+  stage "$out" "$tile" "$BUILD/$inter.geojsonseq"
+}
+
+# The staircased originals keep the same layer name as the smoothed archives, so the app
+# swaps one url for the other without touching the style layers.
+run_smoothed() {
+  local name=$1 src=$2 extract=$3 smooth=$4 tile=$5
+  local out="$OUT/$name.pmtiles"
+
+  [ -e "$out" ] && { printf 'have %s\n' "$out"; return 0; }
+  printf 'smoothing %s\n' "$name"
+  ensure_extract "$name" "$src" "$extract"
+  stage "$BUILD/$name-smooth.geojsonseq" "$smooth"
+  stage "$out" "$tile" "$BUILD/$name-smooth.geojsonseq"
 }
 
 missing=0
@@ -113,8 +152,18 @@ fi
 
 mkdir -p "$BUILD" "$OUT"
 
-run_layer isobaths  "$RAW/isobaths-shelf.fgb" extract_isobaths  tile_isobaths
-run_layer habitats  "$RAW/habitats.geojson"   extract_habitats  tile_habitats
-run_layer substrate "$RAW/substrate.geojson"  extract_substrate tile_substrate
+run_layer isobaths      isobaths  "$RAW/isobaths-shelf.fgb" extract_isobaths  tile_isobaths
+run_layer habitats-raw  habitats  "$RAW/habitats.geojson"   extract_habitats  tile_habitats
+run_layer substrate-raw substrate "$RAW/substrate.geojson"  extract_substrate tile_substrate
+
+run_smoothed habitats  "$RAW/habitats.geojson"  extract_habitats  smooth_habitats  tile_habitats
+run_smoothed substrate "$RAW/substrate.geojson" extract_substrate smooth_substrate tile_substrate
+
+if [ ! -e "$OUT/coverage.pmtiles" ]; then
+  printf 'building coverage\n'
+  ensure_extract habitats "$RAW/habitats.geojson" extract_habitats
+  [ -e "$BUILD/coverage.geojsonseq" ] || smooth_habitats "$BUILD/habitats-smooth.geojsonseq"
+  stage "$OUT/coverage.pmtiles" tile_coverage
+fi
 
 report

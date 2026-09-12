@@ -16,7 +16,10 @@
 <p class="hint">{t(view.locale, 'framingHint')}</p>
 
 <dl>
-	<div><dt>{t(view.locale, 'scale')}</dt><dd>1:{view.framedCard.scale}</dd></div>
+	<div>
+		<dt>{t(view.locale, 'scale')}</dt>
+		<dd>1:{view.framedCard.scale}</dd>
+	</div>
 	<div>
 		<dt>{t(view.locale, 'paper')}</dt>
 		<dd>
@@ -25,7 +28,10 @@
 			)} m
 		</dd>
 	</div>
-	<div><dt>px</dt><dd>{frame.exportWidthPx}×{frame.exportHeightPx}</dd></div>
+	<div>
+		<dt>px</dt>
+		<dd>{frame.exportWidthPx}×{frame.exportHeightPx}</dd>
+	</div>
 </dl>
 
 {#if frame.overflowsViewport}

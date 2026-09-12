@@ -7,8 +7,16 @@
 
 	const { view }: { readonly view: MapState } = $props();
 
-	const panel = $state<PanelState>({ open: undefined });
-	const open = $derived(panel.open);
+	// Backed by MapState so the feature card and this panel can close each other.
+	const panel: PanelState = {
+		get open() {
+			return view.panelOpen;
+		},
+		set open(next) {
+			view.openPanel(next);
+		}
+	};
+	const open = $derived(view.panelOpen);
 
 	$effect(() =>
 		whenMapReady((map) => {

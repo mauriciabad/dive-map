@@ -1,4 +1,8 @@
 import { SvelteSet } from 'svelte/reactivity';
+// Types only: these erase at compile time, so the state layer keeps no runtime
+// dependency on the interface layer.
+import type { PanelSection } from '$lib/ui/panel';
+import type { FeaturePick } from '$lib/ui/feature-card';
 import {
 	DEFAULT_ISOBATHS,
 	DEFAULT_LAYERS,
@@ -26,6 +30,14 @@ export class MapState {
 	/** Print framing mode. The crop overlay only exists while this is on. */
 	framing = $state(false);
 
+	/**
+	 * Which settings section is open, and which feature is selected. Both are
+	 * sheets competing for the same screen on a phone, so they live together and
+	 * opening either closes the other.
+	 */
+	panelOpen = $state<PanelSection | undefined>(undefined);
+	selection = $state<FeaturePick | undefined>(undefined);
+
 	/** Live camera, mirrored from the map so the crop overlay can size itself. */
 	centre = $state<LngLat>({ lng: 3.2165, lat: 41.9275 });
 	zoom = $state(13.4);
@@ -40,6 +52,16 @@ export class MapState {
 
 	constructor(languages: readonly string[] = []) {
 		this.locale = negotiate(languages);
+	}
+
+	openPanel(section: PanelSection | undefined): void {
+		this.panelOpen = section;
+		if (section !== undefined) this.selection = undefined;
+	}
+
+	select(feature: FeaturePick | undefined): void {
+		this.selection = feature;
+		if (feature !== undefined) this.panelOpen = undefined;
 	}
 
 	shows(id: LayerId): boolean {

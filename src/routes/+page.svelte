@@ -2,6 +2,10 @@
 	import MapView from '$lib/map/MapView.svelte';
 	import ControlRail from '$lib/ui/ControlRail.svelte';
 	import CropOverlay from '$lib/ui/CropOverlay.svelte';
+	import FeatureCard from '$lib/ui/FeatureCard.svelte';
+	import { GROUND_PICK_LAYERS, OSM_PICK_LAYERS, pickFrom } from '$lib/ui/feature-card';
+	import { whenMapReady } from '$lib/map/controls';
+	import type { MapMouseEvent } from 'maplibre-gl';
 	import { MapState } from '$lib/state/map-view.svelte';
 	import { t } from '$lib/i18n/messages';
 	import { renderCard } from '$lib/print/render';
@@ -13,6 +17,36 @@
 
 	const view = new MapState(navigator.languages);
 	let exporting = $state(false);
+
+	/** Wet fingers need slack; the seabed needs more, so a site on a habitat
+	 *  boundary names both sides rather than whichever pixel was under the thumb. */
+	const box = (x: number, y: number, r: number): [[number, number], [number, number]] => [
+		[x - r, y - r],
+		[x + r, y + r]
+	];
+
+	$effect(() =>
+		whenMapReady((map) => {
+			const onclick = (e: MapMouseEvent) => {
+				const osm = map.queryRenderedFeatures(box(e.point.x, e.point.y, 10), {
+					layers: [...OSM_PICK_LAYERS]
+				});
+				const ground = map.queryRenderedFeatures(box(e.point.x, e.point.y, 24), {
+					layers: [...GROUND_PICK_LAYERS]
+				});
+				view.select(
+					pickFrom(
+						osm.map((f) => f.properties),
+						ground.map((f) => f.properties)
+					)
+				);
+			};
+			map.on('click', onclick);
+			return () => {
+				map.off('click', onclick);
+			};
+		})
+	);
 
 	const fileName = (title: string): string => {
 		const slug = title
@@ -81,6 +115,14 @@
 			}}
 		/>
 	{/if}
+
+	<FeatureCard
+		pick={view.selection}
+		locale={view.locale}
+		onclose={() => {
+			view.select(undefined);
+		}}
+	/>
 
 	<ControlRail {view} />
 </main>

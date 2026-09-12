@@ -210,7 +210,9 @@
 		.panel {
 			inset: var(--ctrl-inset-top) auto auto var(--ctrl-inset-left);
 			width: min(21rem, calc(50vw - var(--ctrl-inset-left) - 1rem));
-			max-height: calc(100svh - var(--ctrl-inset-top) - var(--ctrl-gap) - env(safe-area-inset-bottom));
+			max-height: calc(
+				100svh - var(--ctrl-inset-top) - var(--ctrl-gap) - env(safe-area-inset-bottom)
+			);
 			padding-inline: 1rem;
 			padding-bottom: 0.7rem;
 			border: 1px solid var(--ctrl-edge);

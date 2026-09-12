@@ -33,7 +33,8 @@ export const OSM_PICK_LAYERS = [
 	'osm-wreck',
 	'osm-mooring',
 	'osm-site-area',
-	'osm-restricted'
+	'osm-restricted',
+	'osm-minor'
 ] as const;
 
 export const GROUND_PICK_LAYERS = ['ground-fill'] as const;
