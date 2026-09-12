@@ -23,6 +23,7 @@ export interface FetchEventLike {
 export interface ServiceWorkerScope {
 	readonly location: { readonly origin: string };
 	readonly clients: { claim(): Promise<void> };
+	skipWaiting(): Promise<void>;
 	addEventListener(
 		type: 'install' | 'activate',
 		handler: (event: ExtendableEventLike) => void
@@ -77,7 +78,23 @@ export function registerServiceWorker(
 	});
 
 	scope.addEventListener('install', (event) => {
-		event.waitUntil(caches.open(shell).then((cache) => cache.addAll([...precached])));
+		/*
+		 * Take over immediately instead of waiting for every tab to close.
+		 *
+		 * A deploy replaces the PMTiles archives. An old worker still serving chunks
+		 * of the previous archive alongside freshly fetched ones hands pmtiles a
+		 * mixture, and pmtiles rightly refuses it: "Server returned non-matching
+		 * ETag after one retry". The app then cannot start until someone clears site
+		 * data by hand, which is not something to ask of anyone, least of all on a
+		 * boat.
+		 */
+		event.waitUntil(
+			(async () => {
+				const cache = await caches.open(shell);
+				await cache.addAll([...precached]);
+				await scope.skipWaiting();
+			})()
+		);
 	});
 
 	scope.addEventListener('activate', (event) => {

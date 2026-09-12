@@ -5,6 +5,26 @@
 	import type { Snippet } from 'svelte';
 
 	const { children }: { children: Snippet } = $props();
+
+	/*
+	 * A new worker taking over means the archives on the server have moved. The
+	 * running page is still holding modules and tiles from the old deploy, so it
+	 * reloads once rather than mixing the two, which is what produced the ETag
+	 * mismatch that needed site data cleared by hand.
+	 */
+	$effect(() => {
+		if (!('serviceWorker' in navigator)) return;
+		let reloading = false;
+		const onchange = () => {
+			if (reloading) return;
+			reloading = true;
+			location.reload();
+		};
+		navigator.serviceWorker.addEventListener('controllerchange', onchange);
+		return () => {
+			navigator.serviceWorker.removeEventListener('controllerchange', onchange);
+		};
+	});
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>

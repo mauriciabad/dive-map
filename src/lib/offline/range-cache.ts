@@ -10,6 +10,8 @@ export interface StoredChunk {
 export interface ChunkStore {
 	get(key: string): Promise<StoredChunk | null>;
 	put(key: string, chunk: StoredChunk): Promise<void>;
+	/** Forget every chunk of one archive, used when the deployed file changes underneath. */
+	dropUrl?(url: string): Promise<void>;
 }
 
 export interface RangeReaderOptions {
@@ -89,7 +91,8 @@ export function createRangeReader(options: RangeReaderOptions): RangeReader {
 		url: string,
 		offset: number,
 		length: number,
-		readOptions?: RangeReadOptions
+		readOptions?: RangeReadOptions,
+		retried = false
 	): Promise<RangeRead> {
 		const signal = readOptions?.signal;
 		const first = Math.floor(offset / chunkSize);
@@ -108,6 +111,17 @@ export function createRangeReader(options: RangeReaderOptions): RangeReader {
 				fromCache = false;
 				await store.put(key, chunk);
 				onChunkStored?.(chunk.bytes.length);
+			}
+			/*
+			 * Two chunks of one read disagreeing on the ETag means the file was
+			 * redeployed between them. Handing that mixture to pmtiles gets the read
+			 * rejected and the app refuses to start, so throw the whole archive's
+			 * cache away and read it again from the network.
+			 */
+			if (etag !== null && chunk.etag !== null && chunk.etag !== etag) {
+				await store.dropUrl?.(url);
+				if (retried) throw new Error(`archive changed twice while reading ${url}`);
+				return read(url, offset, length, { ...readOptions, etag: chunk.etag }, true);
 			}
 			total = chunk.total;
 			etag = chunk.etag;
@@ -174,6 +188,18 @@ export function cacheStorageChunkStore(
 			if (chunk.etag !== null) headers.set('X-Chunk-Etag', chunk.etag);
 			const cache = await opened;
 			await cache.put(key, new Response(chunk.bytes, { status: 200, headers }));
+		},
+		async dropUrl(url: string): Promise<void> {
+			const cache = await opened;
+			const target = new URL(url);
+			target.searchParams.delete('__chunk');
+			const wanted = target.toString();
+			const stale = (await cache.keys()).filter((request) => {
+				const seen = new URL(request.url);
+				seen.searchParams.delete('__chunk');
+				return seen.toString() === wanted;
+			});
+			await Promise.all(stale.map((request) => cache.delete(request)));
 		}
 	};
 }
