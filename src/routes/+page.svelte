@@ -6,7 +6,7 @@
 	import FeatureCard from '$lib/ui/FeatureCard.svelte';
 	import { GROUND_PICK_LAYERS, OSM_PICK_LAYERS, pickFrom } from '$lib/ui/feature-card';
 	import { whenMapReady } from '$lib/map/controls';
-	import type { MapMouseEvent } from 'maplibre-gl';
+	import type { LngLat, MapMouseEvent, MapTouchEvent } from 'maplibre-gl';
 	import { MapState } from '$lib/state/map-view.svelte';
 	import { t } from '$lib/i18n/messages';
 
@@ -25,24 +25,62 @@
 
 	$effect(() =>
 		whenMapReady((map) => {
-			const onclick = (e: MapMouseEvent) => {
-				const osm = map.queryRenderedFeatures(box(e.point.x, e.point.y, 10), {
+			const inspect = (point: { x: number; y: number }, at: LngLat) => {
+				const osm = map.queryRenderedFeatures(box(point.x, point.y, 10), {
 					layers: [...OSM_PICK_LAYERS]
 				});
-				const ground = map.queryRenderedFeatures(box(e.point.x, e.point.y, 24), {
+				const ground = map.queryRenderedFeatures(box(point.x, point.y, 24), {
 					layers: [...GROUND_PICK_LAYERS]
 				});
 				view.select(
 					pickFrom(
 						osm.map((f) => f.properties),
 						ground.map((f) => f.properties),
-						{ lng: e.lngLat.lng, lat: e.lngLat.lat }
+						{ lng: at.lng, lat: at.lat }
 					)
 				);
 			};
+
+			/*
+			 * A tap cannot open the panel, because double-tap-and-drag is how you
+			 * zoom one-handed and a tap handler eats the first half of it. Touch gets
+			 * a long press; a mouse keeps its click.
+			 */
+			let held: ReturnType<typeof setTimeout> | undefined;
+			const cancel = () => {
+				if (held !== undefined) clearTimeout(held);
+				held = undefined;
+			};
+
+			const onclick = (e: MapMouseEvent) => {
+				if (e.originalEvent.detail === 0) return;
+				inspect(e.point, e.lngLat);
+			};
+			const ontouchstart = (e: MapTouchEvent) => {
+				cancel();
+				if (e.points.length !== 1) return;
+				const point = e.point;
+				const at = e.lngLat;
+				held = setTimeout(() => {
+					held = undefined;
+					inspect(point, at);
+				}, 450);
+			};
+
 			map.on('click', onclick);
+			map.on('touchstart', ontouchstart);
+			map.on('touchend', cancel);
+			map.on('touchcancel', cancel);
+			map.on('touchmove', cancel);
+			map.on('movestart', cancel);
 			return () => {
+				cancel();
 				map.off('click', onclick);
+				map.off('touchstart', ontouchstart);
+				map.off('touchend', cancel);
+				map.off('touchcancel', cancel);
+				map.off('touchmove', cancel);
+				map.off('movestart', cancel);
 			};
 		})
 	);
