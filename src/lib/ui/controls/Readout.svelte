@@ -76,7 +76,7 @@
 		box-shadow: var(--sunk);
 	}
 
-	/* Units are written the way an instrument writes them: `kn`, `s`, `m`. */
+	/* The name of the quantity. Its number and unit go together in the value. */
 	.readout.grid dt {
 		font-size: 0.66rem;
 		line-height: 1.15;

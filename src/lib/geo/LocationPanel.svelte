@@ -83,7 +83,8 @@
 	 * instrument cells. Where you are, how good the fix is and how old it is on
 	 * the top row; what the boat is doing and how much of it is drawn below.
 	 * Every cell keeps its place when there is no fix, because a grid that
-	 * reshuffles itself is unreadable on a moving deck.
+	 * reshuffles itself is unreadable on a moving deck. Each name is short enough
+	 * to hold one line at a quarter of the panel's width.
 	 */
 	const readings = $derived.by<readonly Reading[]>(() => {
 		const fix = tracker.fix;
@@ -93,27 +94,32 @@
 		const last = trail.at(-1);
 		const speedMs = course.kind === 'steaming' ? course.speedMs : fix?.speedMs;
 		return [
-			{ label: 'Lat', value: fix === undefined ? BLANK : fix.lat.toFixed(5) },
-			{ label: 'Lon', value: fix === undefined ? BLANK : fix.lng.toFixed(5) },
+			{ label: t(locale, 'latitude'), value: fix === undefined ? BLANK : fix.lat.toFixed(5) },
+			{ label: t(locale, 'longitude'), value: fix === undefined ? BLANK : fix.lng.toFixed(5) },
 			{
-				label: '\u00b1',
-				value: fix === undefined ? BLANK : `${Math.round(fix.accuracyM)}${THIN}m`
+				label: t(locale, 'accuracy'),
+				value: fix === undefined ? BLANK : `\u00b1${Math.round(fix.accuracyM)}${THIN}m`
 			},
 			{
-				label: 's',
+				label: t(locale, 'fixAge'),
 				value:
-					fix === undefined ? BLANK : String(Math.max(0, Math.round((tracker.now - fix.at) / 1000)))
+					fix === undefined
+						? BLANK
+						: `${Math.max(0, Math.round((tracker.now - fix.at) / 1000))}${THIN}s`
 			},
 			{
 				label: t(locale, 'trajectory'),
 				value: course.kind === 'steaming' ? `${Math.round(course.deg)}\u00b0` : BLANK
 			},
-			{ label: 'kn', value: speedMs === undefined ? BLANK : (speedMs * MS_PER_KNOT).toFixed(1) },
+			{
+				label: t(locale, 'speed'),
+				value: speedMs === undefined ? BLANK : `${(speedMs * MS_PER_KNOT).toFixed(1)}${THIN}kn`
+			},
 			{
 				label: t(locale, 'trail'),
 				value: first === undefined || last === undefined ? BLANK : distance(last.cumM - first.cumM)
 			},
-			{ label: t(locale, 'trailWindow'), value: windowLabel(tracker.window) }
+			{ label: t(locale, 'trailWindowShort'), value: windowLabel(tracker.window) }
 		];
 	});
 </script>
