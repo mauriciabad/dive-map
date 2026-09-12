@@ -67,7 +67,8 @@
 				locale: view.locale,
 				isobaths: view.isobaths,
 				visible: [...view.visible],
-				groundLayer: view.groundLayer
+				groundLayer: view.groundLayer,
+			smoothed: view.smoothed
 			});
 			if (import.meta.env.DEV) {
 				// Without the image, so the verification script can read it.

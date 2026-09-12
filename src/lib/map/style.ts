@@ -196,6 +196,8 @@ export interface StyleOptions {
 	readonly visible: readonly LayerId[];
 	/** Substrate instead of habitat in the ground layer. They occupy the same slot. */
 	readonly groundLayer: 'habitats' | 'substrate';
+	/** Off shows the survey's own 10m raster staircase, which is what it actually measured. */
+	readonly smoothed: boolean;
 }
 
 const vis = (options: StyleOptions, id: LayerId): 'visible' | 'none' =>
@@ -211,42 +213,55 @@ const vis = (options: StyleOptions, id: LayerId): 'visible' | 'none' =>
  * back.
  */
 const groundLayers = (options: StyleOptions): LayerSpecification[] =>
-	(['habitats', 'substrate'] as const).flatMap((ground): LayerSpecification[] => {
-		const on = options.groundLayer === ground && options.visible.includes(ground);
-		const visibility = on ? 'visible' : 'none';
-		return [
-			{
-				id: `ground-${ground}-fill`,
-				type: 'fill',
-				source: ground,
-				'source-layer': ground,
-				layout: { visibility },
-				paint: {
-					'fill-pattern': patternFor(ground),
-					'fill-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.55, 13, 0.92]
+	(['habitats', 'substrate'] as const).flatMap((ground) =>
+		([true, false] as const).flatMap((smooth): LayerSpecification[] => {
+			const visibility =
+				options.groundLayer === ground &&
+				options.visible.includes(ground) &&
+				options.smoothed === smooth
+					? 'visible'
+					: 'none';
+			const suffix = smooth ? '' : '-raw';
+			const source = `${ground}${suffix}`;
+			return [
+				{
+					id: `ground-${ground}${suffix}-fill`,
+					type: 'fill',
+					source,
+					'source-layer': ground,
+					layout: { visibility },
+					paint: {
+						'fill-pattern': patternFor(ground),
+						'fill-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.55, 13, 0.92]
+					}
+				},
+				{
+					id: `ground-${ground}${suffix}-edge`,
+					type: 'line',
+					source,
+					'source-layer': ground,
+					layout: { visibility, 'line-join': 'round' },
+					paint: {
+						'line-color': PALETTE.terrainEdgeSoft,
+						'line-blur': ['interpolate', ['linear'], ['zoom'], 12, 1.5, 18, 5],
+						'line-width': ['interpolate', ['linear'], ['zoom'], 12, 1.2, 18, 5],
+						// The survey admits 40% per-class accuracy and 75% purity, so the
+						// edge is a soft shadow rather than a hard line. Certainty the data
+						// does not have would be a lie a diver could act on.
+						'line-opacity': 0.7
+					}
 				}
-			},
-			{
-				id: `ground-${ground}-edge`,
-				type: 'line',
-				source: ground,
-				'source-layer': ground,
-				layout: { visibility, 'line-join': 'round' },
-				paint: {
-					'line-color': PALETTE.terrainEdgeSoft,
-					'line-blur': ['interpolate', ['linear'], ['zoom'], 12, 1.5, 18, 5],
-					'line-width': ['interpolate', ['linear'], ['zoom'], 12, 1.2, 18, 5],
-					// The survey admits 40% per-class accuracy and 75% purity, so the edge
-					// is a soft shadow rather than a hard line. Certainty the data does not
-					// have would be a lie a diver could act on.
-					'line-opacity': 0.7
-				}
-			}
-		];
-	});
+			];
+		})
+	);
 
-/** Both ground fills, for anything that queries what is under a point. */
-export const GROUND_FILL_LAYERS = ['ground-habitats-fill', 'ground-substrate-fill'] as const;
+/** Every ground fill, for anything that queries what is under a point. */
+export const GROUND_FILL_LAYERS = [
+	'ground-habitats-fill',
+	'ground-substrate-fill',
+	'ground-habitats-raw-fill',
+	'ground-substrate-raw-fill'
+] as const;
 
 const isKind = (...kinds: readonly string[]): ExpressionSpecification => [
 	'in',
@@ -520,6 +535,16 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 		substrate: {
 			type: 'vector',
 			url: `pmtiles://${asset('/tiles/substrate.pmtiles')}`,
+			maxzoom: 15
+		},
+		'habitats-raw': {
+			type: 'vector',
+			url: `pmtiles://${asset('/tiles/habitats-raw.pmtiles')}`,
+			maxzoom: 15
+		},
+		'substrate-raw': {
+			type: 'vector',
+			url: `pmtiles://${asset('/tiles/substrate-raw.pmtiles')}`,
 			maxzoom: 15
 		},
 		coastline: {

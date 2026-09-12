@@ -69,6 +69,7 @@ for (const ground of ['habitats', 'substrate']) {
 
 const style = buildStyle({
 	locale: 'ca',
+	smoothed: true,
 	isobaths: DEFAULT_ISOBATHS,
 	visible: DEFAULT_LAYERS,
 	groundLayer: 'habitats'

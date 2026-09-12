@@ -234,6 +234,7 @@ describe('the layers a tap is allowed to hit', () => {
 	it.each(['habitats', 'substrate'] as const)('all exist in the %s style', (groundLayer) => {
 		const style = buildStyle({
 			locale: 'ca',
+			smoothed: true,
 			isobaths: DEFAULT_ISOBATHS,
 			visible: [...DEFAULT_LAYERS],
 			groundLayer

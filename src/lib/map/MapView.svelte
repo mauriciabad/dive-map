@@ -40,7 +40,8 @@
 			locale: view.locale,
 			isobaths: view.isobaths,
 			visible: [...view.visible],
-			groundLayer: view.groundLayer
+			groundLayer: view.groundLayer,
+			smoothed: view.smoothed
 		})
 	);
 

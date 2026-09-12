@@ -25,6 +25,8 @@ export class MapState {
 	readonly visible = new SvelteSet<LayerId>(DEFAULT_LAYERS);
 	isobaths = $state<IsobathStyle>({ ...DEFAULT_ISOBATHS });
 	groundLayer = $state<'habitats' | 'substrate'>('habitats');
+	/** The survey is a 10m raster. Off shows it as measured, staircase and all. */
+	smoothed = $state(true);
 	locale = $state<Locale>('ca');
 
 	/** Print framing mode. The crop overlay only exists while this is on. */
