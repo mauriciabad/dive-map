@@ -1,5 +1,6 @@
 import { type Component, mount, unmount } from 'svelte';
 import type { IControl, Map as MapLibre } from 'maplibre-gl';
+import { constrainToData } from './camera.ts';
 
 /**
  * MapLibre owns the corners. Anything we position by hand ends up on top of the
@@ -83,3 +84,8 @@ export const whenMapReady = (attachment: MapAttachment): (() => void) => {
 		attachments.delete(attachment);
 	};
 };
+
+// Keeping the view over the data is not optional chrome, so it registers itself
+// here instead of waiting for a component to ask for it. It is the same
+// attachment mechanism either way, and it comes and goes with the map.
+whenMapReady(constrainToData);
