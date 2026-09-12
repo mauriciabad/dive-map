@@ -14,6 +14,15 @@
 	 */
 	$effect(() => {
 		if (!('serviceWorker' in navigator)) return;
+		/*
+		 * Only a genuine update, never the first install.
+		 *
+		 * The worker calls skipWaiting and claims its clients, so controllerchange
+		 * fires on a first visit too, with nothing stale to escape. Reloading there
+		 * makes every cold load bounce, and with the reload racing the next install
+		 * it can bounce forever.
+		 */
+		if (navigator.serviceWorker.controller === null) return;
 		let reloading = false;
 		const onchange = () => {
 			if (reloading) return;
