@@ -19,8 +19,8 @@ the 100 m2 minimum mapping unit survives. Since the cap is a property of the ver
 sides of every boundary read the same value.
 
 The survey's outer limit falls out of the same structure: it is exactly the directed edges
-no second polygon claims. Each such edge knows the polygon behind it, so the outline can say
-where it is the shore and where the survey simply stops.
+no second polygon claims. Given the drawn coastline, each stretch of that limit is labelled
+shore where it runs along the coast and survey where the data simply stops.
 """
 
 from __future__ import annotations
@@ -281,8 +281,8 @@ def near_coast(lon: float, lat: float, cells: set[tuple[int, int]]) -> bool:
     return False
 
 
-def boundary_loops(arr: Arrangement, partner):
-    """Traces the directed edges no second polygon claims, which is the coverage outline.
+def boundary_loops(arr: Arrangement):
+    """Traces the directed edges no second polygon claims, which is the survey's outer limit.
 
     Source rings wind counter-clockwise, so the surveyed side is on the left of every such
     edge. Where several boundary edges meet, taking the smallest counter-clockwise turn keeps
@@ -426,7 +426,7 @@ def main() -> int:
     if args.limit_out:
         cells = coast_cells(args.coastline) if args.coastline else set()
         print(f"coastline cells     {len(cells)}")
-        loops = boundary_loops(arr, partner)
+        loops = boundary_loops(arr)
         lines = []
         for loop in loops:
             tags = []
