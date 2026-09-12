@@ -36,6 +36,18 @@
 	color-scheme: dark;
 	--rail-shadow: 0 2px 10px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(184 137 63 / 0.22);
 	--sunk: inset 0 1px 2px rgb(0 0 0 / 0.5);
+
+	/* The control vocabulary, shared by MapLibre's buttons and ours. */
+	--ctrl-size: var(--spacing-touch);
+	--ctrl-edge: rgb(184 137 63 / 0.35);
+	--ctrl-seam: rgb(184 137 63 / 0.2);
+	--ctrl-face: linear-gradient(180deg, var(--color-table-700), var(--color-table-800));
+	/* MapLibre's own margin between a corner and the controls in it. */
+	--ctrl-gap: 10px;
+	--ctrl-inset-top: calc(env(safe-area-inset-top) + var(--ctrl-gap));
+	--ctrl-inset-left: calc(
+		env(safe-area-inset-left) + var(--ctrl-gap) + var(--ctrl-size) + var(--ctrl-gap)
+	);
 }
 
 html,
@@ -58,6 +70,15 @@ body {
 	border-radius: 3px;
 }
 
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
 @media (prefers-reduced-motion: reduce) {
 	*,
 	*::before,
@@ -67,20 +88,173 @@ body {
 	}
 }
 
-/* MapLibre ships light-theme chrome that fights the table. */
-.maplibregl-ctrl-attrib {
-	background: rgb(20 16 12 / 0.82) !important;
-	color: var(--color-paper-dim) !important;
+/*
+ * MapLibre ships light-theme chrome. Everything below repaints it in the table's
+ * wood and brass, and our own controls go through the same rules, so the zoom
+ * buttons and the layer buttons are the same object. The selectors are prefixed
+ * with .maplibregl-map purely to outrank the library's own, which is why none of
+ * this needs !important.
+ */
+
+/* A notch eats a corner control. MapLibre's corners do not know about that. */
+.maplibregl-map .maplibregl-ctrl-top-left {
+	padding: env(safe-area-inset-top) 0 0 env(safe-area-inset-left);
+}
+
+.maplibregl-map .maplibregl-ctrl-top-right {
+	padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 0;
+}
+
+.maplibregl-map .maplibregl-ctrl-bottom-left {
+	padding: 0 0 env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+.maplibregl-map .maplibregl-ctrl-bottom-right {
+	padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) 0;
+}
+
+.maplibregl-map .maplibregl-ctrl-group {
+	background: var(--ctrl-face);
+	border: 1px solid var(--ctrl-edge);
+	border-radius: var(--radius-rail);
+	box-shadow: var(--rail-shadow);
+	overflow: hidden;
+}
+
+.maplibregl-map .maplibregl-ctrl-group:not(:empty) {
+	box-shadow: var(--rail-shadow);
+}
+
+.maplibregl-map .maplibregl-ctrl-group button {
+	display: grid;
+	place-items: center;
+	width: var(--ctrl-size);
+	height: var(--ctrl-size);
+	border: 0;
+	background: transparent;
+	color: var(--color-brass-300);
+	cursor: pointer;
+	transition:
+		background 160ms ease-out,
+		color 160ms ease-out;
+}
+
+.maplibregl-map .maplibregl-ctrl-group button + button {
+	border-top: 1px solid var(--ctrl-seam);
+}
+
+.maplibregl-map .maplibregl-ctrl button:not(:disabled):hover {
+	background: rgb(184 137 63 / 0.16);
+	color: var(--color-paper);
+}
+
+.maplibregl-map .maplibregl-ctrl-group button:not(:disabled):active,
+.maplibregl-map .maplibregl-ctrl-group button[aria-expanded='true'],
+.maplibregl-map .maplibregl-ctrl-group button[aria-pressed='true'] {
+	background: var(--color-brass-500);
+	color: var(--color-table-900);
+	box-shadow: var(--sunk);
+}
+
+.maplibregl-map .maplibregl-ctrl-group button:focus,
+.maplibregl-map .maplibregl-ctrl-group button:focus:first-child,
+.maplibregl-map .maplibregl-ctrl-group button:focus:last-child {
+	box-shadow: none;
+	border-radius: 0;
+}
+
+.maplibregl-map .maplibregl-ctrl-group button:focus-visible {
+	outline: 2px solid var(--color-brass-400);
+	outline-offset: -3px;
+}
+
+.maplibregl-map .maplibregl-ctrl button:disabled {
+	color: var(--color-table-500);
+}
+
+/*
+ * MapLibre's glyphs are dark PNG-ish SVGs baked at one colour. Masking them with
+ * currentColor instead lets them take the brass, and the pressed state, that our
+ * drawn icons already take. Drawn to the same stroke weight as Icon.svelte.
+ */
+.maplibregl-map .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+	background-image: none;
+	background-color: currentColor;
+	-webkit-mask: var(--ctrl-glyph) center / 22px 22px no-repeat;
+	mask: var(--ctrl-glyph) center / 22px 22px no-repeat;
+}
+
+.maplibregl-map .maplibregl-ctrl-group button:disabled .maplibregl-ctrl-icon {
+	opacity: 1;
+}
+
+.maplibregl-map .maplibregl-ctrl-zoom-in {
+	--ctrl-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M12 5.5v13'/%3E%3Cpath d='M5.5 12h13'/%3E%3C/svg%3E");
+}
+
+.maplibregl-map .maplibregl-ctrl-zoom-out {
+	--ctrl-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M5.5 12h13'/%3E%3C/svg%3E");
+}
+
+.maplibregl-map .maplibregl-ctrl-compass {
+	--ctrl-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.6 7.4 21 12 17.4z' fill='black' fill-opacity='.4'/%3E%3Cpath d='M12 2.6 16.6 21 12 17.4z' fill='black'/%3E%3C/svg%3E");
+}
+
+.maplibregl-map .maplibregl-ctrl-fullscreen {
+	--ctrl-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5'/%3E%3C/svg%3E");
+}
+
+/* A panel handed to MapLibre rather than a button group: the crop readout. */
+.maplibregl-map .maplibregl-ctrl.dive-ctrl-panel {
+	display: flex;
+	flex-direction: column;
+	gap: 0.55rem;
+	width: min(17rem, calc(100vw - 2 * var(--ctrl-gap)));
+	max-height: calc(100svh - 12rem);
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	padding: 0.8rem 0.9rem;
+	background: var(--color-table-800);
+	border: 1px solid var(--ctrl-edge);
+	border-radius: var(--radius-rail);
+	box-shadow: var(--rail-shadow);
+	font-family: inherit;
+}
+
+.maplibregl-map .maplibregl-ctrl.maplibregl-ctrl-attrib {
+	background: rgb(20 16 12 / 0.86);
+	color: var(--color-paper-dim);
 	font-size: 10px;
+	border-radius: var(--radius-rail) 0 0 0;
 }
 
-.maplibregl-ctrl-attrib a {
-	color: var(--color-brass-300) !important;
+.maplibregl-map .maplibregl-ctrl-attrib a {
+	color: var(--color-brass-300);
 }
 
-.maplibregl-ctrl-scale {
-	background: rgb(20 16 12 / 0.82) !important;
-	border-color: var(--color-brass-500) !important;
-	color: var(--color-paper) !important;
+.maplibregl-map .maplibregl-ctrl-attrib a:hover {
+	color: var(--color-paper);
+}
+
+.maplibregl-map .maplibregl-ctrl-attrib.maplibregl-compact {
+	min-height: 26px;
+	background: rgb(20 16 12 / 0.86);
+	border-radius: 13px;
+	border: 1px solid var(--ctrl-edge);
+}
+
+.maplibregl-map .maplibregl-ctrl-attrib-button {
+	width: 26px;
+	height: 26px;
+	background-color: var(--color-brass-500);
+	border-radius: 13px;
+}
+
+.maplibregl-map .maplibregl-ctrl-scale {
+	background: rgb(20 16 12 / 0.86);
+	border-color: var(--color-brass-500);
+	color: var(--color-paper);
+	border-radius: 0 0 3px 3px;
+	font-size: 11px;
 	font-variant-numeric: tabular-nums;
 }

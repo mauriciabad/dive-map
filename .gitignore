@@ -31,3 +31,4 @@ package-lock.json
 yarn.lock
 data/build/
 .playwright-mcp/
+__pycache__/
