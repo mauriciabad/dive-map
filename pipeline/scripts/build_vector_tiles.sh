@@ -104,9 +104,17 @@ tile_coverage() {
     -L "coverage:$BUILD/habitats-smooth.geojsonseq" -L "limit:$BUILD/limit.geojsonseq"
 }
 
+extract_coastline() {
+  ogr2ogr -f GeoJSONSeq "$2" "$1" -lco RS=NO -lco COORDINATE_PRECISION=6
+}
+
+# The limit lines need the drawn coastline to tell the shore from the offshore edge where
+# the survey simply stops.
 smooth_habitats() {
+  ensure_extract coastline "$RAW/coastline/coastline-4326.fgb" extract_coastline
   python3 "$SMOOTH" --in "$BUILD/habitats.geojsonseq" \
-    --out "$1" --limit-out "$BUILD/limit.geojsonseq"
+    --out "$1" --limit-out "$BUILD/limit.geojsonseq" \
+    --coastline "$BUILD/coastline.geojsonseq"
 }
 
 smooth_substrate() {

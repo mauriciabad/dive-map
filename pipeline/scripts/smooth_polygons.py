@@ -280,24 +280,27 @@ def closed_coords(ring, precision: int):
 
 
 class Strength:
-    __slots__ = ("rounds", "cut", "passes", "lam", "mu", "tol")
+    __slots__ = ("rounds", "cut", "passes", "lam", "mu", "tol", "cap", "ratio")
 
-    def __init__(self, rounds, cut, passes, lam, mu, tol):
+    def __init__(self, rounds, cut, passes, lam, mu, tol, cap, ratio):
         self.rounds, self.cut, self.passes = rounds, cut, passes
         self.lam, self.mu, self.tol = lam, mu, tol
+        self.cap, self.ratio = cap, ratio
 
 
 # Chaikin converges on the quadratic B-spline of its input, which never leaves a corner by
 # more than an eighth of the segment, so rounds alone cannot flatten a 10 m step. The Taubin
 # passes are what travel: lambda smooths, the negative mu pushes back so the curve does not
 # shrink away. Per-vertex caps bound the total travel and hold the minimum mapping unit.
+# cap and ratio are the two halves of the per-vertex travel limit: cap bounds how far any
+# vertex may move, ratio scales that down by the width of the smallest polygon touching it.
+# Measured on the Tamariu block, ratio 0.30 is where features start crossing below the 100 m2
+# minimum mapping unit, so 0.20 at the strongest setting keeps a margin.
 PRESETS = {
-    "light": Strength(rounds=2, cut=0.25, passes=0, lam=0.0, mu=0.0, tol=0.2),
-    "medium": Strength(rounds=2, cut=0.25, passes=6, lam=0.60, mu=-0.62, tol=0.3),
-    "blob": Strength(rounds=2, cut=0.25, passes=18, lam=0.65, mu=-0.67, tol=0.4),
+    "light": Strength(rounds=2, cut=0.25, passes=0, lam=0.0, mu=0.0, tol=0.2, cap=2.0, ratio=0.10),
+    "medium": Strength(rounds=2, cut=0.25, passes=6, lam=0.60, mu=-0.62, tol=0.3, cap=4.5, ratio=0.15),
+    "blob": Strength(rounds=2, cut=0.25, passes=18, lam=0.65, mu=-0.67, tol=0.4, cap=6.5, ratio=0.20),
 }
-
-CAP_BY_STRENGTH = {"light": 2.0, "medium": 4.5, "blob": 6.5}
 
 SHORE_CELL = 0.0015
 
@@ -409,7 +412,7 @@ def main() -> int:
     ap.add_argument("--limit-out")
     ap.add_argument("--smoothing", choices=sorted(PRESETS), default="medium")
     ap.add_argument("--max-offset", type=float)
-    ap.add_argument("--size-ratio", type=float, default=0.10)
+    ap.add_argument("--size-ratio", type=float)
     ap.add_argument("--passes", type=int)
     ap.add_argument("--coastline")
     ap.add_argument("--precision", type=int, default=6)
@@ -417,7 +420,8 @@ def main() -> int:
     cfg = PRESETS[args.smoothing]
     if args.passes is not None:
         cfg.passes = args.passes
-    max_offset = args.max_offset if args.max_offset is not None else CAP_BY_STRENGTH[args.smoothing]
+    max_offset = args.max_offset if args.max_offset is not None else cfg.cap
+    size_ratio = args.size_ratio if args.size_ratio is not None else cfg.ratio
 
     arr = Arrangement()
     features = []
@@ -433,7 +437,7 @@ def main() -> int:
         if coords:
             polys = coords if g.get("type") == "MultiPolygon" else [coords]
             for poly in polys:
-                built = [arr.add_ring(r, fid, args.size_ratio, max_offset) for r in poly]
+                built = [arr.add_ring(r, fid, size_ratio, max_offset) for r in poly]
                 shape.append([r for r in built if r is not None])
         features.append((f.get("properties") or {}, shape))
 
@@ -475,7 +479,7 @@ def main() -> int:
 
     degrees = Counter(len(a) for a in adjacency.values())
     caps = sorted(cap.values())
-    print(f"smoothing           {args.smoothing} (chaikin {cfg.rounds}, taubin {cfg.passes}x2, cap {max_offset} m)")
+    print(f"smoothing           {args.smoothing} (chaikin {cfg.rounds}, taubin {cfg.passes}x2, cap {max_offset} m, ratio {size_ratio})")
     print(f"features            {len(features)}")
     print(f"rings               {len(arr.rings)}")
     print(f"distinct vertices   {len(arr.pts)}")
