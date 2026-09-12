@@ -92,10 +92,17 @@ def main() -> int:
             scaled = img.resize((size, size), Image.LANCZOS)
             scaled.save(d / f"{name}.webp", quality=WEBP_QUALITY, method=6)
             scaled.save(d / f"{name}.jxl", quality=JXL_QUALITY, effort=7)
+
             bytes_by_format["webp"] += (d / f"{name}.webp").stat().st_size
             bytes_by_format["jxl"] += (d / f"{name}.jxl").stat().st_size
         total_webp += bytes_by_format["webp"]
         total_jxl += bytes_by_format["jxl"]
+
+        # pdf-lib embeds PNG and JPEG only, so the printed legend needs a raster
+        # swatch the browser can hand it directly.
+        swatch = args.out / "swatch"
+        swatch.mkdir(parents=True, exist_ok=True)
+        img.resize((160, 160), Image.LANCZOS).save(swatch / f"{name}.jpg", quality=86, optimize=True)
 
         index[name] = {
             "source": src.name,

@@ -69,6 +69,15 @@
 		m.addControl(new NavigationControl({ visualizePitch: false }), 'top-right');
 		m.addControl(new ScaleControl({ maxWidth: 140, unit: 'metric' }), 'bottom-right');
 
+		const syncCamera = () => {
+			const c = m.getCenter();
+			view.centre = { lng: c.lng, lat: c.lat };
+			view.zoom = m.getZoom();
+			view.bearing = m.getBearing();
+		};
+		m.on('move', syncCamera);
+		syncCamera();
+
 		m.on('styledata', () => void installTextures(m));
 		m.on('load', () => {
 			view.ready = true;

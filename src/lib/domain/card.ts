@@ -5,7 +5,8 @@ import {
 	groundCoverageMetres,
 	groundMetresPerPixel,
 	mapAreaMm,
-	pixelSize
+	pixelSize,
+	zoomForScale
 } from './print.ts';
 
 /**
@@ -177,3 +178,7 @@ export const scaleBar = (
 /** Whether the sheet resolves detail a diver can use, in metres of seabed per printed dot. */
 export const groundResolution = (card: DiveCard): number =>
 	groundMetresPerPixel(card.scale, card.sheet.dpi);
+
+/** The zoom the export renders at, so the sheet comes out at the scale it claims. */
+export const zoomForCard = (card: DiveCard): number =>
+	zoomForScale(card.scale, card.centre.lat, card.sheet.dpi);

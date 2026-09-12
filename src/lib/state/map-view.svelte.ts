@@ -1,5 +1,13 @@
 import { SvelteSet } from 'svelte/reactivity';
-import { DEFAULT_ISOBATHS, DEFAULT_LAYERS, type IsobathStyle, type LayerId } from '$lib/domain/card';
+import {
+	DEFAULT_ISOBATHS,
+	DEFAULT_LAYERS,
+	type DiveCard,
+	type IsobathStyle,
+	type LayerId,
+	type LngLat,
+	newCard
+} from '$lib/domain/card';
 import { type Locale, negotiate } from '$lib/i18n/locale';
 
 /**
@@ -17,6 +25,14 @@ export class MapState {
 
 	/** Print framing mode. The crop overlay only exists while this is on. */
 	framing = $state(false);
+
+	/** Live camera, mirrored from the map so the crop overlay can size itself. */
+	centre = $state<LngLat>({ lng: 3.2165, lat: 41.9275 });
+	zoom = $state(13.4);
+	bearing = $state(0);
+
+	/** The sheet being framed. Its centre follows the map, so dragging frames it. */
+	card = $state<DiveCard>(newCard({ lng: 3.2165, lat: 41.9275 }, 'Sense nom'));
 
 	/** Set once the map has loaded its first tiles, so the shell can stop showing skeletons. */
 	ready = $state(false);
@@ -54,5 +70,16 @@ export class MapState {
 
 	toggleLabels(): void {
 		this.isobaths = { ...this.isobaths, labels: !this.isobaths.labels };
+	}
+
+	/** The card as it would print right now: the live camera plus the sheet settings. */
+	get framedCard(): DiveCard {
+		return {
+			...this.card,
+			centre: this.centre,
+			bearing: this.bearing,
+			layers: [...this.visible],
+			isobaths: this.isobaths
+		};
 	}
 }

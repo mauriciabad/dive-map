@@ -46,7 +46,11 @@ const ca = {
 	maxDepthOf: 'Fondària màxima {n} m',
 	difficulty: 'Dificultat',
 	entryShore: 'Des de terra',
-	entryBoat: 'Des de barca'
+	entryBoat: 'Des de barca',
+	cropOffScreen: 'El full no hi cap a la pantalla. Allunya el mapa per veure\'l sencer.',
+	exporting: 'Generant el PDF',
+	cardTitle: 'Títol del full',
+	exportDone: 'PDF desat'
 } as const;
 
 type Catalogue = Record<keyof typeof ca, string>;
@@ -92,7 +96,11 @@ const es: Catalogue = {
 	maxDepthOf: 'Profundidad máxima {n} m',
 	difficulty: 'Dificultad',
 	entryShore: 'Desde tierra',
-	entryBoat: 'Desde barco'
+	entryBoat: 'Desde barco',
+	cropOffScreen: 'La hoja no cabe en la pantalla. Aleja el mapa para verla entera.',
+	exporting: 'Generando el PDF',
+	cardTitle: 'Título de la hoja',
+	exportDone: 'PDF guardado'
 };
 
 const en: Catalogue = {
@@ -135,7 +143,11 @@ const en: Catalogue = {
 	maxDepthOf: 'Maximum depth {n} m',
 	difficulty: 'Difficulty',
 	entryShore: 'Shore entry',
-	entryBoat: 'Boat entry'
+	entryBoat: 'Boat entry',
+	cropOffScreen: 'The sheet does not fit the screen. Zoom out to see all of it.',
+	exporting: 'Building the PDF',
+	cardTitle: 'Sheet title',
+	exportDone: 'PDF saved'
 };
 
 export type MessageKey = keyof Catalogue;

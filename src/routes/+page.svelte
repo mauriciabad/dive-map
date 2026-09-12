@@ -1,14 +1,51 @@
 <script lang="ts">
 	import MapView from '$lib/map/MapView.svelte';
 	import ControlRail from '$lib/ui/ControlRail.svelte';
+	import CropOverlay from '$lib/ui/CropOverlay.svelte';
 	import { MapState } from '$lib/state/map-view.svelte';
 	import { t } from '$lib/i18n/messages';
+	import { renderCard } from '$lib/print/render';
+	import { composeCardPdf } from '$lib/print/pdf';
 
 	/** Begur and Tamariu, the water this was built for. */
 	const START = { lng: 3.2165, lat: 41.9275 };
 	const START_ZOOM = 13.4;
 
 	const view = new MapState(navigator.languages);
+	let exporting = $state(false);
+
+	const fileName = (title: string): string => {
+		const slug = title
+			.normalize('NFD')
+			.replace(/[\u0300-\u036f]/g, '')
+			.replace(/[^\w]+/g, '-')
+			.replace(/^-|-$/g, '')
+			.toLowerCase();
+		return `${slug.length > 0 ? slug : 'full'}.pdf`;
+	};
+
+	const exportSheet = async (): Promise<void> => {
+		exporting = true;
+		try {
+			const card = view.framedCard;
+			const rendered = await renderCard(card, {
+				isobaths: view.isobaths,
+				visible: [...view.visible],
+				groundLayer: view.groundLayer
+			});
+			const pdf = await composeCardPdf(card, rendered, view.locale);
+			const url = URL.createObjectURL(new Blob([pdf as BlobPart], { type: 'application/pdf' }));
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = fileName(card.title);
+			a.click();
+			URL.revokeObjectURL(url);
+		} catch (e) {
+			view.error = e instanceof Error ? e.message : String(e);
+		} finally {
+			exporting = false;
+		}
+	};
 </script>
 
 <svelte:head>
@@ -33,6 +70,16 @@
 			<span>{view.error}</span>
 			<button type="button" onclick={() => { location.reload(); }}>{t(view.locale, 'retry')}</button>
 		</div>
+	{/if}
+
+	{#if view.framing}
+		<CropOverlay
+			{view}
+			busy={exporting}
+			onexport={() => {
+				void exportSheet();
+			}}
+		/>
 	{/if}
 
 	<ControlRail {view} />
