@@ -23,6 +23,27 @@
 	}
 
 	const { pick, locale, onclose }: Props = $props();
+
+	let body = $state<HTMLElement | undefined>(undefined);
+	let more = $state(false);
+
+	/**
+	 * A phone caps the sheet short of the map centre, so a hazard can sit below the
+	 * fold with nothing to say so. The fade is driven by the real scroll position,
+	 * never painted over a list that is already whole.
+	 */
+	$effect(() => {
+		const el = body;
+		if (el === undefined || pick === undefined) return;
+		const measure = () => {
+			more = el.scrollTop + el.clientHeight < el.scrollHeight - 1;
+		};
+		measure();
+		el.addEventListener('scroll', measure, { passive: true });
+		return () => {
+			el.removeEventListener('scroll', measure);
+		};
+	});
 </script>
 
 <svelte:window
@@ -47,7 +68,7 @@
 			</button>
 		</header>
 
-		<div class="body">
+		<div class={['body', { more }]} bind:this={body}>
 			<p class="subtitle">{subtitleOf(feature, locale).join(' · ')}</p>
 
 			{#if hero !== undefined}
@@ -200,7 +221,12 @@
 		flex-direction: column;
 		gap: 0.95rem;
 		overflow-y: auto;
+		overscroll-behavior: contain;
 		padding-block: 0.25rem;
+	}
+
+	.body.more {
+		mask-image: linear-gradient(180deg, #000 calc(100% - 1.75rem), transparent);
 	}
 
 	.subtitle {

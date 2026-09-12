@@ -232,13 +232,14 @@ export const detailRowsOf = (feature: DiveFeature, locale: Locale): readonly Det
 	switch (feature.kind) {
 		case 'dive-site': {
 			const rows: DetailRow[] = [];
+			// Hazards outrank the entry method: one changes whether you dive at all.
+			if (feature.dangers.length > 0) {
+				rows.push({ label: 'dangers', values: feature.dangers.map((d) => dangerText(locale, d)) });
+			}
 			const entries = ENTRY_ORDER.filter((e) => feature.entry.includes(e)).map((e) =>
 				t(locale, e === 'shore' ? 'entryShore' : 'entryBoat')
 			);
 			if (entries.length > 0) rows.push({ label: 'entry', values: entries });
-			if (feature.dangers.length > 0) {
-				rows.push({ label: 'dangers', values: feature.dangers.map((d) => dangerText(locale, d)) });
-			}
 			return rows;
 		}
 		case 'wreck': {
