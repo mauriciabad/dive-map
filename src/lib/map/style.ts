@@ -1,0 +1,503 @@
+import { asset } from '$app/paths';
+import type {
+	DataDrivenPropertyValueSpecification,
+	ExpressionSpecification,
+	LayerSpecification,
+	StyleSpecification
+} from 'maplibre-gl';
+import { HABITATS, SUBSTRATES } from '$lib/domain/habitat';
+import type { IsobathStyle, LayerId } from '$lib/domain/card';
+
+/**
+ * The seabed drawn as painted terrain, in the grammar of the texture pack it is
+ * painted with. Three things stack to make depth legible without reading a
+ * number: the habitat texture is the ground, the hillshade is the light falling
+ * on it, and the depth veil is the water column between the diver and it. The
+ * veil is transparent at the surface and near-opaque at 80 m, which is what
+ * actually happens to light in water, so shallow reads sharp and warm and deep
+ * reads blue and far away.
+ *
+ * Isobaths sit above the veil so they stay readable at depth, and the five
+ * depths a recreational dive plan turns on are drawn heavier than the rest.
+ */
+
+export const PALETTE = {
+	void: '#16222b',
+	shallow: '#2ad9b4',
+	deepVeil: '#003850',
+	terrainEdge: '#2a2119',
+	terrainEdgeSoft: 'rgba(42, 33, 25, 0.55)',
+	isobath: '#3d3227',
+	isobathMajor: '#241c14',
+	land: '#d9cdb9',
+	landEdge: '#8a7d68',
+	ink: '#1d1710',
+	paper: '#efe4cf',
+	brass: '#b8893f',
+	buoy: '#e0a32e',
+	hazard: '#b23a2c'
+} as const;
+
+/**
+ * The water column, as a colour-relief ramp over the DEM. Stops are elevation in
+ * metres, so negative underwater. Alpha, not hue, carries the depth: tinting a
+ * painted texture blue without also veiling it just makes it look dirty.
+ */
+const DEPTH_VEIL: ExpressionSpecification = [
+	'interpolate',
+	['linear'],
+	['elevation'],
+	-90, 'rgba(0, 42, 62, 0.86)',
+	-80, 'rgba(0, 56, 80, 0.78)',
+	-50, 'rgba(2, 79, 119, 0.62)',
+	-40, 'rgba(2, 90, 130, 0.52)',
+	-30, 'rgba(4, 107, 150, 0.40)',
+	-18, 'rgba(10, 143, 155, 0.26)',
+	-5, 'rgba(35, 201, 172, 0.10)',
+	0, 'rgba(42, 217, 180, 0)',
+	0.01, 'rgba(0, 0, 0, 0)'
+];
+
+/**
+ * code -> texture image id, built from the catalogues so the two cannot drift.
+ * An object lookup rather than a 60-branch match: one literal instead of a
+ * variadic tuple, and it types without a cast.
+ */
+const patternFor = (
+	classes: readonly { readonly code: string | undefined; readonly texture: string }[]
+): DataDrivenPropertyValueSpecification<string> => {
+	const lookup: Record<string, string> = {};
+	for (const c of classes) {
+		if (c.code !== undefined) lookup[c.code] = c.texture;
+	}
+	return ['coalesce', ['get', ['get', 'code'], ['literal', lookup]], 'ch_sand'];
+};
+
+/**
+ * Lines a dive plan turns on, drawn heavier. `to-number` is not decoration:
+ * match type-checks its input, so a depth that arrives as a string falls
+ * silently through to the thin branch.
+ */
+const heavyIf = (
+	emphasised: readonly number[],
+	heavy: number,
+	light: number
+): ExpressionSpecification => [
+	'match',
+	['to-number', ['get', 'depth']],
+	[...emphasised],
+	heavy,
+	light
+];
+
+const isobathWidth = (
+	emphasised: readonly number[]
+): DataDrivenPropertyValueSpecification<number> => [
+	'interpolate',
+	['linear'],
+	['zoom'],
+	10,
+	heavyIf(emphasised, 0.9, 0.3),
+	14,
+	heavyIf(emphasised, 2.0, 0.7),
+	18,
+	heavyIf(emphasised, 4.4, 1.4)
+];
+
+/**
+ * The tiles carry every metre. Filtering the interval here rather than baking it
+ * means the side panel can change it with no new data, and an emphasised depth
+ * survives an interval that would otherwise drop it.
+ */
+const isobathFilter = ({
+	intervalM,
+	emphasised,
+	maxDepthM
+}: IsobathStyle): ExpressionSpecification => [
+	'all',
+	['<=', ['to-number', ['get', 'depth']], maxDepthM],
+	[
+		'any',
+		['in', ['to-number', ['get', 'depth']], ['literal', [...emphasised]]],
+		['==', ['%', ['to-number', ['get', 'depth']], Math.max(1, intervalM)], 0]
+	]
+];
+
+export interface StyleOptions {
+	readonly isobaths: IsobathStyle;
+	readonly visible: readonly LayerId[];
+	/** Substrate instead of habitat in the ground layer. They occupy the same slot. */
+	readonly groundLayer: 'habitats' | 'substrate';
+}
+
+const vis = (options: StyleOptions, id: LayerId): 'visible' | 'none' =>
+	options.visible.includes(id) ? 'visible' : 'none';
+
+const groundLayers = (options: StyleOptions): LayerSpecification[] => {
+	const showing = options.groundLayer;
+	const classes = showing === 'habitats' ? HABITATS : SUBSTRATES;
+	return [
+		{
+			id: 'ground-fill',
+			type: 'fill',
+			source: showing,
+			'source-layer': showing,
+			layout: { visibility: vis(options, showing) },
+			paint: {
+				'fill-pattern': patternFor(classes),
+				'fill-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.55, 13, 0.92]
+			}
+		},
+		{
+			id: 'ground-edge',
+			type: 'line',
+			source: showing,
+			'source-layer': showing,
+			layout: { visibility: vis(options, showing), 'line-join': 'round' },
+			paint: {
+				'line-color': PALETTE.terrainEdgeSoft,
+				'line-blur': ['interpolate', ['linear'], ['zoom'], 12, 1.5, 18, 5],
+				'line-width': ['interpolate', ['linear'], ['zoom'], 12, 1.2, 18, 5],
+				// The survey admits 40% per-class accuracy and 75% purity, so the edge is
+				// a soft shadow rather than a hard line. Certainty the data does not have
+				// would be a lie a diver could act on.
+				'line-opacity': 0.7
+			}
+		}
+	];
+};
+
+const isKind = (...kinds: readonly string[]): ExpressionSpecification => [
+	'in',
+	['get', 'kind'],
+	['literal', [...kinds]]
+];
+
+/**
+ * OSM features, drawn as objects sitting on the painted ground rather than as
+ * flat pins. Each carries its own drop shadow so it reads as a thing on a table,
+ * which is also what makes it survive a busy texture underneath.
+ *
+ * Restricted areas come first because they are the one thing a diver must see
+ * even when everything else is off: a swimming zone is where you may not surface.
+ */
+const osmLayers = (options: StyleOptions): LayerSpecification[] => {
+	const visibility = vis(options, 'osm');
+	const labelFont = ['Alegreya Sans Bold'];
+	return [
+		{
+			id: 'osm-restricted',
+			type: 'fill',
+			source: 'osm',
+			filter: ['all', ['==', ['geometry-type'], 'Polygon'], isKind('restricted-area')],
+			layout: { visibility },
+			paint: { 'fill-color': PALETTE.hazard, 'fill-opacity': 0.14 }
+		},
+		{
+			id: 'osm-restricted-edge',
+			type: 'line',
+			source: 'osm',
+			filter: ['all', ['==', ['geometry-type'], 'Polygon'], isKind('restricted-area')],
+			layout: { visibility },
+			paint: {
+				'line-color': PALETTE.hazard,
+				'line-width': 1.6,
+				'line-dasharray': [3, 2],
+				'line-opacity': 0.8
+			}
+		},
+		{
+			id: 'osm-site-area',
+			type: 'line',
+			source: 'osm',
+			filter: ['all', ['==', ['geometry-type'], 'Polygon'], isKind('dive-site', 'rock')],
+			layout: { visibility, 'line-join': 'round' },
+			paint: {
+				'line-color': PALETTE.paper,
+				'line-width': ['interpolate', ['linear'], ['zoom'], 12, 1, 18, 2.6],
+				'line-opacity': 0.75
+			}
+		},
+		{
+			id: 'osm-shadow',
+			type: 'circle',
+			source: 'osm',
+			filter: ['all', ['==', ['geometry-type'], 'Point'], isKind('dive-site', 'mooring', 'wreck')],
+			layout: { visibility },
+			paint: {
+				'circle-color': 'rgba(10, 8, 5, 0.45)',
+				'circle-blur': 0.8,
+				'circle-translate': [1.5, 2.5],
+				'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 4, 18, 11]
+			}
+		},
+		{
+			id: 'osm-mooring',
+			type: 'circle',
+			source: 'osm',
+			filter: ['all', ['==', ['geometry-type'], 'Point'], isKind('mooring')],
+			layout: { visibility },
+			paint: {
+				'circle-color': PALETTE.buoy,
+				'circle-stroke-color': PALETTE.ink,
+				'circle-stroke-width': 1.4,
+				'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 2.5, 18, 7]
+			}
+		},
+		{
+			id: 'osm-wreck',
+			type: 'circle',
+			source: 'osm',
+			filter: ['all', ['==', ['geometry-type'], 'Point'], isKind('wreck')],
+			layout: { visibility },
+			paint: {
+				'circle-color': PALETTE.terrainEdge,
+				'circle-stroke-color': PALETTE.paper,
+				'circle-stroke-width': 1.6,
+				'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 3.5, 18, 9]
+			}
+		},
+		{
+			id: 'osm-dive-site',
+			type: 'circle',
+			source: 'osm',
+			filter: ['all', ['==', ['geometry-type'], 'Point'], isKind('dive-site')],
+			layout: { visibility },
+			paint: {
+				'circle-color': PALETTE.paper,
+				'circle-stroke-color': PALETTE.ink,
+				'circle-stroke-width': 2,
+				'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 4, 18, 10]
+			}
+		},
+		{
+			id: 'osm-dive-site-label',
+			type: 'symbol',
+			source: 'osm',
+			filter: isKind('dive-site'),
+			layout: {
+				visibility,
+				'text-field': ['coalesce', ['get', 'name'], ''],
+				'text-font': labelFont,
+				'text-size': ['interpolate', ['linear'], ['zoom'], 10, 11, 18, 16],
+				'text-offset': [0, 1.1],
+				'text-anchor': 'top',
+				'text-max-width': 9,
+				'symbol-sort-key': ['-', 0, ['coalesce', ['get', 'maxDepth'], 0]]
+			},
+			paint: {
+				'text-color': PALETTE.paper,
+				'text-halo-color': PALETTE.ink,
+				'text-halo-width': 1.8
+			}
+		},
+		{
+			id: 'osm-dive-site-depth',
+			type: 'symbol',
+			source: 'osm',
+			minzoom: 13,
+			filter: ['all', isKind('dive-site'), ['has', 'maxDepth']],
+			layout: {
+				visibility,
+				'text-field': ['concat', '-', ['get', 'maxDepth'], ' m'],
+				'text-font': labelFont,
+				'text-size': ['interpolate', ['linear'], ['zoom'], 13, 10, 18, 13],
+				'text-offset': [0, 2.5],
+				'text-anchor': 'top'
+			},
+			paint: {
+				'text-color': PALETTE.buoy,
+				'text-halo-color': PALETTE.ink,
+				'text-halo-width': 1.6
+			}
+		},
+
+		{
+			id: 'annotation-area',
+			type: 'fill',
+			source: 'annotations',
+			filter: ['==', ['geometry-type'], 'Polygon'],
+			layout: { visibility: vis(options, 'annotations') },
+			paint: {
+				'fill-color': ['coalesce', ['get', 'colour'], PALETTE.brass],
+				'fill-opacity': 0.2
+			}
+		},
+		{
+			id: 'annotation-line',
+			type: 'line',
+			source: 'annotations',
+			filter: ['!=', ['geometry-type'], 'Point'],
+			layout: { visibility: vis(options, 'annotations'), 'line-cap': 'round', 'line-join': 'round' },
+			paint: {
+				'line-color': ['coalesce', ['get', 'colour'], PALETTE.brass],
+				'line-width': ['interpolate', ['linear'], ['zoom'], 12, 2, 18, 5]
+			}
+		},
+		{
+			id: 'annotation-point',
+			type: 'circle',
+			source: 'annotations',
+			filter: ['==', ['geometry-type'], 'Point'],
+			layout: { visibility: vis(options, 'annotations') },
+			paint: {
+				'circle-color': ['coalesce', ['get', 'colour'], PALETTE.brass],
+				'circle-stroke-color': PALETTE.ink,
+				'circle-stroke-width': 2,
+				'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 5, 18, 9]
+			}
+		},
+		{
+			id: 'annotation-label',
+			type: 'symbol',
+			source: 'annotations',
+			filter: ['has', 'label'],
+			layout: {
+				visibility: vis(options, 'annotations'),
+				'text-field': ['get', 'label'],
+				'text-font': labelFont,
+				'text-size': ['interpolate', ['linear'], ['zoom'], 12, 11, 18, 15],
+				'text-offset': [0, 1.2],
+				'text-anchor': 'top',
+				'text-max-width': 10
+			},
+			paint: {
+				'text-color': PALETTE.paper,
+				'text-halo-color': PALETTE.ink,
+				'text-halo-width': 1.8
+			}
+		}
+	];
+};
+
+export const buildStyle = (options: StyleOptions): StyleSpecification => ({
+	version: 8,
+	name: 'Seabed',
+	glyphs: asset('/fonts/{fontstack}/{range}.pbf'),
+	sources: {
+		'seabed-dem': {
+			type: 'raster-dem',
+			url: `pmtiles://${asset('/tiles/seabed-dem.pmtiles')}`,
+			encoding: 'mapbox',
+			tileSize: 512
+		},
+		isobaths: { type: 'vector', url: `pmtiles://${asset('/tiles/isobaths.pmtiles')}` },
+		habitats: { type: 'vector', url: `pmtiles://${asset('/tiles/habitats.pmtiles')}` },
+		substrate: { type: 'vector', url: `pmtiles://${asset('/tiles/substrate.pmtiles')}` },
+		coastline: { type: 'vector', url: `pmtiles://${asset('/tiles/coastline.pmtiles')}` },
+		osm: { type: 'geojson', data: asset('/data/osm.geojson') },
+		annotations: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } }
+	},
+	layers: [
+		{ id: 'void', type: 'background', paint: { 'background-color': PALETTE.void } },
+
+		...groundLayers(options),
+
+		{
+			id: 'hillshade',
+			type: 'hillshade',
+			source: 'seabed-dem',
+			layout: { visibility: vis(options, 'hillshade') },
+			paint: {
+				// Low sun from the north-west. A high sun flattens a seabed whose whole
+				// relief is a few tens of metres.
+				'hillshade-illumination-direction': 315,
+				'hillshade-illumination-altitude': 28,
+				'hillshade-exaggeration': 0.62,
+				'hillshade-shadow-color': 'rgba(20, 14, 8, 0.55)',
+				'hillshade-highlight-color': 'rgba(255, 246, 224, 0.3)',
+				'hillshade-accent-color': 'rgba(30, 22, 14, 0.35)'
+			}
+		},
+		{
+			id: 'depth-veil',
+			type: 'color-relief',
+			source: 'seabed-dem',
+			layout: { visibility: vis(options, 'depth-tint') },
+			paint: { 'color-relief-color': DEPTH_VEIL }
+		},
+
+		{
+			id: 'isobath-glow',
+			type: 'line',
+			source: 'isobaths',
+			'source-layer': 'isobaths',
+			filter: isobathFilter(options.isobaths),
+			layout: { visibility: vis(options, 'isobaths'), 'line-join': 'round' },
+			paint: {
+				'line-color': 'rgba(255, 244, 214, 0.3)',
+				'line-blur': 2.5,
+				'line-translate': [0, 1.5],
+				'line-width': isobathWidth(options.isobaths.emphasised)
+			}
+		},
+		{
+			id: 'isobath',
+			type: 'line',
+			source: 'isobaths',
+			'source-layer': 'isobaths',
+			filter: isobathFilter(options.isobaths),
+			layout: { visibility: vis(options, 'isobaths'), 'line-join': 'round' },
+			paint: {
+				'line-color': [
+					'match',
+					['to-number', ['get', 'depth']],
+					[...options.isobaths.emphasised],
+					PALETTE.isobathMajor,
+					PALETTE.isobath
+				],
+				'line-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.5, 14, 0.85],
+				'line-width': isobathWidth(options.isobaths.emphasised)
+			}
+		},
+		{
+			id: 'isobath-label',
+			type: 'symbol',
+			source: 'isobaths',
+			'source-layer': 'isobaths',
+			minzoom: 13,
+			filter: [
+				'all',
+				isobathFilter(options.isobaths),
+				['in', ['to-number', ['get', 'depth']], ['literal', [...options.isobaths.emphasised]]]
+			],
+			layout: {
+				visibility: options.isobaths.labels ? vis(options, 'isobaths') : 'none',
+				'symbol-placement': 'line',
+				'text-field': ['concat', ['get', 'depth'], ' m'],
+				'text-font': ['Alegreya Sans Bold'],
+				'text-size': ['interpolate', ['linear'], ['zoom'], 13, 10, 18, 14],
+				'text-letter-spacing': 0.06,
+				'text-max-angle': 25,
+				'symbol-spacing': 320
+			},
+			paint: {
+				'text-color': PALETTE.paper,
+				'text-halo-color': PALETTE.isobathMajor,
+				'text-halo-width': 1.6
+			}
+		},
+
+		{
+			id: 'land',
+			type: 'fill',
+			source: 'coastline',
+			'source-layer': 'land',
+			layout: { visibility: vis(options, 'coastline') },
+			paint: { 'fill-pattern': 'ch_rock', 'fill-opacity': 0.95 }
+		},
+		{
+			id: 'land-edge',
+			type: 'line',
+			source: 'coastline',
+			'source-layer': 'land',
+			layout: { visibility: vis(options, 'coastline'), 'line-join': 'round' },
+			paint: {
+				'line-color': PALETTE.terrainEdge,
+				'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 18, 3.5]
+			}
+		},
+
+		...osmLayers(options)
+	]
+});

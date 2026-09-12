@@ -1,9 +1,13 @@
 """Turn the Crosshead 2048px terrain PNGs into the habitat pattern set.
 
 Emits every texture at four sizes so the app can trade grain for memory: 512 by
-default, 2048 when the machine can take it or a card is being printed. WebP
-because MapLibre's addImage takes an ImageBitmap and the files are a third the
-size of PNG.
+default, 2048 when the machine can take it or a card is being printed.
+
+Two formats. Only Safari decodes JPEG XL without a flag today, so WebP ships
+alongside it and the app picks at runtime. The two quality scales are not
+comparable: measured against the source at 512px, JXL q82 lands on the same PSNR
+as WebP q88 and runs 15 to 20 percent smaller on the smooth textures, about even
+on the noisy ones.
 
 Textures whose opposite edges do not match get an edge blend first. A seam that
 is invisible on a phone is obvious on a laminated A3 sheet.
@@ -11,9 +15,12 @@ is invisible on a phone is obvious on a laminated A3 sheet.
 
 import argparse, json, math, pathlib, re, sys
 import numpy as np
+import pillow_jxl  # noqa: F401 - registers the JXL encoder with Pillow
 from PIL import Image
 
 SIZES = (2048, 1024, 512, 256)
+WEBP_QUALITY = 88
+JXL_QUALITY = 82
 SEAM_MARGIN = 0.08  # fraction of the edge that gets blended
 
 
@@ -59,6 +66,8 @@ def main() -> int:
 
     index: dict[str, dict[str, object]] = {}
     missing: list[str] = []
+    total_webp = 0
+    total_jxl = 0
 
     for name in wanted:
         hits = list(args.src.rglob(f"{name}.png"))
@@ -76,23 +85,36 @@ def main() -> int:
         after = seam_ratios(a)
 
         img = Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
+        bytes_by_format: dict[str, int] = {"webp": 0, "jxl": 0}
         for size in SIZES:
             d = args.out / str(size)
             d.mkdir(parents=True, exist_ok=True)
-            img.resize((size, size), Image.LANCZOS).save(d / f"{name}.webp", quality=88, method=6)
+            scaled = img.resize((size, size), Image.LANCZOS)
+            scaled.save(d / f"{name}.webp", quality=WEBP_QUALITY, method=6)
+            scaled.save(d / f"{name}.jxl", quality=JXL_QUALITY, effort=7)
+            bytes_by_format["webp"] += (d / f"{name}.webp").stat().st_size
+            bytes_by_format["jxl"] += (d / f"{name}.jxl").stat().st_size
+        total_webp += bytes_by_format["webp"]
+        total_jxl += bytes_by_format["jxl"]
 
         index[name] = {
             "source": src.name,
             "seamBefore": [round(v, 2) for v in before],
             "seamAfter": [round(v, 2) for v in after],
             "blended": fixed,
+            "bytes": bytes_by_format,
         }
         flag = f"blended {'+'.join(fixed)}" if fixed else "clean"
         print(f"  {name:22s} {before[0]:5.2f}/{before[1]:5.2f} -> {after[0]:5.2f}/{after[1]:5.2f}  {flag}")
 
     (args.out / "index.json").write_text(
-        json.dumps({"sizes": list(SIZES), "textures": index}, indent=2)
+        json.dumps(
+            {"sizes": list(SIZES), "formats": ["jxl", "webp"], "textures": index},
+            indent=2,
+        )
     )
+    print(f"\nwebp {total_webp / 1e6:.2f} MB   jxl {total_jxl / 1e6:.2f} MB "
+          f"({100 * (1 - total_jxl / max(total_webp, 1)):.0f}% smaller)")
     if missing:
         print(f"\nMISSING from the source pack: {', '.join(missing)}", file=sys.stderr)
     print(f"\nwrote {len(index)} textures x {len(SIZES)} sizes to {args.out}")

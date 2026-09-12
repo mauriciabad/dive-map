@@ -5,6 +5,10 @@
     512,
     256
   ],
+  "formats": [
+    "jxl",
+    "webp"
+  ],
   "textures": {
     "ch_bluestones": {
       "source": "ch_bluestones.png",
@@ -16,7 +20,11 @@
         1.13,
         1.12
       ],
-      "blended": []
+      "blended": [],
+      "bytes": {
+        "webp": 242958,
+        "jxl": 311986
+      }
     },
     "ch_cobblestone": {
       "source": "ch_cobblestone.png",
@@ -31,7 +39,11 @@
       "blended": [
         "x",
         "y"
-      ]
+      ],
+      "bytes": {
+        "webp": 719754,
+        "jxl": 736502
+      }
     },
     "ch_dirt": {
       "source": "ch_dirt.png",
@@ -43,7 +55,11 @@
         1.03,
         1.03
       ],
-      "blended": []
+      "blended": [],
+      "bytes": {
+        "webp": 85362,
+        "jxl": 110353
+      }
     },
     "ch_dirt_dark": {
       "source": "ch_dirt_dark.png",
@@ -55,7 +71,11 @@
         1.23,
         1.31
       ],
-      "blended": []
+      "blended": [],
+      "bytes": {
+        "webp": 142588,
+        "jxl": 181958
+      }
     },
     "ch_dirt_lines_02": {
       "source": "ch_dirt_lines_02.png",
@@ -67,7 +87,11 @@
         1.16,
         1.25
       ],
-      "blended": []
+      "blended": [],
+      "bytes": {
+        "webp": 150102,
+        "jxl": 186658
+      }
     },
     "ch_dirt_mud": {
       "source": "ch_dirt_mud.png",
@@ -79,21 +103,29 @@
         1.42,
         1.38
       ],
-      "blended": []
+      "blended": [],
+      "bytes": {
+        "webp": 323912,
+        "jxl": 329577
+      }
     },
     "ch_dungeonvoid": {
       "source": "ch_dungeonvoid.png",
       "seamBefore": [
-        2.43,
-        0.94
+        1.88,
+        1.41
       ],
       "seamAfter": [
         0.0,
-        0.94
+        1.42
       ],
       "blended": [
         "x"
-      ]
+      ],
+      "bytes": {
+        "webp": 22554,
+        "jxl": 33009
+      }
     },
     "ch_grass": {
       "source": "ch_grass.png",
@@ -105,7 +137,11 @@
         1.01,
         1.0
       ],
-      "blended": []
+      "blended": [],
+      "bytes": {
+        "webp": 208914,
+        "jxl": 206418
+      }
     },
     "ch_grass_2": {
       "source": "ch_grass_2.png",
@@ -117,7 +153,11 @@
         0.99,
         1.2
       ],
-      "blended": []
+      "blended": [],
+      "bytes": {
+        "webp": 164760,
+        "jxl": 157879
+      }
     },
     "ch_grass_2_lines": {
       "source": "ch_grass_2_lines.png",
@@ -132,7 +172,11 @@
       "blended": [
         "x",
         "y"
-      ]
+      ],
+      "bytes": {
+        "webp": 249106,
+        "jxl": 251937
+      }
     },
     "ch_grass_3": {
       "source": "ch_grass_3.png",
@@ -144,7 +188,11 @@
         1.43,
         0.89
       ],
-      "blended": []
+      "blended": [],
+      "bytes": {
+        "webp": 135780,
+        "jxl": 146947
+      }
     },
     "ch_grass_weeds": {
       "source": "ch_grass_weeds.png",
@@ -156,7 +204,11 @@
         1.15,
         0.94
       ],
-      "blended": []
+      "blended": [],
+      "bytes": {
+        "webp": 1160812,
+        "jxl": 846121
+      }
     },
     "ch_rock": {
       "source": "ch_rock.png",
@@ -168,7 +220,11 @@
         0.87,
         0.87
       ],
-      "blended": []
+      "blended": [],
+      "bytes": {
+        "webp": 136646,
+        "jxl": 153598
+      }
     },
     "ch_rocks": {
       "source": "ch_rocks.png",
@@ -182,7 +238,11 @@
       ],
       "blended": [
         "y"
-      ]
+      ],
+      "bytes": {
+        "webp": 432424,
+        "jxl": 470282
+      }
     },
     "ch_sand": {
       "source": "ch_sand.png",
@@ -196,7 +256,11 @@
       ],
       "blended": [
         "y"
-      ]
+      ],
+      "bytes": {
+        "webp": 129024,
+        "jxl": 126964
+      }
     },
     "ch_sandy": {
       "source": "ch_sandy.png",
@@ -208,7 +272,11 @@
         0.98,
         1.09
       ],
-      "blended": []
+      "blended": [],
+      "bytes": {
+        "webp": 88628,
+        "jxl": 104498
+      }
     },
     "ch_sandy_lines_02": {
       "source": "ch_sandy_lines_02.png",
@@ -220,7 +288,11 @@
         1.14,
         1.36
       ],
-      "blended": []
+      "blended": [],
+      "bytes": {
+        "webp": 131922,
+        "jxl": 164874
+      }
     },
     "ch_shipwood": {
       "source": "ch_shipwood.png",
@@ -234,19 +306,27 @@
       ],
       "blended": [
         "x"
-      ]
+      ],
+      "bytes": {
+        "webp": 218514,
+        "jxl": 248731
+      }
     },
     "ch_stone": {
       "source": "ch_stone.png",
       "seamBefore": [
-        1.11,
-        0.38
+        1.3,
+        0.08
       ],
       "seamAfter": [
-        1.11,
-        0.38
+        1.3,
+        0.08
       ],
-      "blended": []
+      "blended": [],
+      "bytes": {
+        "webp": 407916,
+        "jxl": 455802
+      }
     },
     "ch_stones": {
       "source": "ch_stones.png",
@@ -258,7 +338,11 @@
         0.91,
         1.09
       ],
-      "blended": []
+      "blended": [],
+      "bytes": {
+        "webp": 422090,
+        "jxl": 419137
+      }
     },
     "metal": {
       "source": "metal.png",
@@ -270,7 +354,11 @@
         0.41,
         0.99
       ],
-      "blended": []
+      "blended": [],
+      "bytes": {
+        "webp": 155484,
+        "jxl": 152760
+      }
     }
   }
 }
