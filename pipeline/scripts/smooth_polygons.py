@@ -1,14 +1,25 @@
 #!/usr/bin/env python3
-"""Rounds the 10 m raster staircase off the ICGC habitat and substrate polygons.
+"""Rounds the raster staircase off the ICGC habitat and substrate polygons.
 
-The polygons tile a continuous surface, so smoothing them one at a time would tear
-every shared boundary. This builds the shared-edge topology first: rings are cut into
-arcs wherever the neighbouring ring changes, each arc is stored once, smoothed once,
-and handed back to both of its users. Neighbours therefore receive the identical point
-sequence and no gap or overlap can exist by construction.
+These polygons tile a continuous surface, so smoothing them one at a time would tear
+every shared boundary. Instead this smooths the arrangement they form.
 
-Reads and writes line-delimited GeoJSON in EPSG:4326, preserving feature order and
-properties so the output can be diffed against the input feature by feature.
+Every output point is a pure function of a local vertex triple, evaluated with an
+expression that is symmetric under reversal. Two polygons sharing a boundary walk that
+boundary in opposite directions over the same vertices, so they compute bit-identical
+coordinates for it. Gaps and overlaps are impossible rather than merely small, and no
+matching tolerance is involved anywhere.
+
+A vertex with other than two distinct neighbours is a junction where three or more
+polygons meet, or the tip of a spike. Those stay pinned: a sharp point there is the
+correct answer, and rounding one would pull each polygon away in a different direction.
+
+The corner cut is capped per vertex by the size of the smallest polygon touching it, so
+the 100 m2 minimum mapping unit survives. Since the cap is a property of the vertex, both
+sides of every boundary read the same value.
+
+The dissolved survey coverage falls out of the same structure: its outline is exactly the
+directed edges no second polygon claims.
 """
 
 from __future__ import annotations
@@ -25,91 +36,30 @@ MX = 111320.0 * math.cos(math.radians(LAT0))
 MY = 110574.0
 
 
-def to_metres(pt: tuple[int, int]) -> tuple[float, float]:
+def metres(pt: tuple[int, int]) -> tuple[float, float]:
     return (pt[0] / GRID * MX, pt[1] / GRID * MY)
 
 
-def ring_metrics(ring_m: list[tuple[float, float]]) -> tuple[float, float]:
-    n = len(ring_m)
-    twice_area = 0.0
-    perimeter = 0.0
+def ring_metrics(ring: list[tuple[float, float]]) -> tuple[float, float]:
+    n = len(ring)
+    twice = 0.0
+    perim = 0.0
     for i in range(n):
-        x0, y0 = ring_m[i]
-        x1, y1 = ring_m[(i + 1) % n]
-        twice_area += x0 * y1 - x1 * y0
-        perimeter += math.hypot(x1 - x0, y1 - y0)
-    return twice_area / 2.0, perimeter
+        x0, y0 = ring[i]
+        x1, y1 = ring[(i + 1) % n]
+        twice += x0 * y1 - x1 * y0
+        perim += math.hypot(x1 - x0, y1 - y0)
+    return twice / 2.0, perim
 
 
-def chaikin(pts: list[tuple[float, float]], closed: bool, cut: float, cap: float, rounds: int):
-    for _ in range(rounds):
-        n = len(pts)
-        if n < 3:
-            return pts
-        out = []
-        if not closed:
-            out.append(pts[0])
-        limit = n if closed else n - 1
-        for i in range(limit):
-            ax, ay = pts[i]
-            bx, by = pts[(i + 1) % n]
-            dx, dy = bx - ax, by - ay
-            d = math.hypot(dx, dy)
-            if d == 0.0:
-                continue
-            t = cut if cut * d <= cap else cap / d
-            out.append((ax + t * dx, ay + t * dy))
-            out.append((bx - t * dx, by - t * dy))
-        if not closed:
-            out.append(pts[-1])
-        pts = out
-    return pts
-
-
-def simplify(pts: list[tuple[float, float]], tol: float) -> list[tuple[float, float]]:
-    if len(pts) < 3 or tol <= 0:
-        return pts
-    keep = [False] * len(pts)
-    keep[0] = keep[-1] = True
-    stack = [(0, len(pts) - 1)]
-    tol2 = tol * tol
-    while stack:
-        lo, hi = stack.pop()
-        if hi - lo < 2:
-            continue
-        ax, ay = pts[lo]
-        bx, by = pts[hi]
-        dx, dy = bx - ax, by - ay
-        span = dx * dx + dy * dy
-        worst = -1.0
-        at = -1
-        for i in range(lo + 1, hi):
-            px, py = pts[i]
-            if span == 0.0:
-                d2 = (px - ax) ** 2 + (py - ay) ** 2
-            else:
-                t = ((px - ax) * dx + (py - ay) * dy) / span
-                t = 0.0 if t < 0.0 else (1.0 if t > 1.0 else t)
-                d2 = (px - ax - t * dx) ** 2 + (py - ay - t * dy) ** 2
-            if d2 > worst:
-                worst, at = d2, i
-        if worst > tol2:
-            keep[at] = True
-            stack.append((lo, at))
-            stack.append((at, hi))
-    return [p for p, k in zip(pts, keep) if k]
-
-
-class Topology:
-    """Rings as sequences of shared arcs. The arc table is the whole design."""
-
+class Arrangement:
     def __init__(self) -> None:
         self.pt_id: dict[tuple[int, int], int] = {}
         self.pts: list[tuple[int, int]] = []
         self.rings: list[list[int]] = []
         self.ring_owner: list[int] = []
-        self.ring_size: list[float] = []
         self.ring_area: list[float] = []
+        self.ring_cap: list[float] = []
 
     def point(self, lon: float, lat: float) -> int:
         key = (int(round(lon * GRID)), int(round(lat * GRID)))
@@ -120,7 +70,7 @@ class Topology:
             self.pts.append(key)
         return got
 
-    def add_ring(self, coords, owner: int) -> int | None:
+    def add_ring(self, coords, owner: int, size_ratio: float, max_offset: float) -> int | None:
         seq: list[int] = []
         for lon, lat in coords:
             i = self.point(lon, lat)
@@ -130,223 +80,126 @@ class Topology:
             seq.pop()
         if len(seq) < 3:
             return None
-        rid = len(self.rings)
+        area, perim = ring_metrics([metres(self.pts[i]) for i in seq])
+        size = 4.0 * abs(area) / perim if perim > 0 else 0.0
         self.rings.append(seq)
         self.ring_owner.append(owner)
-        ring_m = [to_metres(self.pts[i]) for i in seq]
-        area, perim = ring_metrics(ring_m)
         self.ring_area.append(area)
-        self.ring_size.append(4.0 * abs(area) / perim if perim > 0 else 0.0)
-        return rid
+        self.ring_cap.append(min(max_offset, size_ratio * size))
+        return len(self.rings) - 1
 
 
-def build_arcs(topo: Topology, size_ratio: float, max_offset: float):
-    """Cuts every ring at the vertices where its neighbour changes or the arrangement branches."""
+def analyse(arr: Arrangement):
+    """Pins, per-vertex caps and the directed-edge partner map, all read from the rings."""
+    adjacency: dict[int, set[int]] = defaultdict(set)
     partner: dict[tuple[int, int], int] = {}
-    degree: dict[int, set[int]] = defaultdict(set)
-    for rid, seq in enumerate(topo.rings):
+    cap: dict[int, float] = {}
+    repeats: set[int] = set()
+    for rid, seq in enumerate(arr.rings):
         n = len(seq)
+        rcap = arr.ring_cap[rid]
+        seen: set[int] = set()
         for i in range(n):
             a, b = seq[i], seq[(i + 1) % n]
             partner.setdefault((a, b), rid)
-            degree[a].add(b)
-            degree[b].add(a)
-
-    def neighbour(a: int, b: int) -> int:
-        return partner.get((b, a), -1)
-
-    nodes: set[int] = {v for v, adj in degree.items() if len(adj) != 2}
-    for seq in topo.rings:
-        n = len(seq)
-        prev = neighbour(seq[-1], seq[0])
-        for i in range(n):
-            cur = neighbour(seq[i], seq[(i + 1) % n])
-            if cur != prev:
-                nodes.add(seq[i])
-            prev = cur
-
-    arc_id: dict[tuple[int, ...], int] = {}
-    arc_pts: list[list[int]] = []
-    arc_cap: list[float] = []
-    arc_open: list[bool] = []
-    arc_boundary: list[bool] = []
-    arc_rings: list[int] = []
-    ring_arcs: list[list[tuple[int, bool]]] = []
-
-    def intern(chain: list[int], is_open: bool, rid: int) -> tuple[int, bool]:
-        key = tuple(chain)
-        rev = tuple(reversed(chain))
-        flipped = rev < key
-        canon = rev if flipped else key
-        got = arc_id.get(canon)
-        if got is None:
-            got = len(arc_pts)
-            arc_id[canon] = got
-            arc_pts.append(list(canon))
-            arc_cap.append(math.inf)
-            arc_open.append(is_open)
-            arc_boundary.append(neighbour(chain[0], chain[1]) == -1)
-            arc_rings.append(rid)
-        size = topo.ring_size[rid]
-        cap = min(max_offset, size_ratio * size) if size > 0 else 0.0
-        if cap < arc_cap[got]:
-            arc_cap[got] = cap
-        return got, flipped
-
-    for rid, seq in enumerate(topo.rings):
-        n = len(seq)
-        cuts = [i for i in range(n) if seq[i] in nodes]
-        used: list[tuple[int, bool]] = []
-        if not cuts:
-            used.append(intern(seq + [seq[0]], False, rid))
-        else:
-            for k in range(len(cuts)):
-                start = cuts[k]
-                stop = cuts[(k + 1) % len(cuts)]
-                chain = [seq[start]]
-                i = start
-                while True:
-                    i = (i + 1) % n
-                    chain.append(seq[i])
-                    if i == stop:
-                        break
-                used.append(intern(chain, True, rid))
-        ring_arcs.append(used)
-
-    return arc_pts, arc_cap, arc_open, arc_boundary, arc_rings, ring_arcs
+            adjacency[a].add(b)
+            adjacency[b].add(a)
+            if a in seen:
+                repeats.add(a)
+            seen.add(a)
+            if rcap < cap.get(a, math.inf):
+                cap[a] = rcap
+    pinned = {v for v, adj in adjacency.items() if len(adj) != 2} | repeats
+    return pinned, cap, partner, adjacency
 
 
-def max_deviation(original: list[tuple[float, float]], curve: list[tuple[float, float]]) -> float:
-    worst = 0.0
-    for px, py in curve:
-        best = math.inf
-        for i in range(len(original) - 1):
-            ax, ay = original[i]
-            bx, by = original[i + 1]
-            dx, dy = bx - ax, by - ay
-            span = dx * dx + dy * dy
-            if span == 0.0:
-                d2 = (px - ax) ** 2 + (py - ay) ** 2
-            else:
-                t = ((px - ax) * dx + (py - ay) * dy) / span
-                t = 0.0 if t < 0.0 else (1.0 if t > 1.0 else t)
-                d2 = (px - ax - t * dx) ** 2 + (py - ay - t * dy) ** 2
-            if d2 < best:
-                best = d2
-        if best > worst:
-            worst = best
-    return math.sqrt(worst)
-
-
-def smooth_arcs(topo, arc_pts, arc_cap, arc_open, cut, rounds, tol, sample_every):
+def chaikin_round(ring, cut: float):
+    """One capped corner-cutting pass over (x, y, pin, cap, tag) points."""
+    n = len(ring)
     out = []
-    deviations = []
-    for idx, chain in enumerate(arc_pts):
-        pts = [to_metres(topo.pts[i]) for i in chain]
-        closed = not arc_open[idx]
-        if closed:
-            pts = pts[:-1]
-        cap = arc_cap[idx]
-        if cap <= 0.0 or len(pts) < 3:
-            smoothed = pts
-        else:
-            smoothed = chaikin(pts, closed, cut, cap, rounds)
-            if closed:
-                smoothed = simplify(smoothed + [smoothed[0]], tol)[:-1]
-            else:
-                smoothed = simplify(smoothed, tol)
-        if closed:
-            smoothed = smoothed + [smoothed[0]]
-            pts = pts + [pts[0]]
-        if idx % sample_every == 0 and len(pts) > 1 and len(smoothed) > 1:
-            deviations.append(max_deviation(pts, smoothed))
-        out.append([(x / MX * GRID, y / MY * GRID) for x, y in smoothed])
-    return out, deviations
-
-
-BREAKS = Counter()
-
-
-def ring_coords(arcs_used, smoothed, precision):
-    pts: list[tuple[float, float]] = []
-    for aid, flipped in arcs_used:
-        seg = smoothed[aid]
-        if flipped:
-            seg = list(reversed(seg))
-        if pts:
-            if pts[-1] == seg[0]:
-                pts.extend(seg[1:])
-            else:
-                BREAKS["arc join"] += 1
-                pts.extend(seg)
-        else:
-            pts.extend(seg)
-    if not pts or pts[0] != pts[-1]:
-        pts.append(pts[0])
-    q = 10.0**precision
-    ring = []
-    last = None
-    for x, y in pts:
-        c = [round(x / GRID * q) / q, round(y / GRID * q) / q]
-        if c != last:
-            ring.append(c)
-        last = c
-    while len(ring) > 1 and ring[0] == ring[-1]:
-        ring.pop()
-    if len(ring) < 3:
-        return None
-    ring.append(ring[0])
-    return ring
-
-
-def chain_boundary(arc_pts, arc_boundary, arc_open, smoothed, arc_rings, depth_of, precision):
-    """The dissolved coverage is exactly the arcs no second ring claims."""
-    starts: dict[int, list[int]] = defaultdict(list)
-    for aid, is_bnd in enumerate(arc_boundary):
-        if not is_bnd:
+    for i in range(n):
+        ax, ay, apin, acap, atag = ring[i]
+        bx, by, bpin, bcap, btag = ring[(i + 1) % n]
+        if apin:
+            out.append(ring[i])
+        dx, dy = bx - ax, by - ay
+        span = math.hypot(dx, dy)
+        if span == 0.0:
             continue
-        if arc_open[aid]:
-            starts[arc_pts[aid][0]].append(aid)
-    unused = {aid for aid, b in enumerate(arc_boundary) if b and arc_open[aid]}
-    loops: list[list[int]] = []
-    loop_arcs: list[list[int]] = []
-    while unused:
-        seed = min(unused)
-        chain = [seed]
-        unused.discard(seed)
-        cursor = arc_pts[seed][-1]
-        while True:
-            nxt = None
-            for cand in starts.get(cursor, ()):
-                if cand in unused:
-                    nxt = cand
-                    break
-            if nxt is None:
-                break
-            chain.append(nxt)
-            unused.discard(nxt)
-            cursor = arc_pts[nxt][-1]
-            if cursor == arc_pts[seed][0]:
-                break
-        loops.append(chain)
-        loop_arcs.append(chain)
-    for aid, b in enumerate(arc_boundary):
-        if b and not arc_open[aid]:
-            loops.append([aid])
-            loop_arcs.append([aid])
-
-    rings = []
-    for chain in loops:
-        ring = ring_coords([(aid, False) for aid in chain], smoothed, precision)
-        if ring is not None:
-            rings.append((ring, chain))
-    return rings
+        lim = acap if acap < bcap else bcap
+        t = cut if cut * span <= lim else lim / span
+        out.append((ax + t * dx, ay + t * dy, False, acap, atag))
+        out.append((bx - t * dx, by - t * dy, False, bcap, atag))
+    return out
 
 
-def shoelace(ring) -> float:
+def drop_collinear(ring, tol: float):
+    """Local and reversal-symmetric, so both sides of a shared edge drop the same points."""
+    n = len(ring)
+    if n < 4 or tol <= 0:
+        return ring
+    tol2 = tol * tol
+    out = []
+    for i in range(n):
+        x, y, pin, cap, tag = ring[i]
+        if pin:
+            out.append(ring[i])
+            continue
+        ax, ay = ring[i - 1][0], ring[i - 1][1]
+        bx, by = ring[(i + 1) % n][0], ring[(i + 1) % n][1]
+        if ring[i - 1][4] != tag or ring[(i + 1) % n][4] != tag:
+            out.append(ring[i])
+            continue
+        dx, dy = bx - ax, by - ay
+        span = dx * dx + dy * dy
+        if span == 0.0:
+            d2 = (x - ax) ** 2 + (y - ay) ** 2
+        else:
+            u = ((x - ax) * dx + (y - ay) * dy) / span
+            u = 0.0 if u < 0.0 else (1.0 if u > 1.0 else u)
+            d2 = (x - ax - u * dx) ** 2 + (y - ay - u * dy) ** 2
+        if d2 > tol2:
+            out.append(ring[i])
+    return out if len(out) >= 3 else ring
+
+
+def smooth_ring(seq, arr, pinned, cap, tags, cut, rounds, tol):
+    ring = []
+    for idx, v in enumerate(seq):
+        x, y = metres(arr.pts[v])
+        ring.append((x, y, v in pinned, cap.get(v, 0.0), tags[idx] if tags else 0))
+    for _ in range(rounds):
+        ring = chaikin_round(ring, cut)
+    return drop_collinear(ring, tol)
+
+
+def to_lonlat(ring, precision: int):
+    q = 10.0**precision
+    out = []
+    last = None
+    for x, y, _pin, _cap, tag in ring:
+        c = (round(x / MX * GRID / GRID * q) / q, round(y / MY * GRID / GRID * q) / q)
+        if c != last:
+            out.append((c, tag))
+        last = c
+    return out
+
+
+def closed_coords(ring, precision: int):
+    pts = to_lonlat(ring, precision)
+    coords = [[c[0], c[1]] for c, _ in pts]
+    while len(coords) > 1 and coords[0] == coords[-1]:
+        coords.pop()
+    if len(coords) < 3:
+        return None
+    coords.append(list(coords[0]))
+    return coords
+
+
+def shoelace(coords) -> float:
     s = 0.0
-    for i in range(len(ring) - 1):
-        s += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1]
+    for i in range(len(coords) - 1):
+        s += coords[i][0] * coords[i + 1][1] - coords[i + 1][0] * coords[i][1]
     return s / 2.0
 
 
@@ -357,29 +210,59 @@ def point_in_ring(pt, ring) -> bool:
         x0, y0 = ring[i]
         x1, y1 = ring[i + 1]
         if (y0 > y) != (y1 > y):
-            xi = x0 + (y - y0) / (y1 - y0) * (x1 - x0)
-            if xi > x:
+            if x0 + (y - y0) / (y1 - y0) * (x1 - x0) > x:
                 inside = not inside
     return inside
+
+
+def boundary_loops(arr: Arrangement, partner):
+    """Chains the directed edges with no reverse partner into the coverage outline."""
+    outgoing: dict[int, list[int]] = defaultdict(list)
+    edges: set[tuple[int, int]] = set()
+    for (a, b), _rid in partner.items():
+        if (b, a) not in partner:
+            edges.add((a, b))
+            outgoing[a].append(b)
+    loops: list[list[int]] = []
+    remaining = set(edges)
+    while remaining:
+        a0, b0 = min(remaining)
+        loop = [a0]
+        cur = (a0, b0)
+        while cur in remaining:
+            remaining.discard(cur)
+            loop.append(cur[1])
+            nxt = None
+            for cand in sorted(outgoing.get(cur[1], ())):
+                if (cur[1], cand) in remaining:
+                    nxt = (cur[1], cand)
+                    break
+            if nxt is None:
+                break
+            cur = nxt
+        while len(loop) > 1 and loop[0] == loop[-1]:
+            loop.pop()
+        if len(loop) >= 3:
+            loops.append(loop)
+    return loops
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--in", dest="src", required=True)
-    ap.add_argument("--out", dest="dst", required=True)
+    ap.add_argument("--out", dest="dst")
     ap.add_argument("--coverage-out")
     ap.add_argument("--limit-out")
     ap.add_argument("--rounds", type=int, default=2)
     ap.add_argument("--cut", type=float, default=0.25)
-    ap.add_argument("--max-offset", type=float, default=2.0)
+    ap.add_argument("--max-offset", type=float, default=3.5)
     ap.add_argument("--size-ratio", type=float, default=0.10)
-    ap.add_argument("--simplify", type=float, default=0.2)
+    ap.add_argument("--tol", type=float, default=0.2)
     ap.add_argument("--shore-depth", type=float, default=0.0)
     ap.add_argument("--precision", type=int, default=6)
-    ap.add_argument("--sample-every", type=int, default=37)
     args = ap.parse_args()
 
-    topo = Topology()
+    arr = Arrangement()
     features = []
     for line in open(args.src, encoding="utf-8"):
         line = line.strip()
@@ -393,81 +276,100 @@ def main() -> int:
         if coords:
             polys = coords if g.get("type") == "MultiPolygon" else [coords]
             for poly in polys:
-                built = [topo.add_ring(r, fid) for r in poly]
+                built = [arr.add_ring(r, fid, args.size_ratio, args.max_offset) for r in poly]
                 shape.append([r for r in built if r is not None])
         features.append((f.get("properties") or {}, shape))
 
-    arc_pts, arc_cap, arc_open, arc_bnd, arc_rings, ring_arcs = build_arcs(
-        topo, args.size_ratio, args.max_offset
-    )
-    smoothed, deviations = smooth_arcs(
-        topo, arc_pts, arc_cap, arc_open, args.cut, args.rounds, args.simplify, args.sample_every
-    )
+    pinned, cap, partner, adjacency = analyse(arr)
 
-    in_verts = sum(len(r) for r in topo.rings)
+    in_verts = sum(len(r) for r in arr.rings)
     out_verts = 0
     dropped = 0
-    with open(args.dst, "w", encoding="utf-8") as fh:
-        for props, shape in features:
-            polys = []
-            for poly in shape:
-                built = []
-                for rid in poly:
-                    ring = ring_coords(ring_arcs[rid], smoothed, args.precision)
-                    if ring is None:
-                        continue
-                    built.append(ring)
-                    out_verts += len(ring) - 1
-                if built:
-                    polys.append(built)
-            if not polys:
-                dropped += 1
-                geom = None
-            elif len(polys) == 1:
-                geom = {"type": "Polygon", "coordinates": polys[0]}
-            else:
-                geom = {"type": "MultiPolygon", "coordinates": polys}
-            fh.write(
-                json.dumps(
-                    {"type": "Feature", "properties": props, "geometry": geom},
-                    separators=(",", ":"),
+    if args.dst:
+        with open(args.dst, "w", encoding="utf-8") as fh:
+            for props, shape in features:
+                polys = []
+                for poly in shape:
+                    built = []
+                    for rid in poly:
+                        ring = smooth_ring(
+                            arr.rings[rid], arr, pinned, cap, None, args.cut, args.rounds, args.tol
+                        )
+                        coords = closed_coords(ring, args.precision)
+                        if coords is None:
+                            continue
+                        built.append(coords)
+                        out_verts += len(coords) - 1
+                    if built:
+                        polys.append(built)
+                if not polys:
+                    dropped += 1
+                    geom = None
+                elif len(polys) == 1:
+                    geom = {"type": "Polygon", "coordinates": polys[0]}
+                else:
+                    geom = {"type": "MultiPolygon", "coordinates": polys}
+                fh.write(
+                    json.dumps(
+                        {"type": "Feature", "properties": props, "geometry": geom},
+                        separators=(",", ":"),
+                    )
                 )
-            )
-            fh.write("\n")
+                fh.write("\n")
 
-    caps = sorted(c for c in arc_cap if c != math.inf)
-    deviations.sort()
+    degrees = Counter(len(a) for a in adjacency.values())
+    caps = sorted(cap.values())
     print(f"features            {len(features)}")
-    print(f"rings               {len(topo.rings)}")
-    print(f"distinct vertices   {len(topo.pts)}")
-    print(f"arcs                {len(arc_pts)}  boundary {sum(arc_bnd)}")
-    print(f"vertices in/out     {in_verts} -> {out_verts}  ({out_verts / max(in_verts,1):.2f}x)")
-    print(f"cut cap m           min {caps[0]:.2f} median {caps[len(caps)//2]:.2f} max {caps[-1]:.2f}")
-    print(
-        f"arc deviation m     median {deviations[len(deviations)//2]:.2f} "
-        f"p99 {deviations[int(len(deviations)*0.99)]:.2f} max {deviations[-1]:.2f} "
-        f"(sampled {len(deviations)} arcs)"
-    )
-    print(f"features with no output geometry  {dropped}")
-    print(f"arc joins that did not meet       {BREAKS['arc join']}")
+    print(f"rings               {len(arr.rings)}")
+    print(f"distinct vertices   {len(arr.pts)}")
+    print(f"pinned junctions    {len(pinned)} ({100 * len(pinned) / max(len(arr.pts), 1):.1f}%)")
+    print(f"degree histogram    {dict(sorted(degrees.items())[:6])}")
+    print(f"vertex cap m        min {caps[0]:.2f} median {caps[len(caps) // 2]:.2f} max {caps[-1]:.2f}")
+    if args.dst:
+        print(f"vertices in/out     {in_verts} -> {out_verts} ({out_verts / max(in_verts, 1):.2f}x)")
+        print(f"features left with no geometry  {dropped}")
 
     if args.coverage_out or args.limit_out:
-        depth_of = {}
-        for fid, (props, shape) in enumerate(features):
-            depth_of[fid] = props.get("dmin")
-        rings = chain_boundary(
-            arc_pts, arc_bnd, arc_open, smoothed, arc_rings, depth_of, args.precision
-        )
-        shells = [(r, c) for r, c in rings if shoelace(r) > 0]
-        holes = [(r, c) for r, c in rings if shoelace(r) <= 0]
-        shells.sort(key=lambda rc: -abs(shoelace(rc[0])))
-        assigned: list[list] = [[r] for r, _ in shells]
-        for hole, _ in holes:
+        depth = {}
+        for rid, owner in enumerate(arr.ring_owner):
+            depth[rid] = (features[owner][0] or {}).get("dmin")
+        loops = boundary_loops(arr, partner)
+        shells, holes, lines = [], [], []
+        for loop in loops:
+            tags = []
+            for i in range(len(loop)):
+                rid = partner.get((loop[i], loop[(i + 1) % len(loop)]))
+                d = depth.get(rid) if rid is not None else None
+                tags.append(1 if (d is not None and d <= args.shore_depth) else 0)
+            ring = smooth_ring(loop, arr, pinned, cap, tags, args.cut, args.rounds, args.tol)
+            coords = closed_coords(ring, args.precision)
+            if coords is None:
+                continue
+            (shells if shoelace(coords) > 0 else holes).append(coords)
+            run = []
+            cur = None
+            for c, tag in to_lonlat(ring, args.precision):
+                if cur is None or tag == cur:
+                    run.append([c[0], c[1]])
+                else:
+                    if len(run) > 1:
+                        lines.append((cur, run))
+                    run = [run[-1], [c[0], c[1]]]
+                cur = tag
+            if len(run) > 1:
+                lines.append((cur if cur is not None else 0, run))
+
+        shells.sort(key=lambda r: -abs(shoelace(r)))
+        assembled = [[s] for s in shells]
+        orphan = 0
+        for hole in holes:
             probe = hole[0]
-            for si, (shell, _) in enumerate(shells):
+            for si, shell in enumerate(shells):
                 if point_in_ring(probe, shell):
-                    assigned[si].append(hole)
+                    assembled[si].append(hole)
                     break
+            else:
+                orphan += 1
         if args.coverage_out:
             with open(args.coverage_out, "w", encoding="utf-8") as fh:
                 fh.write(
@@ -475,47 +377,32 @@ def main() -> int:
                         {
                             "type": "Feature",
                             "properties": {"kind": "habitat-survey"},
-                            "geometry": {"type": "MultiPolygon", "coordinates": assigned},
+                            "geometry": {"type": "MultiPolygon", "coordinates": assembled},
                         },
                         separators=(",", ":"),
                     )
                 )
                 fh.write("\n")
         if args.limit_out:
-            kinds = Counter()
+            counts = Counter()
             with open(args.limit_out, "w", encoding="utf-8") as fh:
-                for _, chain in rings:
-                    for aid in chain:
-                        seg = [
-                            [round(x / GRID, args.precision), round(y / GRID, args.precision)]
-                            for x, y in smoothed[aid]
-                        ]
-                        if len(seg) < 2:
-                            continue
-                        d = depth_of.get(arc_rings_owner(topo, arc_rings, aid))
-                        edge = "shore" if d is not None and d <= args.shore_depth else "survey"
-                        kinds[edge] += 1
-                        fh.write(
-                            json.dumps(
-                                {
-                                    "type": "Feature",
-                                    "properties": {
-                                        "edge": edge,
-                                        "depth": d if d is not None else -1,
-                                    },
-                                    "geometry": {"type": "LineString", "coordinates": seg},
-                                },
-                                separators=(",", ":"),
-                            )
+                for tag, run in lines:
+                    edge = "shore" if tag == 1 else "survey"
+                    counts[edge] += 1
+                    fh.write(
+                        json.dumps(
+                            {
+                                "type": "Feature",
+                                "properties": {"edge": edge},
+                                "geometry": {"type": "LineString", "coordinates": run},
+                            },
+                            separators=(",", ":"),
                         )
-                        fh.write("\n")
-            print(f"coverage shells     {len(shells)}  holes {len(holes)}")
-            print(f"limit arcs          {dict(kinds)}")
+                    )
+                    fh.write("\n")
+            print(f"limit lines         {dict(counts)}")
+        print(f"coverage shells     {len(shells)} holes {len(holes)} unplaced holes {orphan}")
     return 0
-
-
-def arc_rings_owner(topo: Topology, arc_rings, aid: int) -> int:
-    return topo.ring_owner[arc_rings[aid]]
 
 
 if __name__ == "__main__":

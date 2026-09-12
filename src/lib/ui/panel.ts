@@ -35,7 +35,7 @@ export interface PanelState {
 /** The buttons live in a different subtree from the panel, so aria-controls needs an id. */
 export const PANEL_ID = 'dive-settings-panel';
 
-export type PanelProps = {
+export interface PanelProps {
 	readonly view: MapState;
 	readonly panel: PanelState;
-};
+}

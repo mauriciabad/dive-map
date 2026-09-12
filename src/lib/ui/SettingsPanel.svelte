@@ -7,11 +7,11 @@
 	import { type MessageKey, t } from '$lib/i18n/messages';
 	import type { LayerId } from '$lib/domain/card';
 
-	type Props = {
+	interface Props {
 		readonly view: MapState;
 		readonly section: PanelSection;
 		readonly onclose: () => void;
-	};
+	}
 
 	const { view, section, onclose }: Props = $props();
 

@@ -4,11 +4,11 @@
 	import { SvelteControl, whenMapReady } from '$lib/map/controls';
 	import type { MapState } from '$lib/state/map-view.svelte';
 
-	type Props = {
+	interface Props {
 		readonly view: MapState;
 		readonly onexport: () => void;
 		readonly busy: boolean;
-	};
+	}
 
 	const { view, onexport, busy }: Props = $props();
 

@@ -3,12 +3,12 @@
 	import { t } from '$lib/i18n/messages';
 	import type { MapState } from '$lib/state/map-view.svelte';
 
-	type CropReadoutProps = {
+	interface CropReadoutProps {
 		readonly view: MapState;
 		readonly frame: CropFrame;
 		readonly busy: boolean;
 		readonly onexport: () => void;
-	};
+	}
 
 	const { view, frame, busy, onexport }: CropReadoutProps = $props();
 </script>

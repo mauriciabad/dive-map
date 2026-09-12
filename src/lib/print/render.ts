@@ -93,7 +93,8 @@ export const renderCard = async (
 
 		const codes = new Set<string>();
 		for (const f of map.queryRenderedFeatures({ layers: ['ground-fill'] })) {
-			const code = f.properties['code'];
+			// Tile properties are untyped by construction; narrow rather than trust.
+			const code: unknown = f.properties['code'];
 			if (typeof code === 'string') codes.add(code);
 		}
 

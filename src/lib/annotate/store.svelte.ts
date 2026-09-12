@@ -39,7 +39,7 @@ export const KIND_KEYS: Readonly<Record<AnnotationKind, AnnotateKey>> = {
 	feature: 'kindFeature'
 };
 
-/** Deep enough to walk back an afternoon's mistakes, short enough to stay free. */
+/** Deep enough to walk back an afternoon of drawing without holding every state forever. */
 const HISTORY_CAP = 50;
 
 const NO_CONFLICTS: readonly Conflict[] = [];
@@ -146,11 +146,16 @@ export class AnnotationStore {
 		this.#say('movedAnnotation');
 	}
 
-	setLabel(id: string, label: string): void {
+	/**
+	 * `raw` keeps the string exactly as typed, because trimming on every keystroke
+	 * makes the space between two words impossible to type. The committed form is
+	 * trimmed, which is what `change` and the parser both produce.
+	 */
+	setLabel(id: string, label: string, mode: 'raw' | 'commit' = 'commit'): void {
 		const current = this.working.find((a) => a.id === id);
 		if (current === undefined) return;
-		const trimmed = label.trim();
-		const next: Annotation = { ...current, label: trimmed === '' ? undefined : trimmed };
+		const text = mode === 'raw' ? label : label.trim();
+		const next: Annotation = { ...current, label: text === '' ? undefined : text };
 		if (next.label === current.label) return;
 		this.#apply(this.working.map((a) => (a.id === id ? next : a)));
 	}
