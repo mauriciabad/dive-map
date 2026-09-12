@@ -95,13 +95,15 @@ describe('trusting what the map hands back', () => {
 	});
 });
 
+const AT = { lng: 3.2147, lat: 41.9083 };
+
 describe('picking a feature off the map', () => {
 	it('prefers the dive site over the zone it sits inside, whichever was hit first', () => {
 		const site = namedFeature('Canons de Tamariu');
 		const zone = namedFeature(ZONE_NAME);
-		expect(pickFrom([zone], [])?.feature.kind).toBe('restricted-area');
-		expect(pickFrom([zone, site], [])?.feature.name).toBe('Canons de Tamariu');
-		expect(pickFrom([site, zone], [])?.feature.name).toBe('Canons de Tamariu');
+		expect(pickFrom([zone], [], AT)?.feature?.kind).toBe('restricted-area');
+		expect(pickFrom([zone, site], [], AT)?.feature?.name).toBe('Canons de Tamariu');
+		expect(pickFrom([site, zone], [], AT)?.feature?.name).toBe('Canons de Tamariu');
 	});
 
 	it('picks nothing when no hit is a feature this map shows', () => {
@@ -109,13 +111,13 @@ describe('picking a feature off the map', () => {
 			{ kind: 'dive-site', name: 'no ref on this one' },
 			{ t: 'node', id: 1, amenity: 'cafe' }
 		];
-		expect(pickFrom(hits, [])).toBeUndefined();
+		expect(pickFrom(hits, [], AT)).toBeUndefined();
 	});
 
 	it('reads the seabed off ground hits that carry a code and skips the ones that do not', () => {
 		const site = namedFeature('Canons de Tamariu');
 		const ground = [{ code: '30512' }, { name: 'no code here' }, { code: '30402' }];
-		expect(pickFrom([site], ground)?.seabed.map((c) => c.code)).toEqual(['30512', '30402']);
+		expect(pickFrom([site], ground, AT)?.seabed.map((c) => c.code)).toEqual(['30512', '30402']);
 	});
 });
 
@@ -239,5 +241,34 @@ describe('the layers a tap is allowed to hit', () => {
 		const ids = new Set(style.layers.map((layer) => layer.id));
 		const missing = [...OSM_PICK_LAYERS, ...GROUND_PICK_LAYERS].filter((id) => !ids.has(id));
 		expect(missing).toEqual([]);
+	});
+});
+
+describe('a tap on open seabed still answers', () => {
+	const ground = [
+		{ code: '30512', dmin: 12, dmax: 22 },
+		{ code: '30402', dmin: 20, dmax: 26 }
+	];
+
+	it('returns a pick with no OSM feature at all', () => {
+		const pick = pickFrom([], ground, AT);
+		expect(pick?.feature).toBeUndefined();
+		expect(pick?.seabed.map((c) => c.code)).toEqual(['30512', '30402']);
+	});
+
+	it('reports the surveyed depth spanning every class under the point', () => {
+		expect(pickFrom([], ground, AT)?.depth).toEqual({ min: 12, max: 26 });
+	});
+
+	it('carries the tapped position so it can be read off the card', () => {
+		expect(pickFrom([], ground, AT)?.position).toEqual(AT);
+	});
+
+	it('still answers nothing where there is neither a feature nor a seabed', () => {
+		expect(pickFrom([], [], AT)).toBeUndefined();
+	});
+
+	it('leaves the depth out when the tiles carry no depth for the polygon', () => {
+		expect(pickFrom([], [{ code: '30512' }], AT)?.depth).toBeUndefined();
 	});
 });

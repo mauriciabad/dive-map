@@ -37,7 +37,8 @@
 				view.select(
 					pickFrom(
 						osm.map((f) => f.properties),
-						ground.map((f) => f.properties)
+						ground.map((f) => f.properties),
+						{ lng: e.lngLat.lng, lat: e.lngLat.lat }
 					)
 				);
 			};

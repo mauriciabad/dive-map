@@ -54,9 +54,12 @@
 
 {#if pick !== undefined}
 	{@const feature = pick.feature}
-	{@const heading = localisedName(feature.tags, locale) ?? t(locale, KIND_LABEL[feature.kind])}
-	{@const hero = heroDepthOf(feature)}
-	{@const levels = feature.kind === 'dive-site' ? feature.difficulty : []}
+	{@const heading =
+		feature === undefined
+			? t(locale, 'seabedHere')
+			: (localisedName(feature.tags, locale) ?? t(locale, KIND_LABEL[feature.kind]))}
+	{@const hero = feature === undefined ? undefined : heroDepthOf(feature)}
+	{@const levels = feature?.kind === 'dive-site' ? feature.difficulty : []}
 	{@const difficulty = difficultyText(locale, levels)}
 	{@const pips = difficultyPips(levels)}
 	<section class="sheet" aria-label={heading}>
@@ -69,7 +72,9 @@
 		</header>
 
 		<div class={['body', { more }]} bind:this={body}>
-			<p class="subtitle">{subtitleOf(feature, locale).join(' · ')}</p>
+			{#if feature !== undefined}
+				<p class="subtitle">{subtitleOf(feature, locale).join(' · ')}</p>
+			{/if}
 
 			{#if hero !== undefined}
 				<div class="block">
@@ -98,7 +103,23 @@
 				</div>
 			{/if}
 
-			{#each detailRowsOf(feature, locale) as row (row.label)}
+			{#if pick.depth !== undefined}
+				<div class="block">
+					<span class="legend">{t(locale, 'surveyedDepth')}</span>
+					<p class="prose">
+						{t(locale, 'depthRange', { min: pick.depth.min, max: pick.depth.max })}
+					</p>
+				</div>
+			{/if}
+
+			<div class="block">
+				<span class="legend">{t(locale, 'position')}</span>
+				<p class="prose numeric">
+					{pick.position.lat.toFixed(5)}, {pick.position.lng.toFixed(5)}
+				</p>
+			</div>
+
+			{#each feature === undefined ? [] : detailRowsOf(feature, locale) as row (row.label)}
 				<div class="block">
 					<span class="legend">{t(locale, row.label)}</span>
 					{#if row.label === 'description'}
@@ -133,10 +154,12 @@
 			{/if}
 		</div>
 
-		<a class="osm" href={osmUrl(feature.ref)} target="_blank" rel="external noreferrer">
-			<span>{t(locale, 'editInOsm')}</span>
-			<Icon name="chevron" size={18} />
-		</a>
+		{#if feature !== undefined}
+			<a class="osm" href={osmUrl(feature.ref)} target="_blank" rel="external noreferrer">
+				<span>{t(locale, 'editInOsm')}</span>
+				<Icon name="chevron" size={18} />
+			</a>
+		{/if}
 
 		<p class="disclaimer">{t(locale, 'disclaimer')}</p>
 	</section>
@@ -376,6 +399,11 @@
 
 	.osm:hover {
 		background: rgb(239 228 207 / 0.07);
+	}
+
+	.numeric {
+		font-variant-numeric: tabular-nums;
+		letter-spacing: 0.01em;
 	}
 
 	.disclaimer {

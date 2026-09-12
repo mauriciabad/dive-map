@@ -23,9 +23,13 @@ import { type MessageKey, t } from '$lib/i18n/messages';
 export type FeatureProperties = Readonly<Record<string, unknown>>;
 
 export interface FeaturePick {
-	readonly feature: DiveFeature;
+	/** Absent when the tap landed on open seabed with nothing mapped on it. */
+	readonly feature: DiveFeature | undefined;
 	/** Seabed classes under the tapped point, most diver-relevant first. */
 	readonly seabed: readonly SeabedClass[];
+	readonly position: { readonly lng: number; readonly lat: number };
+	/** Surveyed depth range of the habitat polygon under the point, in metres. */
+	readonly depth: { readonly min: number; readonly max: number } | undefined;
 }
 
 export const OSM_PICK_LAYERS = [
@@ -79,9 +83,18 @@ const KIND_PRIORITY: Record<DiveFeatureKind, number> = {
 	'restricted-area': 9
 };
 
+/**
+ * A tap always answers.
+ *
+ * Open water is not nothing: there is a habitat class, a substrate, a surveyed
+ * depth range and a position under every point on this map, and that is most of
+ * what a diver wants to know. Returning undefined there left the panel shut and
+ * the map feeling broken.
+ */
 export const pickFrom = (
 	osmHits: readonly FeatureProperties[],
-	groundHits: readonly FeatureProperties[]
+	groundHits: readonly FeatureProperties[],
+	position: { readonly lng: number; readonly lat: number }
 ): FeaturePick | undefined => {
 	let best: DiveFeature | undefined;
 	for (const props of osmHits) {
@@ -93,14 +106,26 @@ export const pickFrom = (
 			best = feature;
 		}
 	}
-	if (best === undefined) return undefined;
-
 	const codes = new Set<string>();
+	let min = Number.POSITIVE_INFINITY;
+	let max = Number.NEGATIVE_INFINITY;
 	for (const props of groundHits) {
 		const code = props['code'];
 		if (typeof code === 'string') codes.add(code);
+		const lo: unknown = props['dmin'];
+		const hi: unknown = props['dmax'];
+		if (typeof lo === 'number') min = Math.min(min, lo);
+		if (typeof hi === 'number') max = Math.max(max, hi);
 	}
-	return { feature: best, seabed: seabedFrom(codes) };
+	const seabed = seabedFrom(codes);
+	if (best === undefined && seabed.length === 0) return undefined;
+
+	return {
+		feature: best,
+		seabed,
+		position,
+		depth: Number.isFinite(min) && Number.isFinite(max) ? { min, max } : undefined
+	};
 };
 
 const CATALOGUE: readonly SeabedClass[] = [...SUBSTRATES, ...HABITATS];
