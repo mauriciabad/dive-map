@@ -8,7 +8,9 @@
 	import ChipGroup from '$lib/ui/controls/ChipGroup.svelte';
 	import Field from '$lib/ui/controls/Field.svelte';
 	import Note from '$lib/ui/controls/Note.svelte';
+	import Readout from '$lib/ui/controls/Readout.svelte';
 	import Toggle from '$lib/ui/controls/Toggle.svelte';
+	import type { Reading } from '$lib/ui/controls/types';
 	import { POSITION_PANEL_ID } from '$lib/ui/panel';
 	import { LOOK_LABEL, lookOf } from '$lib/ui/position-status';
 	import type { Locale } from '$lib/i18n/locale';
@@ -16,9 +18,11 @@
 
 	/**
 	 * Where the boat is and what it is doing, in the same vocabulary as every
-	 * other panel. The hints are always on screen rather than appearing with the
-	 * thing they explain, and the eight trail windows are two rows of bare values
-	 * instead of eight lines each starting with the same word.
+	 * other panel. Eight live numbers sit in two rows of four instrument cells
+	 * rather than a column of sentences, the eight trail windows are two rows of
+	 * bare values instead of eight lines that each start with the same word, and
+	 * the hints are on screen always rather than appearing with the thing they
+	 * explain.
 	 */
 
 	interface Props {
@@ -31,8 +35,10 @@
 
 	const MS_PER_KNOT = 1.94384;
 
-	/** Written as an escape so no invisible character lands in the source. */
+	/** Written as escapes so no invisible character lands in the source. */
 	const THIN = '\u2009';
+	/** A cell with nothing in it yet. Eight of these is still eight cells. */
+	const BLANK = '\u2013';
 
 	/** Unit symbols, not words: `min`, `h`, `m` and `km` are the same in all three. */
 	const windowLabel = (choice: TrailWindow): string =>
@@ -49,13 +55,7 @@
 
 	const look = $derived(lookOf(tracker));
 
-	const headline = $derived.by(() => {
-		const { watch } = tracker;
-		if (watch.status === 'tracking' && !tracker.stale) {
-			return t(locale, 'accuracyM', { n: Math.round(watch.fix.accuracyM) });
-		}
-		return t(locale, LOOK_LABEL[look]);
-	});
+	const headline = $derived(t(locale, LOOK_LABEL[look]));
 
 	const hint = $derived.by(() => {
 		switch (tracker.watch.status) {
@@ -75,14 +75,46 @@
 		}
 	});
 
-	const course = $derived.by(() => {
-		const value = tracker.course;
-		return value.kind === 'steaming'
-			? t(locale, 'courseReading', {
-					deg: Math.round(value.deg),
-					kn: (value.speedMs * MS_PER_KNOT).toFixed(1)
-				})
-			: t(locale, 'courseStationary');
+	const distance = (metres: number): string =>
+		metres >= 1000 ? `${(metres / 1000).toFixed(1)}${THIN}km` : `${Math.round(metres)}${THIN}m`;
+
+	/**
+	 * Eight facts a skipper reads at a glance, laid out as two rows of four
+	 * instrument cells. Where you are, how good the fix is and how old it is on
+	 * the top row; what the boat is doing and how much of it is drawn below.
+	 * Every cell keeps its place when there is no fix, because a grid that
+	 * reshuffles itself is unreadable on a moving deck.
+	 */
+	const readings = $derived.by<readonly Reading[]>(() => {
+		const fix = tracker.fix;
+		const course = tracker.course;
+		const trail = tracker.trail;
+		const first = trail.at(0);
+		const last = trail.at(-1);
+		const speedMs = course.kind === 'steaming' ? course.speedMs : fix?.speedMs;
+		return [
+			{ label: 'Lat', value: fix === undefined ? BLANK : fix.lat.toFixed(5) },
+			{ label: 'Lon', value: fix === undefined ? BLANK : fix.lng.toFixed(5) },
+			{
+				label: '\u00b1',
+				value: fix === undefined ? BLANK : `${Math.round(fix.accuracyM)}${THIN}m`
+			},
+			{
+				label: 's',
+				value:
+					fix === undefined ? BLANK : String(Math.max(0, Math.round((tracker.now - fix.at) / 1000)))
+			},
+			{
+				label: t(locale, 'trajectory'),
+				value: course.kind === 'steaming' ? `${Math.round(course.deg)}\u00b0` : BLANK
+			},
+			{ label: 'kn', value: speedMs === undefined ? BLANK : (speedMs * MS_PER_KNOT).toFixed(1) },
+			{
+				label: t(locale, 'trail'),
+				value: first === undefined || last === undefined ? BLANK : distance(last.cumM - first.cumM)
+			},
+			{ label: t(locale, 'trailWindow'), value: windowLabel(tracker.window) }
+		];
 	});
 </script>
 
@@ -95,9 +127,9 @@
 		<Note>{hint}</Note>
 	{/if}
 
-	<Field label={t(locale, 'trajectory')}>
-		<p class="reading" aria-live="polite">{course}</p>
-	</Field>
+	<div aria-live="polite">
+		<Readout rows={readings} columns={4} />
+	</div>
 
 	<Toggle
 		label={t(locale, 'showTrail')}
@@ -188,13 +220,6 @@
 		font-size: 1rem;
 		font-variant-numeric: tabular-nums;
 		color: var(--control-ink);
-	}
-
-	.reading {
-		margin: 0;
-		font-size: 1.05rem;
-		font-variant-numeric: tabular-nums;
-		color: var(--color-sea-shallow);
 	}
 
 	.figures {
