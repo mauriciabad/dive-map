@@ -90,17 +90,28 @@
 			<fieldset>
 				<legend>{t(view.locale, 'interval')}</legend>
 				<div class="segmented">
+					<button
+						type="button"
+						class="seg"
+						aria-pressed={view.isobaths.autoInterval}
+						onclick={() => {
+							view.setAutoInterval();
+						}}>{t(view.locale, 'autoInterval')}</button
+					>
 					{#each INTERVALS as metres (metres)}
 						<button
 							type="button"
 							class="seg num"
-							aria-pressed={view.isobaths.intervalM === metres}
+							aria-pressed={!view.isobaths.autoInterval && view.isobaths.intervalM === metres}
 							onclick={() => {
 								view.setInterval(metres);
 							}}>{metres}&thinsp;m</button
 						>
 					{/each}
 				</div>
+				{#if view.isobaths.autoInterval}
+					<p class="note">{t(view.locale, 'autoIntervalHint')}</p>
+				{/if}
 			</fieldset>
 
 			<fieldset>
@@ -364,7 +375,7 @@
 		justify-content: center;
 		gap: 0.35rem;
 		min-width: 0;
-		min-height: calc(var(--spacing-touch) - 4px);
+		min-height: var(--spacing-touch);
 		padding: 0 0.4rem;
 		border: 0;
 		border-radius: 0.35rem;

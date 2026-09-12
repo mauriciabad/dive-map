@@ -189,13 +189,16 @@
 	.failure {
 		position: absolute;
 		z-index: 30;
-		inset: 1rem 1rem auto 1rem;
+		/* Centred with both corner stacks left clear. A banner that hides the layer
+		   buttons takes the controls away exactly when something has gone wrong. */
+		inset: calc(var(--ctrl-gap) + env(safe-area-inset-top)) auto auto 50%;
+		translate: -50% 0;
+		width: max-content;
+		max-width: min(34rem, calc(100vw - 2 * (var(--ctrl-gap) * 2 + var(--ctrl-size))));
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 0.75rem;
-		max-width: 34rem;
-		margin-inline: auto;
 		padding: 0.85rem 1rem;
 		background: var(--color-table-800);
 		border: 1px solid var(--color-hazard);

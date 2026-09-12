@@ -83,6 +83,10 @@
 
 		m.addControl(new NavigationControl({ visualizePitch: false }), 'top-right');
 		m.addControl(new ScaleControl({ maxWidth: 140, unit: 'metric' }), 'bottom-right');
+		// Not inside 'load'. Offline is the normal mode on a boat, and a load that
+		// never fires would leave every one of our controls unmounted while
+		// MapLibre's own zoom buttons sat there looking fine.
+		publishMap(m);
 
 		const syncCamera = () => {
 			const c = m.getCenter();
@@ -96,7 +100,6 @@
 		m.on('styledata', () => void installTextures(m));
 		m.on('load', () => {
 			view.ready = true;
-			publishMap(m);
 			onready?.(m);
 		});
 		m.on('error', (e) => {

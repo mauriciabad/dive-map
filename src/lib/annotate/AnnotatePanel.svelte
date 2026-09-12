@@ -128,7 +128,15 @@
 			created.syncFeatures(store.working);
 		});
 
+		// The style rebuild that empties the annotations source also takes Terra Draw's
+		// own layers with it, and the adapter keeps drawing into sources that are gone.
+		const remount = (): void => {
+			created.remount();
+		};
+		m.on('styledata', remount);
+
 		return () => {
+			m.off('styledata', remount);
 			created.destroy();
 			handle = undefined;
 		};

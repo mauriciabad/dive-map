@@ -52,6 +52,8 @@ export interface DrawCallbacks {
 
 export interface DrawHandle {
 	setMode: (mode: DrawModeName) => void;
+	/** Re-register after a style rebuild has taken the adapter's own layers away. */
+	remount: () => void;
 	finishShape: () => void;
 	/** Returns the id it removed, so the caller can drop the same annotation. */
 	deleteSelected: () => string | undefined;
@@ -273,19 +275,30 @@ export const createDraw = (map: MapLibreMap, callbacks: DrawCallbacks): DrawHand
 	draw.start();
 	draw.setMode('select');
 
+	let current: DrawModeName = 'select';
+
 	return {
 		setMode: (mode) => {
-			draw.setMode(mode);
+			current = mode;
+			if (draw.enabled) draw.setMode(mode);
+		},
+
+		remount: () => {
+			if (map.getSource('td-polygon') !== undefined) return;
+			if (draw.enabled) draw.stop();
+			draw.start();
+			draw.setMode(current);
 		},
 
 		// The adapter listens for keys on the canvas, so the toolbar button says the
 		// same thing to Terra Draw that the keyboard would.
 		finishShape: () => {
+			if (!draw.enabled) return;
 			map.getCanvas().dispatchEvent(new KeyboardEvent('keyup', { key: FINISH_KEY, bubbles: true }));
 		},
 
 		deleteSelected: () => {
-			if (selectedId === undefined) return undefined;
+			if (selectedId === undefined || !draw.enabled) return undefined;
 			const id = selectedId;
 			draw.deselectFeature(id);
 			draw.removeFeatures([id]);
@@ -294,6 +307,9 @@ export const createDraw = (map: MapLibreMap, callbacks: DrawCallbacks): DrawHand
 		},
 
 		syncFeatures: (annotations) => {
+			// A style rebuild stops and restarts this between two renders, and the
+			// callers are effects that do not know which side of it they are on.
+			if (!draw.enabled) return;
 			const wanted = new Map(annotations.map((a) => [a.id, a]));
 			const held = new Set<string>();
 			const stale: string[] = [];
