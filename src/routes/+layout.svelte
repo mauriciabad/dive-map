@@ -1,5 +1,6 @@
 <script lang="ts">
 	import './layout.css';
+	import './theme.css';
 	import favicon from '$lib/assets/favicon.svg';
 	import type { Snippet } from 'svelte';
 

@@ -8,6 +8,7 @@ CHUNK_DIR="$(dirname "$OUT")/osm-chunks"
 TIMEOUT="${OSM_TIMEOUT:-600}"
 CURL_MAX=$((TIMEOUT + 60))
 MAX_SPLIT="${OSM_MAX_SPLIT:-2}"
+MAX_AGE_DAYS="${OSM_MAX_AGE_DAYS:-14}"
 UA="dive-map/0.0.1 (https://divemap.mauri.app)"
 
 MIRRORS=(
@@ -21,9 +22,12 @@ if command -v shasum >/dev/null 2>&1; then HASHER=(shasum -a 256); else HASHER=(
 mkdir -p "$CHUNK_DIR"
 
 # Only terms that can yield a feature from src/lib/domain/osm.ts earn a query.
-# place=islet, leisure=swimming_area and historic=archaeological_site were dropped:
-# the parser returns undefined for all three, so they cost Overpass budget for
-# elements the reduction discards. Islets come from the ICGC coastline instead.
+# place=islet, leisure=swimming_area and historic=archaeological_site were dropped
+# because parseDiveFeature returns undefined for each of those tags on its own, so
+# they spent Overpass budget on elements the reduction then discarded: place=islet
+# alone was 1,034 of the 1,617 elements in the old Costa Brava extract. Swimming
+# areas still arrive when they carry seamark:type, which in Catalonia is all of
+# them. Islet outlines come from the ICGC coastline, not from OSM.
 chunk_body() {
   case "$1" in
     scuba)
@@ -66,6 +70,29 @@ sys.exit(1 if any(w in r for w in ("error", "timed out", "memory")) else 0)
 ' "$1" 2>/dev/null
 }
 
+# Mirrors replicate at wildly different rates and a lagging one answers a valid
+# query with a valid-looking short result. One mirror served this bbox from a
+# database four months behind, losing 11 of 111 dive elements with no remark and
+# no error, so the replication timestamp decides which answer is usable.
+chunk_timestamp() {
+  python3 -c 'import json,sys; print(json.load(open(sys.argv[1],encoding="utf-8")).get("osm3s",{}).get("timestamp_osm_base",""))' "$1" 2>/dev/null
+}
+
+is_fresh() {
+  python3 -c '
+import sys
+from datetime import datetime, timedelta, timezone
+stamp, limit = sys.argv[1], int(sys.argv[2])
+if not stamp:
+    sys.exit(1)
+try:
+    base = datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+except ValueError:
+    sys.exit(1)
+sys.exit(0 if datetime.now(timezone.utc) - base <= timedelta(days=limit) else 1)
+' "$1" "$MAX_AGE_DAYS" 2>/dev/null
+}
+
 count_elements() {
   python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1],encoding="utf-8"))["elements"]))' "$1"
 }
@@ -81,25 +108,45 @@ fetch_region() {
   file="$CHUNK_DIR/$key.json"
 
   if valid_chunk "$file"; then
-    printf 'cached   %-44s %7d elements\n' "$key" "$(count_elements "$file")" >&2
+    printf 'cached   %-44s %7d elements  osm base %s\n' \
+      "$key" "$(count_elements "$file")" "$(chunk_timestamp "$file")" >&2
     return 0
   fi
 
+  local best_ts="" stamp
   for attempt in 1 2 3; do
     for mirror in "${MIRRORS[@]}"; do
       if curl -sS --fail-with-body --max-time "$CURL_MAX" -A "$UA" -X POST "$mirror" \
            --data-urlencode "data=$q" -o "$file.part" && valid_chunk "$file.part"; then
-        mv "$file.part" "$file"
-        printf 'fetched  %-44s %7d elements\n' "$key" "$(count_elements "$file")" >&2
-        sleep 3
-        return 0
+        stamp="$(chunk_timestamp "$file.part")"
+        if is_fresh "$stamp"; then
+          mv "$file.part" "$file"
+          printf 'fetched  %-44s %7d elements  osm base %s\n' \
+            "$key" "$(count_elements "$file")" "$stamp" >&2
+          sleep 3
+          return 0
+        fi
+        echo "  $mirror is stale for $key (osm base $stamp), trying another" >&2
+        if [[ -z "$best_ts" || "$stamp" > "$best_ts" ]]; then
+          best_ts="$stamp"
+          mv "$file.part" "$file.cand"
+        fi
+      else
+        echo "  $mirror failed for $key" >&2
       fi
       rm -f "$file.part"
-      echo "  $mirror failed for $key" >&2
     done
     sleep $((attempt * 15))
   done
 
+  if [ -n "$best_ts" ]; then
+    mv "$file.cand" "$file"
+    printf 'STALE    %-44s %7d elements  osm base %s (no mirror within %s days)\n' \
+      "$key" "$(count_elements "$file")" "$best_ts" "$MAX_AGE_DAYS" >&2
+    return 0
+  fi
+
+  rm -f "$file.cand"
   if [ "$depth" -lt "$MAX_SPLIT" ]; then
     local s w n e mid
     IFS=, read -r s w n e <<<"$bbox"

@@ -30,3 +30,4 @@ data/build/
 package-lock.json
 yarn.lock
 data/build/
+.playwright-mcp/

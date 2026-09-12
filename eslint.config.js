@@ -28,7 +28,9 @@ export default defineConfig(
 		files: ['**/*.ts', '**/*.svelte', '**/*.svelte.ts', '**/*.svelte.js'],
 		languageOptions: {
 			parserOptions: {
-				projectService: true,
+				// SvelteKit excludes the service worker from tsconfig because it needs lib.webworker,
+				// so the project service has to be told about it separately.
+				projectService: { allowDefaultProject: ['src/service-worker.ts'] },
 				extraFileExtensions: ['.svelte'],
 				parser: ts.parser
 			}

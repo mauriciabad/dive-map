@@ -1,42 +1,140 @@
-# sv
+# dive-map
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A scuba diving map of the Catalan coast. ICGC bathymetry and marine habitats drawn over
+OpenStreetMap, printable as A3 dive briefing cards.
 
-## Creating a project
+Live at [divemap.mauri.app](https://divemap.mauri.app). MIT licensed.
 
-If you're seeing this, you've probably already done this step. Congrats!
-
-```sh
-# create a new project
-npx sv create my-app
-```
-
-To recreate this project with the same configuration:
+## Running it
 
 ```sh
-# recreate this project
-npx sv@0.17.0 create --template minimal --types ts --add prettier eslint vitest="usages:unit" tailwindcss="plugins:typography" --no-install sk
+pnpm install
+pnpm dev
 ```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
 
 ```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+pnpm run check      # svelte-check, must report 0 errors and 0 warnings
+pnpm test           # vitest
+pnpm run build      # static output in build/
+pnpm run preview    # serve build/ on localhost:4173
 ```
 
-## Building
+The service worker only runs against a build, so test offline behaviour under `preview`,
+not `dev`.
 
-To create a production version of your app:
+## Deploying
 
-```sh
-npm run build
+`.github/workflows/deploy.yml` runs on every push to `main`. It runs `pnpm run check` and
+`pnpm test` before `pnpm run build`, and the deploy job needs the build job, so a type
+error or a failing test stops the deploy instead of shipping past it.
+
+The site is fully prerendered by `@sveltejs/adapter-static` with `fallback: '404.html'`,
+because GitHub Pages serves files and nothing else. `src/routes/+layout.ts` sets
+`prerender = true` and `ssr = false`, so each route becomes an HTML file at build time and
+hydrates in the browser. There is no server at runtime.
+
+**The base path is empty.** `static/CNAME` points the site at divemap.mauri.app, a custom
+subdomain that serves from its own root, so every asset lives at `/`. A base of
+`/dive-map` would only be right on the `github.io` project-page URL, and setting it would
+break every asset path on the real domain. For the same reason the workflow passes no
+`static_site_generator` input to `actions/configure-pages`, which is what would otherwise
+inject a repo-name base path.
+
+## Offline
+
+Offline is the normal mode at the moment of use, not a fallback. A diver on a boat has no
+signal, so everything the map needs has to already be on the phone.
+
+`src/service-worker.ts` is thin. SvelteKit keeps that file out of the app `tsconfig`
+because it needs `lib.webworker`, which cannot load alongside `lib.dom`, so the logic
+lives in `src/lib/offline/service-worker.ts` where `pnpm run check` and eslint can see it
+and the routing table is unit tested.
+
+### What gets cached, and when
+
+| Asset                            | Policy                 | Why                                                                                                              |
+| -------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| App shell, JS, CSS               | precache on install    | Nothing loads without it                                                                                         |
+| `textures/256`, `textures/512`   | precache on install    | 512 is the largest a phone needs for a repeating pattern fill, and a blank seabed polygon on a boat is a failure |
+| `textures/1024`, `textures/2048` | cache on first use     | The 2048 set exists for A3 printing, which happens on a laptop that has a network                                |
+| `data/*.geojson`                 | precache on install    | Small, and the OSM overlay is the layer people read first                                                        |
+| `tiles/*.pmtiles`                | byte ranges, on demand | Tens of MB in single files. Precaching them is not an option                                                     |
+
+Measured against the current build, install costs 1.74 MB over 102 files. Skipping the two
+print texture sizes keeps 9.8 MB off the phone and skipping the archives keeps off another
+78.5 MB. Those figures move as the data grows. The split is the decision, not the numbers.
+
+`assetPolicy()` in `src/lib/offline/assets.ts` holds the rules as a table, applied to
+whatever SvelteKit reports in `files`. Adding a file to `static/` picks up the right
+policy without touching the service worker.
+
+### Caching byte ranges
+
+PMTiles archives are read with HTTP range requests, never fetched whole. The Cache API
+refuses to store a 206 Partial Content response outright, so the usual
+`cache.put(request, response)` throws a `TypeError` and the obvious approach is a dead end.
+
+What works is to split the archive into fixed 64 KiB chunks, request each chunk on its own
+aligned boundary, and store it as an ordinary 200 response under a synthesised key
+carrying the chunk size and index (`coastline.pmtiles?__chunk=65536:45`). A read then
+reassembles the chunks it needs and builds the 206 the caller expected. The Cache API is
+happy because it never sees a partial response, and the caller is happy because it gets
+one.
+
+Chunks carry the archive's ETag. A read that supplies an expected ETag ignores chunks
+written by a different build, which stops a redeploy from serving a mix of old and new
+bytes as one tile.
+
+Reads search every cache in the origin, so a chunk pinned by a saved area also serves an
+ordinary map pan. Writes go to one named cache, so evicting an area is a single
+`caches.delete`.
+
+### Saving an area
+
+```ts
+import { saveArea, listAreas, evictArea, storageUsage, requestPersistence } from '$lib/offline';
+
+const area = await saveArea(
+	{
+		name: 'Illes Medes',
+		bounds: { west: 3.19, south: 42.02, east: 3.26, north: 42.07 },
+		zoom: { min: 10, max: 15 },
+		archives: ['/tiles/coastline.pmtiles', '/tiles/dem.pmtiles']
+	},
+	{
+		onProgress: ({ done, total, bytes }) => report(done / total, bytes),
+		signal: controller.signal
+	}
+);
+
+await listAreas();
+await evictArea(area.id);
 ```
 
-You can preview the production build with `npm run preview`.
+`saveArea` walks the tiles covering the box and reads each one through pmtiles, which
+means the archive's own directory walk decides which byte ranges matter rather than
+anything here guessing. Every range it touches lands in that area's cache. Call it again
+with the same box and it only fills gaps, so an interrupted save resumes by being retried.
+An aborted or failed save deletes its own cache rather than leaving a half-saved area on
+the manifest.
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+Call `requestPersistence()` before the first save. Without it the browser may evict saved
+areas under storage pressure, which on a boat means losing the map with no way to get it
+back.
+
+### Checking it still works
+
+`src/lib/offline/range-cache.spec.ts` reads byte ranges out of a real 2 KB PMTiles archive
+(`fixture.pmtiles`, built with tippecanoe), then cuts the network and reads them again,
+asserting the same bytes and zero further requests. It also decodes a real tile through
+`PMTiles` with the network down, and asserts that a range nobody cached still fails, so a
+passing run cannot be a silent fallthrough to the network.
+
+`src/lib/offline/areas.spec.ts` runs `saveArea`, `listAreas` and `evictArea` against a fake
+Cache API, covering the manifest round-trip, per-area caches, progress that reaches the
+total, and a failed save cleaning up after itself.
+
+The service worker itself needs a browser. Build, `pnpm run preview`, load the page, then
+kill the preview server and reload. The page still loads from the shell cache, byte ranges
+already read come back from the chunk cache, and anything never fetched fails, which is how
+you tell the cache apart from a network that is quietly still there.

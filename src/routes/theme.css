@@ -1,0 +1,86 @@
+/*
+ * The chrome around the map: dark weathered wood and aged brass, the table the
+ * painted map sits on. Dark is not a style choice here. The map's sea is a
+ * saturated enamel blue, and on a boat deck at noon a pale interface beside it
+ * washes out while a dark one with brass and paper on it stays readable.
+ */
+
+@theme {
+	--color-table-900: #14100c;
+	--color-table-800: #1d1710;
+	--color-table-700: #2a2119;
+	--color-table-600: #3a2f23;
+	--color-table-500: #4d3f2f;
+
+	--color-brass-500: #b8893f;
+	--color-brass-400: #cfa25a;
+	--color-brass-300: #e0bd85;
+
+	--color-paper: #efe4cf;
+	--color-paper-dim: #bfb19a;
+
+	--color-sea-shallow: #2ad9b4;
+	--color-sea-deep: #003850;
+
+	--color-hazard: #d4553f;
+	--color-buoy: #e0a32e;
+	--color-posidonia: #a9b84c;
+
+	--radius-rail: 0.5rem;
+
+	/* Wet hands, a moving boat. Nothing interactive goes below this. */
+	--spacing-touch: 2.75rem;
+}
+
+:root {
+	color-scheme: dark;
+	--rail-shadow: 0 2px 10px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(184 137 63 / 0.22);
+	--sunk: inset 0 1px 2px rgb(0 0 0 / 0.5);
+}
+
+html,
+body {
+	height: 100%;
+	margin: 0;
+	background: var(--color-table-900);
+	color: var(--color-paper);
+	overscroll-behavior: none;
+}
+
+/* The map owns the viewport. Nothing letterboxes it. */
+body {
+	-webkit-text-size-adjust: 100%;
+}
+
+:where(button, a, input, select, summary):focus-visible {
+	outline: 2px solid var(--color-brass-400);
+	outline-offset: 2px;
+	border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		transition-duration: 0.01ms !important;
+	}
+}
+
+/* MapLibre ships light-theme chrome that fights the table. */
+.maplibregl-ctrl-attrib {
+	background: rgb(20 16 12 / 0.82) !important;
+	color: var(--color-paper-dim) !important;
+	font-size: 10px;
+}
+
+.maplibregl-ctrl-attrib a {
+	color: var(--color-brass-300) !important;
+}
+
+.maplibregl-ctrl-scale {
+	background: rgb(20 16 12 / 0.82) !important;
+	border-color: var(--color-brass-500) !important;
+	color: var(--color-paper) !important;
+	font-variant-numeric: tabular-nums;
+}

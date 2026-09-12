@@ -1,2 +1,39 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
+
+@font-face {
+	font-family: 'Alegreya Sans';
+	font-style: normal;
+	font-weight: 400;
+	font-display: swap;
+	src: url('/fonts/alegreya-sans-400.woff2') format('woff2');
+}
+
+@font-face {
+	font-family: 'Alegreya Sans';
+	font-style: normal;
+	font-weight: 700;
+	font-display: swap;
+	src: url('/fonts/alegreya-sans-700.woff2') format('woff2');
+}
+
+@font-face {
+	font-family: 'Alegreya';
+	font-style: normal;
+	font-weight: 400;
+	font-display: swap;
+	src: url('/fonts/alegreya-400.woff2') format('woff2');
+}
+
+@font-face {
+	font-family: 'Alegreya';
+	font-style: normal;
+	font-weight: 700;
+	font-display: swap;
+	src: url('/fonts/alegreya-700.woff2') format('woff2');
+}
+
+@theme {
+	--font-sans: 'Alegreya Sans', ui-sans-serif, system-ui, 'Segoe UI', Roboto, Arial, sans-serif;
+	--font-serif: 'Alegreya', ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
+}

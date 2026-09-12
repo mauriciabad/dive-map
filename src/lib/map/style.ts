@@ -29,8 +29,9 @@ export const PALETTE = {
 	terrainEdgeSoft: 'rgba(42, 33, 25, 0.55)',
 	isobath: '#3d3227',
 	isobathMajor: '#241c14',
-	land: '#d9cdb9',
-	landEdge: '#8a7d68',
+	land: '#2e2b26',
+	landTexture: '#3a3630',
+	landEdge: '#585049',
 	ink: '#1d1710',
 	paper: '#efe4cf',
 	brass: '#b8893f',
@@ -42,18 +43,24 @@ export const PALETTE = {
  * The water column, as a colour-relief ramp over the DEM. Stops are elevation in
  * metres, so negative underwater. Alpha, not hue, carries the depth: tinting a
  * painted texture blue without also veiling it just makes it look dirty.
+ *
+ * The curve is deliberately slack above 30 m. Measured over Tamariu at z16, the
+ * seabed textures carry a luminance spread of 71.6 on their own; the first curve
+ * cut that to 27.8, which is where the ground stops reading as ground. Divers
+ * spend their dive between 5 and 40 m, so that band keeps its texture and the
+ * veil does its receding work below 40.
  */
 const DEPTH_VEIL: ExpressionSpecification = [
 	'interpolate',
 	['linear'],
 	['elevation'],
-	-90, 'rgba(0, 42, 62, 0.86)',
-	-80, 'rgba(0, 56, 80, 0.78)',
-	-50, 'rgba(2, 79, 119, 0.62)',
-	-40, 'rgba(2, 90, 130, 0.52)',
-	-30, 'rgba(4, 107, 150, 0.40)',
-	-18, 'rgba(10, 143, 155, 0.26)',
-	-5, 'rgba(35, 201, 172, 0.10)',
+	-90, 'rgba(0, 42, 62, 0.84)',
+	-80, 'rgba(0, 56, 80, 0.74)',
+	-50, 'rgba(2, 79, 119, 0.52)',
+	-40, 'rgba(2, 90, 130, 0.38)',
+	-30, 'rgba(4, 107, 150, 0.24)',
+	-18, 'rgba(10, 143, 155, 0.14)',
+	-5, 'rgba(35, 201, 172, 0.05)',
 	0, 'rgba(42, 217, 180, 0)',
 	0.01, 'rgba(0, 0, 0, 0)'
 ];
@@ -62,13 +69,19 @@ const DEPTH_VEIL: ExpressionSpecification = [
  * code -> texture image id, built from the catalogues so the two cannot drift.
  * An object lookup rather than a 60-branch match: one literal instead of a
  * variadic tuple, and it types without a cast.
+ *
+ * Both catalogues go in, with the layer's own winning on a collision. The
+ * substrate layer returns 30509, 30512 and 30513 for 37% of its features, and
+ * those seagrass classes exist only in the habitat catalogue; without the
+ * fallback every Posidonia and Cymodocea bed would render as bare sand.
  */
-const patternFor = (
-	classes: readonly { readonly code: string | undefined; readonly texture: string }[]
-): DataDrivenPropertyValueSpecification<string> => {
+const patternFor = (ground: 'habitats' | 'substrate'): DataDrivenPropertyValueSpecification<string> => {
 	const lookup: Record<string, string> = {};
-	for (const c of classes) {
-		if (c.code !== undefined) lookup[c.code] = c.texture;
+	const ordered = ground === 'habitats' ? [SUBSTRATES, HABITATS] : [HABITATS, SUBSTRATES];
+	for (const catalogue of ordered) {
+		for (const c of catalogue) {
+			if (c.code !== undefined) lookup[c.code] = c.texture;
+		}
 	}
 	return ['coalesce', ['get', ['get', 'code'], ['literal', lookup]], 'ch_sand'];
 };
@@ -135,7 +148,6 @@ const vis = (options: StyleOptions, id: LayerId): 'visible' | 'none' =>
 
 const groundLayers = (options: StyleOptions): LayerSpecification[] => {
 	const showing = options.groundLayer;
-	const classes = showing === 'habitats' ? HABITATS : SUBSTRATES;
 	return [
 		{
 			id: 'ground-fill',
@@ -144,7 +156,7 @@ const groundLayers = (options: StyleOptions): LayerSpecification[] => {
 			'source-layer': showing,
 			layout: { visibility: vis(options, showing) },
 			paint: {
-				'fill-pattern': patternFor(classes),
+				'fill-pattern': patternFor(showing),
 				'fill-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.55, 13, 0.92]
 			}
 		},
@@ -299,7 +311,7 @@ const osmLayers = (options: StyleOptions): LayerSpecification[] => {
 			filter: ['all', isKind('dive-site'), ['has', 'maxDepth']],
 			layout: {
 				visibility,
-				'text-field': ['concat', '-', ['get', 'maxDepth'], ' m'],
+				'text-field': ['concat', '-', ['to-string', ['get', 'maxDepth']], ' m'],
 				'text-font': labelFont,
 				'text-size': ['interpolate', ['linear'], ['zoom'], 13, 10, 18, 13],
 				'text-offset': [0, 2.5],
@@ -404,7 +416,7 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 				'hillshade-illumination-direction': 315,
 				'hillshade-illumination-altitude': 28,
 				'hillshade-exaggeration': 0.62,
-				'hillshade-shadow-color': 'rgba(20, 14, 8, 0.55)',
+				'hillshade-shadow-color': 'rgba(20, 14, 8, 0.42)',
 				'hillshade-highlight-color': 'rgba(255, 246, 224, 0.3)',
 				'hillshade-accent-color': 'rgba(30, 22, 14, 0.35)'
 			}
@@ -464,12 +476,15 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			layout: {
 				visibility: options.isobaths.labels ? vis(options, 'isobaths') : 'none',
 				'symbol-placement': 'line',
-				'text-field': ['concat', ['get', 'depth'], ' m'],
+				'text-field': ['concat', ['to-string', ['get', 'depth']], ' m'],
 				'text-font': ['Alegreya Sans Bold'],
-				'text-size': ['interpolate', ['linear'], ['zoom'], 13, 10, 18, 14],
+				'text-size': ['interpolate', ['linear'], ['zoom'], 13, 10, 18, 13],
 				'text-letter-spacing': 0.06,
-				'text-max-angle': 25,
-				'symbol-spacing': 320
+				// A seabed contour is far more sinuous than a road. Measured over Tamariu,
+				// 25 degrees places nothing at all out of 408 candidate contours and 90
+				// places labels on four of the five emphasised depths.
+				'text-max-angle': 90,
+				'symbol-spacing': 140
 			},
 			paint: {
 				'text-color': PALETTE.paper,
@@ -484,16 +499,44 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			source: 'coastline',
 			'source-layer': 'land',
 			layout: { visibility: vis(options, 'coastline') },
-			paint: { 'fill-pattern': 'ch_rock', 'fill-opacity': 0.95 }
+			paint: { 'fill-color': PALETTE.land }
 		},
 		{
-			id: 'land-edge',
+			// A whisper of rock so the shore is not a flat plate, at an opacity that
+			// keeps land quieter than the seabed it frames.
+			id: 'land-texture',
+			type: 'fill',
+			source: 'coastline',
+			'source-layer': 'land',
+			layout: { visibility: vis(options, 'coastline') },
+			paint: { 'fill-pattern': 'ch_rock', 'fill-opacity': 0.16 }
+		},
+		{
+			// The real surveyed shoreline. Stroking the land polygon instead would draw
+			// the synthetic inland closure and the straight cuts at the French and
+			// Valencian borders as if they were coast.
+			id: 'shoreline',
+			type: 'line',
+			source: 'coastline',
+			'source-layer': 'coastline',
+			layout: { visibility: vis(options, 'coastline'), 'line-join': 'round' },
+			paint: {
+				'line-color': PALETTE.landEdge,
+				'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 18, 3.5]
+			}
+		},
+		{
+			// ICGC's coastline product contains no island geometry, so Illes Medes and
+			// the rest come from the 0 m isobath instead and have no line to draw.
+			// Stroke their polygon or the most dived site in Catalonia has no edge.
+			id: 'island-edge',
 			type: 'line',
 			source: 'coastline',
 			'source-layer': 'land',
+			filter: ['==', ['get', 'src'], 'isobata-0m'],
 			layout: { visibility: vis(options, 'coastline'), 'line-join': 'round' },
 			paint: {
-				'line-color': PALETTE.terrainEdge,
+				'line-color': PALETTE.landEdge,
 				'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 18, 3.5]
 			}
 		},
