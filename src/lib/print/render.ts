@@ -149,8 +149,12 @@ export const renderCard = async (
 		map.on('error', (e) => problems.push(e.error.message.slice(0, 160)));
 		map.on('styleimagemissing', (e) => missingImages.push(e.id));
 		const install = (): void => {
-			for (const { name, bitmap } of textures) {
-				if (!map.hasImage(name)) map.addImage(name, bitmap, { pixelRatio: 2 });
+			for (const texture of textures) {
+				// The sheet's own pixelRatio scales the canvas; a texture's scales the
+				// pattern. Reusing the outer one here shrank the seabed by a factor of four.
+				if (!map.hasImage(texture.name)) {
+					map.addImage(texture.name, texture.bitmap, { pixelRatio: texture.pixelRatio });
+				}
 			}
 		};
 		map.on('styledata', install);

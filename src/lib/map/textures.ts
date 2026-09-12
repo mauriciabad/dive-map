@@ -37,13 +37,35 @@ export const textureFormat = (): Promise<TextureFormat> => {
 };
 
 /**
- * Which texture size to load. The screen set trades grain for memory on a phone;
- * printing always takes the full one, because a 512px pattern blown up to A3 at
- * 200dpi is visibly soft.
+ * How wide one repeat of a seabed pattern lands on screen.
+ *
+ * A fill-pattern is laid out in CSS pixels: MapLibre divides the image by the
+ * pixelRatio it was registered at. That ratio was a constant 2 while the image
+ * size followed the device, so the same seabed repeated every 256 CSS pixels on
+ * a laptop and every 512 on a retina screen, where it reads as blotches rather
+ * than as ground. Registering each texture at `bitmap.width / PATTERN_CSS_SIZE`
+ * pins the repeat wherever it is drawn, and the size below is then only a
+ * question of how many device pixels to spend on it.
+ */
+export const PATTERN_CSS_SIZE = 256;
+
+export const patternPixelRatio = (bitmapWidth: number): number =>
+	bitmapWidth / PATTERN_CSS_SIZE;
+
+/**
+ * Which texture size to load. Enough device pixels for the screen it is drawn
+ * on, capped on a phone because the whole set is decoded and held: 22 textures
+ * at 1024 is 92 MB of bitmap, which is not a thing to ask of the device that
+ * also has to hold the tiles offline. Printing always takes the full one.
+ *
+ * The floor is what makes this safe to land before every caller passes the
+ * ratio above to `addImage`. A caller still registering at a fixed 2 gets
+ * 512 / 2, which is the same 256 CSS pixels, on every screen up to 2x.
  */
 export const sizeForScreen = (devicePixelRatio: number, coarsePointer: boolean): TextureSize => {
-	if (coarsePointer) return devicePixelRatio > 1.5 ? 512 : 256;
-	return devicePixelRatio > 1.5 ? 1024 : 512;
+	const wanted = Math.max(PATTERN_CSS_SIZE * devicePixelRatio, PATTERN_CSS_SIZE * 2);
+	const cap: TextureSize = coarsePointer ? 512 : 1024;
+	return TEXTURE_SIZES.find((size) => size >= wanted && size <= cap) ?? cap;
 };
 
 export const PRINT_TEXTURE_SIZE: TextureSize = 2048;
@@ -66,6 +88,8 @@ export const texturePalette = (): readonly string[] => [
 export interface LoadedTexture {
 	readonly name: string;
 	readonly bitmap: ImageBitmap;
+	/** Hand this to `addImage`. A constant here is what made the pattern follow the screen density. */
+	readonly pixelRatio: number;
 }
 
 /**
@@ -83,7 +107,8 @@ export const loadTextures = async (
 		names.map(async (name) => {
 			const response = await fetch(textureUrl(name, size, format), signal ? { signal } : {});
 			if (!response.ok) throw new Error(`texture ${name} at ${size}: HTTP ${response.status}`);
-			return { name, bitmap: await createImageBitmap(await response.blob()) };
+			const bitmap = await createImageBitmap(await response.blob());
+			return { name, bitmap, pixelRatio: patternPixelRatio(bitmap.width) };
 		})
 	);
 };
