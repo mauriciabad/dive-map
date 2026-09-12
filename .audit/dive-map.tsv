@@ -22,3 +22,12 @@ ts	phase	decision	why	evidence	result
 2026-09-12T15:27:39Z	verify	clipped 2673 isobaths around Tamariu straight off the remote 592MB file in 7 seconds	proves the range-read pipeline before I build anything on it; COTA is the attribute, 1m steps from 0 to -59	ogr2ogr /vsicurl -spat	VERIFIED
 2026-09-12T15:27:39Z	verify	pulled 310 habitat polygons for the same bbox, 39 of them Posidonia	checked the WFS myself rather than trusting the recon summary	sig.gencat.cat WFS, http 200, 2.6MB	VERIFIED
 2026-09-12T15:27:39Z	domain	print geometry is specified by map scale, not zoom	an instructor sets 1:2000 and trusts the scale bar; zoom is derived from scale, latitude and dpi	src/lib/domain/print.ts, 5 tests green	VERIFIED
+2026-09-12T15:55:17Z	scope	textures ship at several resolutions, not one	user wants 512 for phones and full 2048 for a powerful machine or a print run	user message 2	settled
+2026-09-12T15:55:17Z	scope	MIT licence on the repo	user's call	user message 2	settled
+2026-09-12T15:55:17Z	scope	everything vector where it can be; textures are raster patterns masked by vector polygons	user asked for vector layers; MapLibre fill-pattern is exactly a raster fill clipped to a vector polygon, so both hold	user message 2	settled
+2026-09-12T15:55:17Z	scope	offline support is a hard requirement, not a nicety	divers open this on a boat with no signal	user message 2	open
+2026-09-12T15:55:17Z	scope	GitHub Pages, static, custom domain divemap.mauri.app	free hosting, no server; rules out any runtime tile service	user message 2	settled
+2026-09-12T15:55:17Z	scope	print framing is a draggable crop overlay over the live map	user frames each sheet by hand and may print an area with no dive site in it	user message 2	settled
+2026-09-12T15:55:17Z	scope	disclaimer wording is scuba orientation, not marine navigation	user confirmed the use; ICGC's restriction is about navigation	user message 2	settled
+2026-09-12T16:09:28Z	build	fanned out four agents on disjoint file scopes	DEM tiles, vector tiles, OSM plus coastline, and deploy plus offline share no files; I kept the visual direction and map style	4 background poteto-agents	running
+2026-09-12T16:16:37Z	domain	one lookup resolves a seabed code from either published catalogue	the live substrate layer returns 30509, 30512 and 30513, which are seagrass classes the substrate spec never defines; a test over a fixture of real codes now fails if that drifts	src/lib/domain/habitat.spec.ts, 13 tests green	VERIFIED

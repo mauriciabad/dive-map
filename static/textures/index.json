@@ -1,0 +1,276 @@
+{
+  "sizes": [
+    2048,
+    1024,
+    512,
+    256
+  ],
+  "textures": {
+    "ch_bluestones": {
+      "source": "ch_bluestones.png",
+      "seamBefore": [
+        1.13,
+        1.12
+      ],
+      "seamAfter": [
+        1.13,
+        1.12
+      ],
+      "blended": []
+    },
+    "ch_cobblestone": {
+      "source": "ch_cobblestone.png",
+      "seamBefore": [
+        1.56,
+        1.98
+      ],
+      "seamAfter": [
+        0.0,
+        0.0
+      ],
+      "blended": [
+        "x",
+        "y"
+      ]
+    },
+    "ch_dirt": {
+      "source": "ch_dirt.png",
+      "seamBefore": [
+        1.03,
+        1.03
+      ],
+      "seamAfter": [
+        1.03,
+        1.03
+      ],
+      "blended": []
+    },
+    "ch_dirt_dark": {
+      "source": "ch_dirt_dark.png",
+      "seamBefore": [
+        1.23,
+        1.31
+      ],
+      "seamAfter": [
+        1.23,
+        1.31
+      ],
+      "blended": []
+    },
+    "ch_dirt_lines_02": {
+      "source": "ch_dirt_lines_02.png",
+      "seamBefore": [
+        1.16,
+        1.25
+      ],
+      "seamAfter": [
+        1.16,
+        1.25
+      ],
+      "blended": []
+    },
+    "ch_dirt_mud": {
+      "source": "ch_dirt_mud.png",
+      "seamBefore": [
+        1.42,
+        1.38
+      ],
+      "seamAfter": [
+        1.42,
+        1.38
+      ],
+      "blended": []
+    },
+    "ch_dungeonvoid": {
+      "source": "ch_dungeonvoid.png",
+      "seamBefore": [
+        2.43,
+        0.94
+      ],
+      "seamAfter": [
+        0.0,
+        0.94
+      ],
+      "blended": [
+        "x"
+      ]
+    },
+    "ch_grass": {
+      "source": "ch_grass.png",
+      "seamBefore": [
+        1.01,
+        1.0
+      ],
+      "seamAfter": [
+        1.01,
+        1.0
+      ],
+      "blended": []
+    },
+    "ch_grass_2": {
+      "source": "ch_grass_2.png",
+      "seamBefore": [
+        0.99,
+        1.2
+      ],
+      "seamAfter": [
+        0.99,
+        1.2
+      ],
+      "blended": []
+    },
+    "ch_grass_2_lines": {
+      "source": "ch_grass_2_lines.png",
+      "seamBefore": [
+        1.73,
+        1.57
+      ],
+      "seamAfter": [
+        0.0,
+        0.0
+      ],
+      "blended": [
+        "x",
+        "y"
+      ]
+    },
+    "ch_grass_3": {
+      "source": "ch_grass_3.png",
+      "seamBefore": [
+        1.43,
+        0.89
+      ],
+      "seamAfter": [
+        1.43,
+        0.89
+      ],
+      "blended": []
+    },
+    "ch_grass_weeds": {
+      "source": "ch_grass_weeds.png",
+      "seamBefore": [
+        1.15,
+        0.94
+      ],
+      "seamAfter": [
+        1.15,
+        0.94
+      ],
+      "blended": []
+    },
+    "ch_rock": {
+      "source": "ch_rock.png",
+      "seamBefore": [
+        0.87,
+        0.87
+      ],
+      "seamAfter": [
+        0.87,
+        0.87
+      ],
+      "blended": []
+    },
+    "ch_rocks": {
+      "source": "ch_rocks.png",
+      "seamBefore": [
+        0.91,
+        1.72
+      ],
+      "seamAfter": [
+        0.91,
+        0.0
+      ],
+      "blended": [
+        "y"
+      ]
+    },
+    "ch_sand": {
+      "source": "ch_sand.png",
+      "seamBefore": [
+        0.84,
+        1.59
+      ],
+      "seamAfter": [
+        0.85,
+        0.0
+      ],
+      "blended": [
+        "y"
+      ]
+    },
+    "ch_sandy": {
+      "source": "ch_sandy.png",
+      "seamBefore": [
+        0.98,
+        1.09
+      ],
+      "seamAfter": [
+        0.98,
+        1.09
+      ],
+      "blended": []
+    },
+    "ch_sandy_lines_02": {
+      "source": "ch_sandy_lines_02.png",
+      "seamBefore": [
+        1.14,
+        1.36
+      ],
+      "seamAfter": [
+        1.14,
+        1.36
+      ],
+      "blended": []
+    },
+    "ch_shipwood": {
+      "source": "ch_shipwood.png",
+      "seamBefore": [
+        2.84,
+        0.97
+      ],
+      "seamAfter": [
+        0.0,
+        0.95
+      ],
+      "blended": [
+        "x"
+      ]
+    },
+    "ch_stone": {
+      "source": "ch_stone.png",
+      "seamBefore": [
+        1.11,
+        0.38
+      ],
+      "seamAfter": [
+        1.11,
+        0.38
+      ],
+      "blended": []
+    },
+    "ch_stones": {
+      "source": "ch_stones.png",
+      "seamBefore": [
+        0.91,
+        1.09
+      ],
+      "seamAfter": [
+        0.91,
+        1.09
+      ],
+      "blended": []
+    },
+    "metal": {
+      "source": "metal.png",
+      "seamBefore": [
+        0.41,
+        0.99
+      ],
+      "seamAfter": [
+        0.41,
+        0.99
+      ],
+      "blended": []
+    }
+  }
+}

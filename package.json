@@ -17,7 +17,7 @@
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
-		"@sveltejs/adapter-auto": "^7.0.1",
+		"@sveltejs/adapter-static": "^3.0.10",
 		"@sveltejs/kit": "^2.63.0",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
 		"@tailwindcss/typography": "^0.5.19",
@@ -45,5 +45,6 @@
 		"pmtiles": "^4.5.0",
 		"terra-draw": "^1.33.0",
 		"terra-draw-maplibre-gl-adapter": "^1.4.1"
-	}
+	},
+	"license": "MIT"
 }

@@ -222,7 +222,7 @@ export const HABITATS: readonly HabitatClass[] = [
 		en: 'Aquaculture infrastructure',
 		hic: undefined,
 		prominence: 'infrastructure',
-		texture: 'ch_metal'
+		texture: 'metal'
 	},
 	{
 		raster: 23,
@@ -231,7 +231,7 @@ export const HABITATS: readonly HabitatClass[] = [
 		en: 'Submarine pipes and cables',
 		hic: undefined,
 		prominence: 'infrastructure',
-		texture: 'ch_metal'
+		texture: 'metal'
 	},
 	{
 		raster: 24,
@@ -258,7 +258,7 @@ export const HABITATS: readonly HabitatClass[] = [
 		en: 'Offshore wind farms',
 		hic: undefined,
 		prominence: 'infrastructure',
-		texture: 'ch_metal'
+		texture: 'metal'
 	},
 	{
 		raster: 27,
@@ -267,7 +267,7 @@ export const HABITATS: readonly HabitatClass[] = [
 		en: 'Permanent underwater observatories',
 		hic: undefined,
 		prominence: 'infrastructure',
-		texture: 'ch_metal'
+		texture: 'metal'
 	},
 	{
 		raster: 28,
@@ -276,7 +276,7 @@ export const HABITATS: readonly HabitatClass[] = [
 		en: 'Oil platforms',
 		hic: undefined,
 		prominence: 'infrastructure',
-		texture: 'ch_metal'
+		texture: 'metal'
 	},
 	{
 		raster: 29,
@@ -303,7 +303,7 @@ export const HABITATS: readonly HabitatClass[] = [
 		en: 'Buoys and moorings',
 		hic: undefined,
 		prominence: 'infrastructure',
-		texture: 'ch_metal'
+		texture: 'metal'
 	},
 	{
 		raster: 32,
@@ -390,9 +390,9 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		code: '70102a',
 		ca: 'Emissaris i altres conduccions',
 		en: 'Outfalls and other pipelines',
-		texture: 'ch_metal'
+		texture: 'metal'
 	},
-	{ raster: 11, code: '70102b', ca: 'Cables', en: 'Cables', texture: 'ch_metal' },
+	{ raster: 11, code: '70102b', ca: 'Cables', en: 'Cables', texture: 'metal' },
 	{
 		raster: 12,
 		code: '70103',
@@ -406,28 +406,28 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		code: '70107',
 		ca: 'Instal·lacions petrolieres',
 		en: 'Oil installations',
-		texture: 'ch_metal'
+		texture: 'metal'
 	},
 	{
 		raster: 15,
 		code: '70109',
 		ca: 'Morts de boies i ancoratges',
 		en: 'Mooring blocks and anchorages',
-		texture: 'ch_metal'
+		texture: 'metal'
 	},
 	{
 		raster: 16,
 		code: '70101',
 		ca: "Infraestructures d'aqüicultura",
 		en: 'Aquaculture infrastructure',
-		texture: 'ch_metal'
+		texture: 'metal'
 	},
 	{
 		raster: 17,
 		code: '70106',
 		ca: 'Observatoris científics permanents',
 		en: 'Permanent scientific observatories',
-		texture: 'ch_metal'
+		texture: 'metal'
 	},
 	{
 		raster: 18,
@@ -481,3 +481,17 @@ export const legendFor = (present: ReadonlySet<string>, limit: number): readonly
 				a.raster - b.raster
 		)
 		.slice(0, limit);
+
+/**
+ * The published substrate catalogue and the published habitat catalogue are
+ * separate documents, but the live WFS does not respect the split: the substrate
+ * layer returns 30509, 30512 and 30513, which are seagrass classes defined only
+ * in the habitat catalogue. Resolve against both.
+ */
+export type SeabedClass = HabitatClass | SubstrateClass;
+
+export const seabedClassByCode = (code: string): SeabedClass | undefined =>
+	substrateByCode.get(code) ?? habitatByCode.get(code);
+
+export const textureForCode = (code: string): string | undefined =>
+	seabedClassByCode(code)?.texture;
