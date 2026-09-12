@@ -66,7 +66,8 @@
 					locale,
 					isobaths: live.isobaths,
 					visible: live.layers,
-					groundLayer: live.groundLayer
+					groundLayer: live.groundLayer,
+					smoothed: live.smoothed
 				},
 				locale,
 				format: print.format

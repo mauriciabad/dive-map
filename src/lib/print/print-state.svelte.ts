@@ -35,6 +35,7 @@ export interface LiveView {
 	readonly layers: readonly LayerId[];
 	readonly isobaths: IsobathStyle;
 	readonly groundLayer: 'habitats' | 'substrate';
+	readonly smoothed: boolean;
 }
 
 const MM_BOUNDS = { low: 20, high: 2000 } as const;
