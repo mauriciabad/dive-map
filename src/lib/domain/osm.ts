@@ -151,6 +151,7 @@ export function parseDiveFeature(ref: OsmRef, tags: OsmTags): DiveFeature | unde
 		case 'harbour':
 		case 'small_craft_facility':
 			return { ...base, kind: 'harbour', category: tags['seamark:harbour:category'] };
+		case undefined:
 		default:
 			break;
 	}

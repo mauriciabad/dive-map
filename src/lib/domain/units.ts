@@ -24,8 +24,8 @@ export const elevation = (m: number): Elevation => {
 	return m as Elevation;
 };
 
-export const depthOf = (e: Elevation): Depth => depth(Math.max(0, -e));
-export const elevationOf = (d: Depth): Elevation => elevation(-d);
+export const depthOf = (e: Elevation): Depth => depth(Math.max(0, 0 - e));
+export const elevationOf = (d: Depth): Elevation => elevation(0 - d);
 
 /** Denominator of a map scale: 2000 means 1:2000. What a printed card is specified in. */
 declare const ScaleBrand: unique symbol;

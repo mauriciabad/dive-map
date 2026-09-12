@@ -35,10 +35,7 @@ export default defineConfig(
 		}
 	},
 	{
-		files: ['**/*.js'],
-		...ts.configs.disableTypeChecked
-	},
-	{
+		files: ['**/*.ts', '**/*.svelte', '**/*.svelte.ts'],
 		rules: {
 			'@typescript-eslint/consistent-type-imports': 'error',
 			'@typescript-eslint/no-unnecessary-condition': 'error',
@@ -47,5 +44,10 @@ export default defineConfig(
 			eqeqeq: ['error', 'always', { null: 'ignore' }],
 			'no-console': ['warn', { allow: ['warn', 'error'] }]
 		}
+	},
+	{
+		// Config and script files are plain JS with no project service behind them.
+		files: ['**/*.js', '**/*.mjs'],
+		...ts.configs.disableTypeChecked
 	}
 );
