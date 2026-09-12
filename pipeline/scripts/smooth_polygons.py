@@ -10,9 +10,9 @@ boundary in opposite directions over the same vertices, so they compute bit-iden
 coordinates for it. Gaps and overlaps are impossible rather than merely small, and no
 matching tolerance is involved anywhere.
 
-A vertex with other than two distinct neighbours is a junction where three or more
-polygons meet, or the tip of a spike. Those stay pinned: a sharp point there is the
-correct answer, and rounding one would pull each polygon away in a different direction.
+Junctions, where three or more polygons meet, are free to move like any other vertex,
+because all the polygons meeting there read the same entry. They do anchor simplification,
+so the shared runs between them are cut the same way on both sides.
 
 The corner cut is capped per vertex by the size of the smallest polygon touching it, so
 the 100 m2 minimum mapping unit survives. Since the cap is a property of the vertex, both
@@ -92,27 +92,29 @@ class Arrangement:
 
 
 def analyse(arr: Arrangement):
-    """Pins, per-vertex caps and the directed-edge partner map, all read from the rings."""
+    """Anchors, per-vertex caps and the directed-edge partner map, all read from the rings.
+
+    Anchors are where Douglas-Peucker is allowed to cut a ring into runs. The test has to be
+    a property of the vertex in the arrangement and nothing else, so two polygons sharing a
+    boundary split it at the same places and simplify it to the same points. An earlier
+    version also anchored vertices a ring visits twice, which is per-ring: the neighbour did
+    not always agree, and at loose tolerances the two sides simplified apart.
+    """
     adjacency: dict[int, set[int]] = defaultdict(set)
     partner: dict[tuple[int, int], int] = {}
     cap: dict[int, float] = {}
-    repeats: set[int] = set()
     for rid, seq in enumerate(arr.rings):
         n = len(seq)
         rcap = arr.ring_cap[rid]
-        seen: set[int] = set()
         for i in range(n):
             a, b = seq[i], seq[(i + 1) % n]
             partner.setdefault((a, b), rid)
             adjacency[a].add(b)
             adjacency[b].add(a)
-            if a in seen:
-                repeats.add(a)
-            seen.add(a)
             if rcap < cap.get(a, math.inf):
                 cap[a] = rcap
-    pinned = {v for v, adj in adjacency.items() if len(adj) != 2} | repeats
-    return pinned, cap, partner, adjacency
+    anchors = {v for v, adj in adjacency.items() if len(adj) != 2}
+    return anchors, cap, partner, adjacency
 
 
 def chaikin_round(ring, cut: float):
@@ -219,7 +221,7 @@ def simplify_run(run, tol: float):
 
 
 def simplify_ring(ring, tol: float):
-    """Splits at the pinned junctions and simplifies each run, so pinned points always survive."""
+    """Splits at the junction anchors and simplifies each run, so anchors always survive."""
     if tol <= 0 or len(ring) < 4:
         return ring
     anchors = [i for i, p in enumerate(ring) if p[2]]
@@ -242,11 +244,11 @@ def simplify_ring(ring, tol: float):
     return out
 
 
-def smooth_ring(seq, pos, pinned, cap, tags, cfg):
+def smooth_ring(seq, pos, anchors, cap, tags, cfg):
     plain = []
     for idx, v in enumerate(seq):
         x, y = pos[v]
-        plain.append((x, y, v in pinned, cap.get(v, 0.0), tags[idx] if tags else 0, x, y))
+        plain.append((x, y, v in anchors, cap.get(v, 0.0), tags[idx] if tags else 0, x, y))
     ring = plain
     for _ in range(cfg.rounds):
         ring = chaikin_round(ring, cfg.cut)
@@ -297,9 +299,9 @@ class Strength:
 # Measured on the Tamariu block, ratio 0.30 is where features start crossing below the 100 m2
 # minimum mapping unit, so 0.20 at the strongest setting keeps a margin.
 PRESETS = {
-    "light": Strength(rounds=2, cut=0.25, passes=0, lam=0.0, mu=0.0, tol=0.2, cap=2.0, ratio=0.10),
-    "medium": Strength(rounds=2, cut=0.25, passes=6, lam=0.60, mu=-0.62, tol=0.3, cap=4.5, ratio=0.15),
-    "blob": Strength(rounds=2, cut=0.25, passes=18, lam=0.65, mu=-0.67, tol=0.4, cap=6.5, ratio=0.20),
+    "light": Strength(rounds=2, cut=0.25, passes=6, lam=0.60, mu=-0.62, tol=0.3, cap=4.5, ratio=0.15),
+    "medium": Strength(rounds=2, cut=0.25, passes=20, lam=0.65, mu=-0.67, tol=0.4, cap=9.0, ratio=0.18),
+    "blob": Strength(rounds=2, cut=0.25, passes=60, lam=0.65, mu=-0.67, tol=0.4, cap=12.0, ratio=0.18),
 }
 
 SHORE_CELL = 0.0015
@@ -410,7 +412,7 @@ def main() -> int:
     ap.add_argument("--in", dest="src", required=True)
     ap.add_argument("--out", dest="dst")
     ap.add_argument("--limit-out")
-    ap.add_argument("--smoothing", choices=sorted(PRESETS), default="medium")
+    ap.add_argument("--smoothing", choices=sorted(PRESETS), default="blob")
     ap.add_argument("--max-offset", type=float)
     ap.add_argument("--size-ratio", type=float)
     ap.add_argument("--passes", type=int)
@@ -441,7 +443,7 @@ def main() -> int:
                 shape.append([r for r in built if r is not None])
         features.append((f.get("properties") or {}, shape))
 
-    pinned, cap, partner, adjacency = analyse(arr)
+    anchors, cap, partner, adjacency = analyse(arr)
     pos = smooth_vertices(arr, adjacency, cap, cfg)
 
     in_verts = sum(len(r) for r in arr.rings)
@@ -454,7 +456,7 @@ def main() -> int:
                 for poly in shape:
                     built = []
                     for rid in poly:
-                        ring = smooth_ring(arr.rings[rid], pos, pinned, cap, None, cfg)
+                        ring = smooth_ring(arr.rings[rid], pos, anchors, cap, None, cfg)
                         coords = closed_coords(ring, args.precision)
                         if coords is None:
                             continue
@@ -483,7 +485,7 @@ def main() -> int:
     print(f"features            {len(features)}")
     print(f"rings               {len(arr.rings)}")
     print(f"distinct vertices   {len(arr.pts)}")
-    print(f"pinned junctions    {len(pinned)} ({100 * len(pinned) / max(len(arr.pts), 1):.1f}%)")
+    print(f"simplify anchors    {len(anchors)} ({100 * len(anchors) / max(len(arr.pts), 1):.1f}%)")
     print(f"degree histogram    {dict(sorted(degrees.items())[:6])}")
     print(f"vertex cap m        min {caps[0]:.2f} median {caps[len(caps) // 2]:.2f} max {caps[-1]:.2f}")
     if args.dst:
@@ -507,7 +509,7 @@ def main() -> int:
                 lon = (ax + bx) / 2.0 / GRID
                 lat = (ay + by) / 2.0 / GRID
                 tags.append(1 if near_coast(lon, lat, cells) else 0)
-            ring = smooth_ring(loop, pos, pinned, cap, tags, cfg)
+            ring = smooth_ring(loop, pos, anchors, cap, tags, cfg)
             run = []
             cur = None
             for c, tag in to_lonlat(ring, args.precision):
