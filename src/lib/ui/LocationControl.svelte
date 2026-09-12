@@ -8,14 +8,16 @@
 	import { type MapFrame, buildFrame } from '$lib/geo/frame';
 	import { PositionTracker } from '$lib/geo/position.svelte';
 	import { SvelteControl, whenMapReady } from '$lib/map/controls';
+	import { POSITION_PANEL_ID } from './panel';
 	import type { MapState } from '$lib/state/map-view.svelte';
 
 	/**
 	 * Where the boat is, drawn on the map and driven from the corner stack.
 	 *
-	 * The button and the panel both go through `SvelteControl` into the top-right
-	 * corner, under MapLibre's own zoom group, so the whole thing takes the corner
-	 * layout that already clears the notch and stays inside the viewport.
+	 * The button goes through `SvelteControl` into the top-right corner, under
+	 * MapLibre's own zoom group, so it takes the corner layout that already clears
+	 * the notch. The panel is a `Panel` like every other one, rendered in the page
+	 * and anchored beside that corner rather than stacked under it.
 	 *
 	 * The three style layers are always present and always visible. Nothing here
 	 * touches the style: switching tracking off empties the sources instead, which
@@ -34,8 +36,9 @@
 	// Read once on purpose. The tracker owns a live geolocation watch, so swapping
 	// it mid-flight would leak the old one; the prop exists to inject, not to rebind.
 	const tracker = untrack(() => supplied) ?? new PositionTracker();
-	const childProps = {
+	const buttonProps = {
 		tracker,
+		panelId: POSITION_PANEL_ID,
 		get locale() {
 			return view.locale;
 		}
@@ -101,7 +104,7 @@
 	$effect(() =>
 		whenMapReady((m) => {
 			const button = new SvelteControl(LocationButton, {
-				props: childProps,
+				props: buttonProps,
 				className: 'maplibregl-ctrl maplibregl-ctrl-group'
 			});
 			m.addControl(button, 'top-right');
@@ -133,27 +136,17 @@
 		map.easeTo({ center: [fix.lng, fix.lat], zoom: Math.max(map.getZoom(), 15), duration: 900 });
 	});
 
-	$effect(() => {
-		if (!tracker.panelOpen) return;
-		return whenMapReady((m) => {
-			const control = new SvelteControl(LocationPanel, {
-				props: childProps,
-				className: 'maplibregl-ctrl dive-ctrl-panel'
-			});
-			m.addControl(control, 'top-right');
-			return () => {
-				m.removeControl(control);
-			};
-		});
-	});
-
 	$effect(() => () => {
 		tracker.dispose();
 	});
 </script>
 
-<svelte:window
-	onkeydown={(e: KeyboardEvent) => {
-		if (e.key === 'Escape') tracker.panelOpen = false;
-	}}
-/>
+{#if tracker.panelOpen}
+	<LocationPanel
+		{tracker}
+		locale={view.locale}
+		onclose={() => {
+			tracker.panelOpen = false;
+		}}
+	/>
+{/if}

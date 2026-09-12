@@ -1,47 +1,19 @@
 <script lang="ts">
-	import { type GeoKey, gt } from './messages.ts';
 	import type { PositionTracker } from './position.svelte.ts';
+	import { LOOK_LABEL, lookOf } from '$lib/ui/position-status';
 	import type { Locale } from '$lib/i18n/locale';
+	import { t } from '$lib/i18n/messages';
 
 	interface Props {
 		readonly tracker: PositionTracker;
 		readonly locale: Locale;
+		readonly panelId: string;
 	}
 
-	const { tracker, locale }: Props = $props();
+	const { tracker, locale, panelId }: Props = $props();
 
-	/**
-	 * Off, locating and tracking are the three the brief asked for. The other
-	 * three exist because a boat loses its fix and the button is the only place a
-	 * diver looks: amber says the map is showing you where you were, not where
-	 * you are.
-	 */
-	type Look = 'off' | 'locating' | 'tracking' | 'stale' | 'denied' | 'unsupported';
-
-	const look = $derived<Look>(
-		tracker.support !== 'ok'
-			? 'unsupported'
-			: tracker.watch.status === 'denied'
-				? 'denied'
-				: tracker.watch.status === 'off'
-					? 'off'
-					: tracker.watch.status === 'locating'
-						? 'locating'
-						: tracker.stale
-							? 'stale'
-							: 'tracking'
-	);
-
-	const LABELS: Readonly<Record<Look, GeoKey>> = {
-		off: 'myPosition',
-		locating: 'locating',
-		tracking: 'tracking',
-		stale: 'geoUnavailable',
-		denied: 'geoDenied',
-		unsupported: 'geoUnsupported'
-	};
-
-	const label = $derived(gt(locale, LABELS[look]));
+	const look = $derived(lookOf(tracker));
+	const label = $derived(t(locale, LOOK_LABEL[look]));
 	const on = $derived(look === 'tracking' || look === 'stale');
 </script>
 
@@ -80,8 +52,9 @@
 {#if tracker.enabled}
 	<button
 		type="button"
-		title={gt(locale, 'trail')}
-		aria-pressed={tracker.panelOpen}
+		title={t(locale, 'trail')}
+		aria-expanded={tracker.panelOpen}
+		aria-controls={panelId}
 		onclick={() => {
 			tracker.panelOpen = !tracker.panelOpen;
 		}}
@@ -101,7 +74,7 @@
 			<circle cx="18.4" cy="6.2" r="2.6" fill="currentColor" stroke="none" />
 			<circle cx="4" cy="19.4" r="1.4" fill="currentColor" stroke="none" opacity="0.45" />
 		</svg>
-		<span class="visually-hidden">{gt(locale, 'trail')}</span>
+		<span class="visually-hidden">{t(locale, 'trail')}</span>
 	</button>
 {/if}
 

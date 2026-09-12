@@ -16,12 +16,15 @@ export const ICONS = {
 	/** Stacked terrain levels, the map's own subject. */
 	layers: { d: ['M3 8.5 12 4l9 4.5-9 4.5z', 'M3 13l9 4.5 9-4.5', 'M3 17l9 4.5 9-4.5'] },
 
-	/** Nested contours tightening toward a summit. */
+	/**
+	 * Three closed contours nested inside one another, the way isobaths ring a
+	 * shoal on the chart. The previous set of open arcs read as a signal meter.
+	 */
 	isobath: {
 		d: [
-			'M2.5 17c3-3.5 5.5-5 9.5-5s6.5 1.5 9.5 5',
-			'M5.5 13.5c2-2.3 3.9-3.4 6.5-3.4s4.5 1.1 6.5 3.4',
-			'M8.5 10.2c1.2-1.3 2.2-1.9 3.5-1.9s2.3.6 3.5 1.9'
+			'M12 2.6c5.2 0 9.4 3.8 9.4 8.9 0 5.5-4.3 9.9-9.7 9.9-5.1 0-9.1-3.9-9.1-8.9 0-5.6 4.1-9.9 9.4-9.9z',
+			'M11.9 6.4c3.2 0 5.8 2.3 5.8 5.4 0 3.3-2.7 6-6 6-3 0-5.4-2.3-5.4-5.3 0-3.4 2.5-6.1 5.6-6.1z',
+			'M11.7 10.3c1.4 0 2.4 1 2.4 2.3 0 1.4-1.1 2.5-2.5 2.5-1.2 0-2.2-1-2.2-2.2 0-1.4 1-2.6 2.3-2.6z'
 		]
 	},
 
@@ -69,7 +72,14 @@ export const ICONS = {
 	/** Crop corners, for the framing overlay. */
 	frame: { d: ['M4 9V4h5', 'M15 4h5v5', 'M20 15v5h-5', 'M9 20H4v-5'] },
 
-	language: { d: ['M3 12h18', 'M12 3a15 15 0 0 1 0 18', 'M12 3a15 15 0 0 0 0 18', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18'] },
+	language: {
+		d: [
+			'M3 12h18',
+			'M12 3a15 15 0 0 1 0 18',
+			'M12 3a15 15 0 0 0 0 18',
+			'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18'
+		]
+	},
 
 	close: { d: ['M6 6l12 12', 'M18 6 6 18'] },
 

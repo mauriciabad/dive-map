@@ -1,7 +1,10 @@
 <script lang="ts">
+	import IsobathsPanel from './IsobathsPanel.svelte';
+	import LanguagePanel from './LanguagePanel.svelte';
+	import LayersPanel from './LayersPanel.svelte';
 	import MapControls from './MapControls.svelte';
-	import SettingsPanel from './SettingsPanel.svelte';
 	import type { PanelState } from './panel';
+	import PrintPanel from '$lib/print/PrintPanel.svelte';
 	import { SvelteControl, whenMapReady } from '$lib/map/controls';
 	import type { MapState } from '$lib/state/map-view.svelte';
 
@@ -18,6 +21,10 @@
 	};
 	const open = $derived(view.panelOpen);
 
+	const close = (): void => {
+		panel.open = undefined;
+	};
+
 	$effect(() =>
 		whenMapReady((map) => {
 			const control = new SvelteControl(MapControls, {
@@ -32,18 +39,12 @@
 	);
 </script>
 
-<svelte:window
-	onkeydown={(e: KeyboardEvent) => {
-		if (e.key === 'Escape') panel.open = undefined;
-	}}
-/>
-
-{#if open !== undefined}
-	<SettingsPanel
-		{view}
-		section={open}
-		onclose={() => {
-			panel.open = undefined;
-		}}
-	/>
+{#if open === 'layers'}
+	<LayersPanel {view} onclose={close} />
+{:else if open === 'isobaths'}
+	<IsobathsPanel {view} onclose={close} />
+{:else if open === 'print'}
+	<PrintPanel {view} onclose={close} />
+{:else if open === 'language'}
+	<LanguagePanel {view} onclose={close} />
 {/if}

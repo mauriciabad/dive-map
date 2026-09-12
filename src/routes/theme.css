@@ -56,6 +56,35 @@
 	--ctrl-inset-left: calc(
 		env(safe-area-inset-left) + var(--ctrl-gap) + var(--ctrl-size) + var(--ctrl-gap)
 	);
+	--ctrl-inset-right: calc(
+		env(safe-area-inset-right) + var(--ctrl-gap) + var(--ctrl-size) + var(--ctrl-gap)
+	);
+	--ctrl-inset-bottom: calc(env(safe-area-inset-bottom) + var(--ctrl-gap));
+
+	/*
+	 * One definition per role, read by Panel and by every control in
+	 * `$lib/ui/controls`. A component that reaches for a --color-* token directly
+	 * is the drift these exist to stop: change the role here and the whole
+	 * vocabulary moves together.
+	 */
+	--panel-face: var(--color-table-800);
+	--panel-pad: 1rem;
+	--panel-gap: 1.05rem;
+	--panel-width: 22rem;
+
+	--control-radius: 0.35rem;
+	--control-well: var(--color-table-900);
+	--control-rim: var(--color-table-500);
+	--control-ink: var(--color-paper);
+	--control-ink-dim: var(--color-paper-dim);
+	--control-ink-off: var(--color-table-500);
+	--control-on: var(--color-brass-500);
+	--control-on-rim: var(--color-brass-400);
+	--control-on-ink: var(--color-table-900);
+	--control-hover: rgb(239 228 207 / 0.07);
+	--control-label: 0.72rem;
+	--control-text: 0.85rem;
+	--control-ease: 150ms ease-out;
 }
 
 html,
@@ -115,10 +144,6 @@ body {
 
 .maplibregl-map .maplibregl-ctrl-bottom-left {
 	padding: 0 0 env(safe-area-inset-bottom) env(safe-area-inset-left);
-}
-
-.maplibregl-map .maplibregl-ctrl-bottom-right {
-	padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) 0;
 }
 
 .maplibregl-map .maplibregl-ctrl-group {
@@ -227,28 +252,32 @@ body {
 	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23e0bd85' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5'/%3E%3C/svg%3E");
 }
 
-/* A panel handed to MapLibre rather than a button group: the crop readout. */
-.maplibregl-map .maplibregl-ctrl.dive-ctrl-panel {
+/*
+ * The scale and the attribution share this corner. MapLibre stacks its corner
+ * children, which put the attribution disc on its own line under the scale bar
+ * and cost a whole row of map for one 26px button. As a row they sit scale
+ * first, disc to its right, and only the expanded attribution wraps onto a line
+ * of its own, because the licence text really is too long for one.
+ */
+.maplibregl-map .maplibregl-ctrl-bottom-right {
 	display: flex;
-	flex-direction: column;
-	gap: 0.55rem;
-	width: min(17rem, calc(100vw - 2 * var(--ctrl-gap)));
-	max-height: calc(100svh - 12rem);
-	overflow-y: auto;
-	overscroll-behavior: contain;
-	padding: 0.8rem 0.9rem;
-	background: var(--color-table-800);
-	border: 1px solid var(--ctrl-edge);
-	border-radius: var(--radius-rail);
-	box-shadow: var(--rail-shadow);
-	font-family: inherit;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 6px;
+	padding: 0 calc(env(safe-area-inset-right) + var(--ctrl-gap))
+		calc(env(safe-area-inset-bottom) + var(--ctrl-gap)) 0;
+}
+
+.maplibregl-map .maplibregl-ctrl-bottom-right > .maplibregl-ctrl {
+	margin: 0;
 }
 
 .maplibregl-map .maplibregl-ctrl.maplibregl-ctrl-attrib {
 	background: rgb(20 16 12 / 0.86);
 	color: var(--color-paper-dim);
 	font-size: 10px;
-	border-radius: var(--radius-rail) 0 0 0;
+	border-radius: var(--radius-rail);
 }
 
 .maplibregl-map .maplibregl-ctrl-attrib a {
@@ -259,8 +288,16 @@ body {
 	color: var(--color-paper);
 }
 
+/*
+ * Open, the disc is a close button and says so: a paper cross on the dark of the
+ * table, which is the same pairing every other dismiss in the app uses. Brass
+ * with a dark cross read as one more thing to press rather than the way out.
+ */
 .maplibregl-map .maplibregl-ctrl-attrib.maplibregl-compact-show .maplibregl-ctrl-attrib-button {
 	--attrib-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M6 6l12 12M18 6 6 18'/%3E%3C/svg%3E");
+	--attrib-ink: var(--color-paper);
+	background-color: var(--color-table-900);
+	box-shadow: 0 0 0 1px var(--ctrl-edge);
 }
 
 .maplibregl-map .maplibregl-ctrl-attrib.maplibregl-compact {
@@ -268,6 +305,35 @@ body {
 	background: rgb(20 16 12 / 0.86);
 	border-radius: 13px;
 	border: 1px solid var(--ctrl-edge);
+}
+
+/*
+ * Collapsed, MapLibre keeps the container at its padded width with the text
+ * hidden inside it, so the disc trails an empty dark tail across the corner.
+ * Shrunk to the disc, the whole control is the button and nothing else.
+ */
+.maplibregl-map .maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show) {
+	width: 26px;
+	min-width: 26px;
+	padding: 0;
+	background: transparent;
+	border: 0;
+}
+
+/* MapLibre rings a focused control in its own blue. Brass, like everything else. */
+.maplibregl-map .maplibregl-ctrl-attrib-button:focus {
+	box-shadow: none;
+}
+
+.maplibregl-map
+	.maplibregl-ctrl-attrib.maplibregl-compact-show
+	.maplibregl-ctrl-attrib-button:focus {
+	box-shadow: 0 0 0 1px var(--ctrl-edge);
+}
+
+.maplibregl-map .maplibregl-ctrl-attrib-button:focus-visible {
+	outline: 2px solid var(--color-brass-400);
+	outline-offset: 2px;
 }
 
 /*
@@ -280,7 +346,7 @@ body {
 	content: '';
 	position: absolute;
 	inset: 0;
-	background-color: var(--color-table-900);
+	background-color: var(--attrib-ink, var(--color-table-900));
 	-webkit-mask: var(--attrib-glyph) center / 14px 14px no-repeat;
 	mask: var(--attrib-glyph) center / 14px 14px no-repeat;
 }
@@ -299,7 +365,7 @@ body {
 	background: rgb(20 16 12 / 0.86);
 	border-color: var(--color-brass-500);
 	color: var(--color-paper);
-	border-radius: 0 0 3px 3px;
+	border-radius: 3px;
 	font-size: 11px;
 	font-variant-numeric: tabular-nums;
 }
