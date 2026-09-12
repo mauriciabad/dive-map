@@ -34,6 +34,12 @@ export type LayerId =
 export interface IsobathStyle {
 	/** Draw a line every this many metres. The tiles carry 1 m, the style filters. */
 	readonly intervalM: number;
+	/**
+	 * Let the zoom pick the interval. Every metre at a dive site, coarser when the
+	 * whole coast is on screen, where 1 m would be a solid mat of ink. Setting an
+	 * interval by hand turns this off.
+	 */
+	readonly autoInterval: boolean;
 	/** Depths drawn heavier. These are the ones a recreational dive plan turns on. */
 	readonly emphasised: readonly number[];
 	/** Stop drawing below this. Nobody on this boat is going deeper. */
@@ -43,6 +49,7 @@ export interface IsobathStyle {
 
 export const DEFAULT_ISOBATHS: IsobathStyle = {
 	intervalM: 5,
+	autoInterval: true,
 	emphasised: [5, 18, 30, 40, 50],
 	maxDepthM: 80,
 	labels: true

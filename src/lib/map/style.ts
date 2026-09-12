@@ -22,7 +22,9 @@ import type { IsobathStyle, LayerId } from '$lib/domain/card';
  */
 
 export const PALETTE = {
-	void: '#16222b',
+	// Deep water, matched to what the veil composites to at 90m so a gap in the
+	// survey reads as open sea rather than a hole in the map.
+	void: '#03293b',
 	shallow: '#2ad9b4',
 	deepVeil: '#003850',
 	terrainEdge: '#2a2119',
@@ -103,6 +105,38 @@ const heavyIf = (
 	light
 ];
 
+/**
+ * Depth bands, keyed to what a recreational dive plan actually turns on. Each
+ * band ramps from light to dark across its own range and then jumps at the
+ * boundary, so a diver reads the band at a glance and the exact metre on the
+ * heavy line. Depths are whole metres, so the 0.99 stops make the jump hard
+ * rather than a one-metre fade.
+ */
+export const DEPTH_BANDS: readonly {
+	readonly from: number;
+	readonly to: number;
+	readonly light: string;
+	readonly dark: string;
+}[] = [
+	{ from: 0, to: 4, light: '#ffe9b0', dark: '#f5c96a' },
+	{ from: 5, to: 17, light: '#93e9c0', dark: '#35c48e' },
+	{ from: 18, to: 29, light: '#7ad2ff', dark: '#2b9fe4' },
+	{ from: 30, to: 39, light: '#9aabff', dark: '#4b63d8' },
+	{ from: 40, to: 49, light: '#c9a0ff', dark: '#8c4fd8' },
+	{ from: 50, to: 79, light: '#ff9fb6', dark: '#e04a6c' },
+	{ from: 80, to: 140, light: '#ff7a6b', dark: '#9b2418' }
+];
+
+const isobathColour = (): DataDrivenPropertyValueSpecification<string> => {
+	const stops = DEPTH_BANDS.flatMap((b) => [b.from, b.light, b.to + 0.99, b.dark]);
+	return [
+		'interpolate',
+		['linear'],
+		['to-number', ['get', 'depth']],
+		...stops
+	] as DataDrivenPropertyValueSpecification<string>;
+};
+
 const isobathWidth = (
 	emphasised: readonly number[]
 ): DataDrivenPropertyValueSpecification<number> => [
@@ -122,8 +156,23 @@ const isobathWidth = (
  * means the side panel can change it with no new data, and an emphasised depth
  * survives an interval that would otherwise drop it.
  */
+const AUTO_INTERVAL: ExpressionSpecification = [
+	'step',
+	['zoom'],
+	20,
+	12,
+	10,
+	14,
+	5,
+	15,
+	2,
+	16,
+	1
+];
+
 const isobathFilter = ({
 	intervalM,
+	autoInterval,
 	emphasised,
 	maxDepthM
 }: IsobathStyle): ExpressionSpecification => [
@@ -132,7 +181,11 @@ const isobathFilter = ({
 	[
 		'any',
 		['in', ['to-number', ['get', 'depth']], ['literal', [...emphasised]]],
-		['==', ['%', ['to-number', ['get', 'depth']], Math.max(1, intervalM)], 0]
+		[
+			'==',
+			['%', ['to-number', ['get', 'depth']], autoInterval ? AUTO_INTERVAL : Math.max(1, intervalM)],
+			0
+		]
 	]
 ];
 
@@ -414,11 +467,14 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 				// Low sun from the north-west. A high sun flattens a seabed whose whole
 				// relief is a few tens of metres.
 				'hillshade-illumination-direction': 315,
-				'hillshade-illumination-altitude': 28,
-				'hillshade-exaggeration': 0.62,
-				'hillshade-shadow-color': 'rgba(20, 14, 8, 0.42)',
-				'hillshade-highlight-color': 'rgba(255, 246, 224, 0.3)',
-				'hillshade-accent-color': 'rgba(30, 22, 14, 0.35)'
+				// The Catalan shelf drops maybe 80m over kilometres. At a realistic sun
+				// angle and exaggeration the relief is invisible, so both are pushed well
+				// past truthful: this layer's job is to say which way is downhill.
+				'hillshade-illumination-altitude': 15,
+				'hillshade-exaggeration': 1,
+				'hillshade-shadow-color': 'rgba(6, 14, 20, 0.7)',
+				'hillshade-highlight-color': 'rgba(255, 250, 232, 0.5)',
+				'hillshade-accent-color': 'rgba(10, 30, 42, 0.5)'
 			}
 		},
 		{
@@ -437,9 +493,9 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			filter: isobathFilter(options.isobaths),
 			layout: { visibility: vis(options, 'isobaths'), 'line-join': 'round' },
 			paint: {
-				'line-color': 'rgba(255, 244, 214, 0.3)',
-				'line-blur': 2.5,
-				'line-translate': [0, 1.5],
+				'line-color': 'rgba(4, 16, 24, 0.55)',
+				'line-blur': 2.2,
+				'line-translate': [0, 1.6],
 				'line-width': isobathWidth(options.isobaths.emphasised)
 			}
 		},
@@ -451,14 +507,16 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			filter: isobathFilter(options.isobaths),
 			layout: { visibility: vis(options, 'isobaths'), 'line-join': 'round' },
 			paint: {
-				'line-color': [
+				'line-color': isobathColour(),
+				// The heavy lines carry their band's full strength; the metre lines
+				// between them stay quiet enough not to become a mat.
+				'line-opacity': [
 					'match',
 					['to-number', ['get', 'depth']],
 					[...options.isobaths.emphasised],
-					PALETTE.isobathMajor,
-					PALETTE.isobath
+					0.95,
+					0.45
 				],
-				'line-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.5, 14, 0.85],
 				'line-width': isobathWidth(options.isobaths.emphasised)
 			}
 		},

@@ -47,10 +47,48 @@ const ca = {
 	difficulty: 'Dificultat',
 	entryShore: 'Des de terra',
 	entryBoat: 'Des de barca',
-	cropOffScreen: 'El full no hi cap a la pantalla. Allunya el mapa per veure\'l sencer.',
+	cropOffScreen: "El full no hi cap a la pantalla. Allunya el mapa per veure'l sencer.",
 	exporting: 'Generant el PDF',
 	cardTitle: 'Títol del full',
-	exportDone: 'PDF desat'
+	exportDone: 'PDF desat',
+	kindDiveSite: 'Punt d’immersió',
+	kindMooring: 'Amarratge',
+	kindWreck: 'Derelicte',
+	kindRock: 'Roca submergida',
+	kindRestrictedArea: 'Zona restringida',
+	kindLight: 'Far',
+	kindHarbour: 'Port',
+	kindSlipway: 'Rampa',
+	kindLadder: 'Escala',
+	kindDiveCentre: 'Centre d’immersió',
+	depth: 'Fondària',
+	entry: 'Entrada',
+	dangers: 'Perills',
+	seabed: 'Fons marí',
+	civilization: 'Civilització',
+	description: 'Descripció',
+	lightSignal: 'Senyal',
+	waterLevel: 'Nivell',
+	notRecorded: 'Sense dades',
+	difficultyRange: '{min} a {max}',
+	dangerCurrent: 'Corrent',
+	dangerWaves: 'Onatge',
+	dangerBoats: 'Trànsit d’embarcacions',
+	dangerFishingNets: 'Xarxes de pesca',
+	dangerJellyfish: 'Meduses',
+	civRoman: 'Romana',
+	colourWhite: 'Blanc',
+	colourRed: 'Vermell',
+	colourGreen: 'Verd',
+	colourYellow: 'Groc',
+	levelSubmerged: 'Submergida',
+	mooringBuoy: 'Boia',
+	mooringPile: 'Pal d’amarratge',
+	zoneSwimming: 'Zona de bany',
+	zoneRecreation: 'Zona recreativa',
+	zoneSpeedLimit: 'Límit de velocitat',
+	habitatEstimate:
+		'Classes estimades. La cartografia admet un 40 % d’encert per classe i un 75 % de puresa per polígon.'
 } as const;
 
 type Catalogue = Record<keyof typeof ca, string>;
@@ -100,7 +138,45 @@ const es: Catalogue = {
 	cropOffScreen: 'La hoja no cabe en la pantalla. Aleja el mapa para verla entera.',
 	exporting: 'Generando el PDF',
 	cardTitle: 'Título de la hoja',
-	exportDone: 'PDF guardado'
+	exportDone: 'PDF guardado',
+	kindDiveSite: 'Punto de inmersión',
+	kindMooring: 'Amarre',
+	kindWreck: 'Pecio',
+	kindRock: 'Roca sumergida',
+	kindRestrictedArea: 'Zona restringida',
+	kindLight: 'Faro',
+	kindHarbour: 'Puerto',
+	kindSlipway: 'Rampa',
+	kindLadder: 'Escalera',
+	kindDiveCentre: 'Centro de buceo',
+	depth: 'Profundidad',
+	entry: 'Entrada',
+	dangers: 'Peligros',
+	seabed: 'Fondo marino',
+	civilization: 'Civilización',
+	description: 'Descripción',
+	lightSignal: 'Señal',
+	waterLevel: 'Nivel',
+	notRecorded: 'Sin datos',
+	difficultyRange: '{min} a {max}',
+	dangerCurrent: 'Corriente',
+	dangerWaves: 'Oleaje',
+	dangerBoats: 'Tráfico de embarcaciones',
+	dangerFishingNets: 'Redes de pesca',
+	dangerJellyfish: 'Medusas',
+	civRoman: 'Romana',
+	colourWhite: 'Blanco',
+	colourRed: 'Rojo',
+	colourGreen: 'Verde',
+	colourYellow: 'Amarillo',
+	levelSubmerged: 'Sumergida',
+	mooringBuoy: 'Boya',
+	mooringPile: 'Poste de amarre',
+	zoneSwimming: 'Zona de baño',
+	zoneRecreation: 'Zona recreativa',
+	zoneSpeedLimit: 'Límite de velocidad',
+	habitatEstimate:
+		'Clases estimadas. La cartografía admite un 40 % de acierto por clase y un 75 % de pureza por polígono.'
 };
 
 const en: Catalogue = {
@@ -147,14 +223,56 @@ const en: Catalogue = {
 	cropOffScreen: 'The sheet does not fit the screen. Zoom out to see all of it.',
 	exporting: 'Building the PDF',
 	cardTitle: 'Sheet title',
-	exportDone: 'PDF saved'
+	exportDone: 'PDF saved',
+	kindDiveSite: 'Dive site',
+	kindMooring: 'Mooring',
+	kindWreck: 'Wreck',
+	kindRock: 'Submerged rock',
+	kindRestrictedArea: 'Restricted area',
+	kindLight: 'Light',
+	kindHarbour: 'Harbour',
+	kindSlipway: 'Slipway',
+	kindLadder: 'Ladder',
+	kindDiveCentre: 'Dive centre',
+	depth: 'Depth',
+	entry: 'Entry',
+	dangers: 'Hazards',
+	seabed: 'Seabed',
+	civilization: 'Civilisation',
+	description: 'Description',
+	lightSignal: 'Signal',
+	waterLevel: 'Level',
+	notRecorded: 'Not recorded',
+	difficultyRange: '{min} to {max}',
+	dangerCurrent: 'Current',
+	dangerWaves: 'Swell',
+	dangerBoats: 'Boat traffic',
+	dangerFishingNets: 'Fishing nets',
+	dangerJellyfish: 'Jellyfish',
+	civRoman: 'Roman',
+	colourWhite: 'White',
+	colourRed: 'Red',
+	colourGreen: 'Green',
+	colourYellow: 'Yellow',
+	levelSubmerged: 'Submerged',
+	mooringBuoy: 'Buoy',
+	mooringPile: 'Mooring pile',
+	zoneSwimming: 'Swimming zone',
+	zoneRecreation: 'Recreation zone',
+	zoneSpeedLimit: 'Speed limit',
+	habitatEstimate:
+		'Estimated classes. The survey accepts 40% accuracy per class and 75% polygon purity.'
 };
 
 export type MessageKey = keyof Catalogue;
 
 const CATALOGUES: Record<Locale, Catalogue> = { ca, es, en };
 
-export const t = (locale: Locale, key: MessageKey, values?: Record<string, number | string>): string => {
+export const t = (
+	locale: Locale,
+	key: MessageKey,
+	values?: Record<string, number | string>
+): string => {
 	const template = CATALOGUES[locale][key];
 	if (values === undefined) return template;
 	return template.replace(/\{(\w+)\}/g, (whole, name: string) => String(values[name] ?? whole));

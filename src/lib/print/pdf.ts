@@ -1,5 +1,6 @@
 import { PDFDocument, rgb, type PDFFont, type PDFPage } from '@cantoo/pdf-lib';
-import fontkit from 'fontkit';
+// fontkit 2.x ships named exports only; there is no default in the browser build.
+import * as fontkit from 'fontkit';
 import { asset } from '$app/paths';
 import { type DiveCard, scaleBar } from '$lib/domain/card';
 import { PAPER, sheetSizeMm } from '$lib/domain/print';

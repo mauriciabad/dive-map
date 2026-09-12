@@ -51,7 +51,11 @@ export class MapState {
 	}
 
 	setInterval(metres: number): void {
-		this.isobaths = { ...this.isobaths, intervalM: metres };
+		this.isobaths = { ...this.isobaths, intervalM: metres, autoInterval: false };
+	}
+
+	setAutoInterval(): void {
+		this.isobaths = { ...this.isobaths, autoInterval: true };
 	}
 
 	setMaxDepth(metres: number): void {
