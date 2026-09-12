@@ -7,6 +7,8 @@ import type {
 } from 'maplibre-gl';
 import { HABITATS, SUBSTRATES } from '$lib/domain/habitat';
 import { POSITION_SOURCES, positionLayers } from '$lib/geo/style-layers';
+export { PALETTE } from './palette.ts';
+import { PALETTE } from './palette.ts';
 import type { IsobathStyle, LayerId } from '$lib/domain/card';
 import type { Locale } from '$lib/i18n/locale';
 
@@ -23,26 +25,6 @@ import type { Locale } from '$lib/i18n/locale';
  * depths a recreational dive plan turns on are drawn heavier than the rest.
  */
 
-export const PALETTE = {
-	// Deep water, matched to what the veil composites to at 90m so a gap in the
-	// survey reads as open sea rather than a hole in the map.
-	void: '#03293b',
-	shallow: '#2ad9b4',
-	deepVeil: '#003850',
-	terrainEdge: '#2a2119',
-	terrainEdgeSoft: 'rgba(42, 33, 25, 0.55)',
-	isobath: '#3d3227',
-	isobathMajor: '#241c14',
-	land: '#2e2b26',
-	landTexture: '#3a3630',
-	landEdge: '#585049',
-	ink: '#1d1710',
-	paper: '#efe4cf',
-	brass: '#b8893f',
-	buoy: '#e0a32e',
-	hazard: '#b23a2c'
-} as const;
-
 /**
  * The water column, as a colour-relief ramp over the DEM. Stops are elevation in
  * metres, so negative underwater. Alpha, not hue, carries the depth: tinting a
@@ -58,15 +40,24 @@ const DEPTH_VEIL: ExpressionSpecification = [
 	'interpolate',
 	['linear'],
 	['elevation'],
-	-90, 'rgba(0, 42, 62, 0.84)',
-	-80, 'rgba(0, 56, 80, 0.74)',
-	-50, 'rgba(2, 79, 119, 0.52)',
-	-40, 'rgba(2, 90, 130, 0.38)',
-	-30, 'rgba(4, 107, 150, 0.24)',
-	-18, 'rgba(10, 143, 155, 0.14)',
-	-5, 'rgba(35, 201, 172, 0.05)',
-	0, 'rgba(42, 217, 180, 0)',
-	0.01, 'rgba(0, 0, 0, 0)'
+	-90,
+	'rgba(0, 42, 62, 0.84)',
+	-80,
+	'rgba(0, 56, 80, 0.74)',
+	-50,
+	'rgba(2, 79, 119, 0.52)',
+	-40,
+	'rgba(2, 90, 130, 0.38)',
+	-30,
+	'rgba(4, 107, 150, 0.24)',
+	-18,
+	'rgba(10, 143, 155, 0.14)',
+	-5,
+	'rgba(35, 201, 172, 0.05)',
+	0,
+	'rgba(42, 217, 180, 0)',
+	0.01,
+	'rgba(0, 0, 0, 0)'
 ];
 
 /**
@@ -79,7 +70,9 @@ const DEPTH_VEIL: ExpressionSpecification = [
  * those seagrass classes exist only in the habitat catalogue; without the
  * fallback every Posidonia and Cymodocea bed would render as bare sand.
  */
-const patternFor = (ground: 'habitats' | 'substrate'): DataDrivenPropertyValueSpecification<string> => {
+const patternFor = (
+	ground: 'habitats' | 'substrate'
+): DataDrivenPropertyValueSpecification<string> => {
 	const lookup: Record<string, string> = {};
 	const ordered = ground === 'habitats' ? [SUBSTRATES, HABITATS] : [HABITATS, SUBSTRATES];
 	for (const catalogue of ordered) {
@@ -158,19 +151,7 @@ const isobathWidth = (
  * means the side panel can change it with no new data, and an emphasised depth
  * survives an interval that would otherwise drop it.
  */
-const AUTO_INTERVAL: ExpressionSpecification = [
-	'step',
-	['zoom'],
-	20,
-	12,
-	10,
-	14,
-	5,
-	15,
-	2,
-	16,
-	1
-];
+const AUTO_INTERVAL: ExpressionSpecification = ['step', ['zoom'], 20, 12, 10, 14, 5, 15, 2, 16, 1];
 
 const isobathFilter = ({
 	intervalM,
@@ -465,7 +446,11 @@ const osmLayers = (options: StyleOptions): LayerSpecification[] => {
 			type: 'line',
 			source: 'annotations',
 			filter: ['!=', ['geometry-type'], 'Point'],
-			layout: { visibility: vis(options, 'annotations'), 'line-cap': 'round', 'line-join': 'round' },
+			layout: {
+				visibility: vis(options, 'annotations'),
+				'line-cap': 'round',
+				'line-join': 'round'
+			},
 			paint: {
 				'line-color': ['coalesce', ['get', 'colour'], PALETTE.brass],
 				'line-width': ['interpolate', ['linear'], ['zoom'], 12, 2, 18, 5]

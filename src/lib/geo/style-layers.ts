@@ -1,6 +1,6 @@
 import type { LayerSpecification, SourceSpecification } from 'maplibre-gl';
 import { gradientFor } from './frame.ts';
-import { PALETTE } from '$lib/map/style';
+import { PALETTE } from '$lib/map/palette';
 
 /**
  * What `style.ts` has to add for the boat to appear. Exported rather than

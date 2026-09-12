@@ -4,7 +4,7 @@ import { destination } from './geodesy.ts';
 import { type TrailPoint, type TrailWindow, gradientStops } from './trail.ts';
 import type { AvatarId } from './avatars.ts';
 import type { Fix } from './fix.ts';
-import { PALETTE } from '$lib/map/style';
+import { PALETTE } from '$lib/map/palette';
 
 /**
  * One pure function from "what the tracker knows" to "what the two map sources
@@ -48,9 +48,9 @@ const rgba = (alpha: number): string =>
  * A one-stop gradient is not a gradient, and MapLibre rejects `interpolate` with
  * fewer than two stops outright, taking the layer with it.
  */
-export const gradientFor = (stops: readonly (readonly [number, number])[]):
-	| ExpressionSpecification
-	| undefined => {
+export const gradientFor = (
+	stops: readonly (readonly [number, number])[]
+): ExpressionSpecification | undefined => {
 	if (stops.length < 2) return undefined;
 	const ramp: (number | string)[] = [];
 	for (const [progress, alpha] of stops) ramp.push(progress, rgba(alpha));
