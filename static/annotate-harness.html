@@ -92,11 +92,14 @@
 
 				try {
 					const { mount } = await import('/node_modules/svelte/src/index-client.js');
+					const { publishMap } = await import('/src/lib/map/controls.ts');
 					const AnnotateTools = (await import('/src/lib/ui/AnnotateTools.svelte')).default;
 					mount(AnnotateTools, {
 						target: document.getElementById('tools'),
-						props: { map, locale: 'ca' }
+						props: { locale: 'ca' }
 					});
+					if (map.loaded()) publishMap(map);
+					else map.on('load', () => { publishMap(map); });
 					window.toolsMounted = true;
 				} catch (e) {
 					window.toolsError = String(e && e.stack ? e.stack : e);

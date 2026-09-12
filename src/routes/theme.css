@@ -5,7 +5,18 @@
  * washes out while a dark one with brass and paper on it stays readable.
  */
 
-@theme {
+/*
+ * Plain custom properties, not Tailwind's `@theme`. Only a stylesheet that
+ * imports tailwindcss gets processed by the plugin, and this one does not, so an
+ * `@theme` block here reaches the browser as an unknown at-rule and is dropped
+ * whole. Every token below then resolves to nothing, which is what left the
+ * controls with no background. Nothing consumes these as Tailwind utilities;
+ * every reader asks for `var(--color-…)`. If utilities are ever wanted, the
+ * `@theme` block belongs in layout.css beside `@import 'tailwindcss'`.
+ */
+:root {
+	color-scheme: dark;
+
 	--color-table-900: #14100c;
 	--color-table-800: #1d1710;
 	--color-table-700: #2a2119;
@@ -30,10 +41,7 @@
 
 	/* Wet hands, a moving boat. Nothing interactive goes below this. */
 	--spacing-touch: 2.75rem;
-}
 
-:root {
-	color-scheme: dark;
 	--rail-shadow: 0 2px 10px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(184 137 63 / 0.22);
 	--sunk: inset 0 1px 2px rgb(0 0 0 / 0.5);
 

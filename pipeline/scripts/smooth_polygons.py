@@ -133,44 +133,85 @@ def chaikin_round(ring, cut: float):
     return out
 
 
-def drop_collinear(ring, tol: float):
-    """Local and reversal-symmetric, so both sides of a shared edge drop the same points."""
-    n = len(ring)
-    if n < 4 or tol <= 0:
-        return ring
+def douglas_peucker(run, tol: float):
+    if len(run) < 3:
+        return run
+    keep = [False] * len(run)
+    keep[0] = keep[-1] = True
+    stack = [(0, len(run) - 1)]
     tol2 = tol * tol
-    out = []
-    for i in range(n):
-        x, y, pin, cap, tag = ring[i]
-        if pin:
-            out.append(ring[i])
+    while stack:
+        lo, hi = stack.pop()
+        if hi - lo < 2:
             continue
-        ax, ay = ring[i - 1][0], ring[i - 1][1]
-        bx, by = ring[(i + 1) % n][0], ring[(i + 1) % n][1]
-        if ring[i - 1][4] != tag or ring[(i + 1) % n][4] != tag:
-            out.append(ring[i])
-            continue
-        dx, dy = bx - ax, by - ay
+        ax, ay = run[lo][0], run[lo][1]
+        dx, dy = run[hi][0] - ax, run[hi][1] - ay
         span = dx * dx + dy * dy
-        if span == 0.0:
-            d2 = (x - ax) ** 2 + (y - ay) ** 2
-        else:
-            u = ((x - ax) * dx + (y - ay) * dy) / span
-            u = 0.0 if u < 0.0 else (1.0 if u > 1.0 else u)
-            d2 = (x - ax - u * dx) ** 2 + (y - ay - u * dy) ** 2
-        if d2 > tol2:
-            out.append(ring[i])
-    return out if len(out) >= 3 else ring
+        worst, at = -1.0, -1
+        for i in range(lo + 1, hi):
+            px, py = run[i][0], run[i][1]
+            if span == 0.0:
+                d2 = (px - ax) ** 2 + (py - ay) ** 2
+            else:
+                u = ((px - ax) * dx + (py - ay) * dy) / span
+                u = 0.0 if u < 0.0 else (1.0 if u > 1.0 else u)
+                d2 = (px - ax - u * dx) ** 2 + (py - ay - u * dy) ** 2
+            if d2 > worst:
+                worst, at = d2, i
+        if worst > tol2:
+            keep[at] = True
+            stack.append((lo, at))
+            stack.append((at, hi))
+    return [p for p, k in zip(run, keep) if k]
+
+
+def simplify_run(run, tol: float):
+    """Orientation is canonicalised first so both sides of a shared edge run the identical floats."""
+    if len(run) < 3 or tol <= 0:
+        return run
+    head = (run[0][0], run[0][1])
+    tail = (run[-1][0], run[-1][1])
+    if tail < head:
+        return list(reversed(douglas_peucker(list(reversed(run)), tol)))
+    return douglas_peucker(run, tol)
+
+
+def simplify_ring(ring, tol: float):
+    """Splits at the pinned junctions and simplifies each run, so pinned points always survive."""
+    if tol <= 0 or len(ring) < 4:
+        return ring
+    anchors = [i for i, p in enumerate(ring) if p[2]]
+    if not anchors:
+        start = min(range(len(ring)), key=lambda i: (ring[i][0], ring[i][1]))
+        rotated = ring[start:] + ring[:start]
+        if rotated[1][:2] > rotated[-1][:2]:
+            rotated = [rotated[0]] + list(reversed(rotated[1:]))
+            return list(reversed(simplify_run(rotated + [rotated[0]], tol)[:-1]))
+        return simplify_run(rotated + [rotated[0]], tol)[:-1]
+    out = []
+    for k, start in enumerate(anchors):
+        stop = anchors[(k + 1) % len(anchors)]
+        run = [ring[start]]
+        i = start
+        while i != stop:
+            i = (i + 1) % len(ring)
+            run.append(ring[i])
+        out.extend(simplify_run(run, tol)[:-1])
+    return out
 
 
 def smooth_ring(seq, arr, pinned, cap, tags, cut, rounds, tol):
-    ring = []
+    plain = []
     for idx, v in enumerate(seq):
         x, y = metres(arr.pts[v])
-        ring.append((x, y, v in pinned, cap.get(v, 0.0), tags[idx] if tags else 0))
+        plain.append((x, y, v in pinned, cap.get(v, 0.0), tags[idx] if tags else 0))
+    ring = plain
     for _ in range(rounds):
         ring = chaikin_round(ring, cut)
-    return drop_collinear(ring, tol)
+    thinned = simplify_ring(ring, tol)
+    if len({(p[0], p[1]) for p in thinned}) >= 3:
+        return thinned
+    return ring if len({(p[0], p[1]) for p in ring}) >= 3 else plain
 
 
 def to_lonlat(ring, precision: int):
@@ -178,7 +219,7 @@ def to_lonlat(ring, precision: int):
     out = []
     last = None
     for x, y, _pin, _cap, tag in ring:
-        c = (round(x / MX * GRID / GRID * q) / q, round(y / MY * GRID / GRID * q) / q)
+        c = (round(x / MX * q) / q, round(y / MY * q) / q)
         if c != last:
             out.append((c, tag))
         last = c

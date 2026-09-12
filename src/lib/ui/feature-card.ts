@@ -307,4 +307,5 @@ export const subtitleOf = (feature: DiveFeature, locale: Locale): readonly strin
 	return parts;
 };
 
-export const texturePath = (texture: string): string => `/textures/256/${texture}.webp`;
+/** The 160 px swatch, not the 256 px map tile: a legend chip needs 7 kB, not 240 kB. */
+export const texturePath = (texture: string): string => `/textures/swatch/${texture}.jpg`;

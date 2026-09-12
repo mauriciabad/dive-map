@@ -131,7 +131,12 @@
 		white-space: nowrap;
 	}
 
-	/* The brass rail owns the left, so the panel takes the right and never fights it. */
+	/*
+	 * A phone gets a bottom sheet that stops short of the map centre, because the
+	 * print crop overlay lives there. Anything wider, and a phone on its side, gets
+	 * a column down the right instead: the settings panel already owns the left.
+	 * Both scroll inside themselves, so the panel can never run off the screen.
+	 */
 	.sheet {
 		position: fixed;
 		z-index: 18;
@@ -143,16 +148,17 @@
 		border-radius: var(--radius-rail);
 		box-shadow: var(--rail-shadow);
 		inset: auto 0.75rem max(0.75rem, env(safe-area-inset-bottom)) 0.75rem;
-		max-height: 72svh;
+		max-height: 46svh;
 		padding: 0.9rem 1rem 0.75rem;
 	}
 
-	@media (min-width: 48rem) {
+	@media (min-width: 48rem), (max-height: 30rem) {
 		.sheet {
-			inset: 50% 0.85rem auto auto;
-			translate: 0 -50%;
-			width: 21rem;
-			max-height: 78svh;
+			/* Below MapLibre's zoom stack, above its scale bar, never past the centre. */
+			--sheet-top: calc(var(--ctrl-inset-top) + 3 * var(--ctrl-size) + var(--ctrl-gap));
+			inset: var(--sheet-top) calc(env(safe-area-inset-right) + var(--ctrl-gap)) auto auto;
+			width: min(21rem, calc(50vw - 2 * var(--ctrl-gap)));
+			max-height: calc(100svh - var(--sheet-top) - 2.5rem - env(safe-area-inset-bottom));
 		}
 	}
 
@@ -311,7 +317,7 @@
 		flex: none;
 		width: 2.25rem;
 		height: 2.25rem;
-		background-size: 200%;
+		background-size: cover;
 		background-position: center;
 		border-radius: 0.35rem;
 		border: 1px solid var(--ctrl-edge);

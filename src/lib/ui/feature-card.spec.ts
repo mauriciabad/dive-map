@@ -1,6 +1,6 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { substrateByCode } from '$lib/domain/habitat';
+import { HABITATS, SUBSTRATES, substrateByCode } from '$lib/domain/habitat';
 import { type DiveFeature, parseDiveFeature } from '$lib/domain/osm';
 import { LOCALES } from '$lib/i18n/locale';
 import {
@@ -126,8 +126,15 @@ describe('the seabed strip under the tap', () => {
 		expect(seabed[0]?.ca).toBe('Roca');
 	});
 
-	it('points a class at its 256 px texture', () => {
-		expect(texturePath('ch_grass_2')).toBe('/textures/256/ch_grass_2.webp');
+	it('points a class at its swatch', () => {
+		expect(texturePath('ch_grass_2')).toBe('/textures/swatch/ch_grass_2.jpg');
+	});
+
+	it('ships a swatch file for every texture in both catalogues', () => {
+		const missing = [...HABITATS, ...SUBSTRATES]
+			.map((c) => texturePath(c.texture))
+			.filter((path) => !existsSync(new URL(`../../../static${path}`, import.meta.url)));
+		expect(missing).toEqual([]);
 	});
 });
 

@@ -14,6 +14,7 @@
 	// worker as an asset and hand back a path that actually exists.
 	import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 	import { Protocol } from 'pmtiles';
+	import { publishMap } from './controls';
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import { buildStyle } from './style';
 	import { loadTextures, sizeForScreen, texturePalette } from './textures';
@@ -95,6 +96,7 @@
 		m.on('styledata', () => void installTextures(m));
 		m.on('load', () => {
 			view.ready = true;
+			publishMap(m);
 			onready?.(m);
 		});
 		m.on('error', (e) => {
@@ -106,6 +108,7 @@
 		applied = style;
 		map = m;
 		return () => {
+			publishMap(undefined);
 			m.remove();
 			map = undefined;
 		};
