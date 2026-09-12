@@ -239,6 +239,48 @@ def closed_coords(ring, precision: int):
     return coords
 
 
+SHORE_CELL = 0.0015
+
+
+def coast_cells(path: str) -> set[tuple[int, int]]:
+    """Cells within roughly 150 m of the drawn coastline, walked along each segment."""
+    cells: set[tuple[int, int]] = set()
+    step = SHORE_CELL / 2.0
+    for line in open(path, encoding="utf-8"):
+        line = line.strip()
+        if not line:
+            continue
+        g = json.loads(line).get("geometry") or {}
+        coords = g.get("coordinates")
+        if not coords:
+            continue
+        parts = coords if g.get("type") == "MultiLineString" else [coords]
+        for part in parts:
+            for i in range(len(part) - 1):
+                x0, y0 = part[i][0], part[i][1]
+                x1, y1 = part[i + 1][0], part[i + 1][1]
+                span = max(abs(x1 - x0), abs(y1 - y0))
+                n = max(1, int(span / step) + 1)
+                for k in range(n + 1):
+                    t = k / n
+                    cells.add(
+                        (
+                            int((x0 + t * (x1 - x0)) / SHORE_CELL),
+                            int((y0 + t * (y1 - y0)) / SHORE_CELL),
+                        )
+                    )
+    return cells
+
+
+def near_coast(lon: float, lat: float, cells: set[tuple[int, int]]) -> bool:
+    cx, cy = int(lon / SHORE_CELL), int(lat / SHORE_CELL)
+    for dx in (-1, 0, 1):
+        for dy in (-1, 0, 1):
+            if (cx + dx, cy + dy) in cells:
+                return True
+    return False
+
+
 def boundary_loops(arr: Arrangement, partner):
     """Traces the directed edges no second polygon claims, which is the coverage outline.
 
@@ -310,7 +352,7 @@ def main() -> int:
     ap.add_argument("--max-offset", type=float, default=3.5)
     ap.add_argument("--size-ratio", type=float, default=0.10)
     ap.add_argument("--tol", type=float, default=0.2)
-    ap.add_argument("--shore-depth", type=float, default=0.0)
+    ap.add_argument("--coastline")
     ap.add_argument("--precision", type=int, default=6)
     args = ap.parse_args()
 
@@ -382,20 +424,22 @@ def main() -> int:
         print(f"features left with no geometry  {dropped}")
 
     if args.limit_out:
-        depth = {}
-        for rid, owner in enumerate(arr.ring_owner):
-            depth[rid] = (features[owner][0] or {}).get("dmin")
+        cells = coast_cells(args.coastline) if args.coastline else set()
+        print(f"coastline cells     {len(cells)}")
         loops = boundary_loops(arr, partner)
         lines = []
         for loop in loops:
             tags = []
             for i in range(len(loop)):
-                rid = partner.get((loop[i], loop[(i + 1) % len(loop)]))
-                if rid is None:
+                a, b = loop[i], loop[(i + 1) % len(loop)]
+                if partner.get((a, b)) is None:
                     tags.append(CLOSURE)
                     continue
-                d = depth.get(rid)
-                tags.append(1 if (d is not None and d <= args.shore_depth) else 0)
+                ax, ay = arr.pts[a]
+                bx, by = arr.pts[b]
+                lon = (ax + bx) / 2.0 / GRID
+                lat = (ay + by) / 2.0 / GRID
+                tags.append(1 if near_coast(lon, lat, cells) else 0)
             ring = smooth_ring(loop, arr, pinned, cap, tags, args.cut, args.rounds, args.tol)
             run = []
             cur = None
