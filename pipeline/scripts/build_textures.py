@@ -19,6 +19,7 @@ import pillow_jxl  # noqa: F401 - registers the JXL encoder with Pillow
 from PIL import Image
 
 SIZES = (2048, 1024, 512, 256)
+SOURCE_SIZE = 2048
 WEBP_QUALITY = 88
 JXL_QUALITY = 82
 SEAM_MARGIN = 0.08  # fraction of the edge that gets blended
@@ -53,29 +54,75 @@ def make_seamless(a: np.ndarray, axis: int) -> np.ndarray:
     return a * w + np.flip(a, axis=axis) * (1.0 - w)
 
 
+def unsurveyed(rng: np.random.Generator) -> Image.Image:
+    """The seabed the habitat survey never reached, as a hatch rather than a class.
+
+    Hatching is what a chart uses for unknown ground, and it cannot be mistaken for
+    one of the 21 pack textures a real class is painted with. The spacing divides
+    the tile exactly, so the diagonal wraps and needs no edge blend.
+    """
+    n = SOURCE_SIZE
+    y, x = np.mgrid[0:n, 0:n]
+    # A mid tone, because the hillshade multiplies a near-white highlight over
+    # whatever is underneath and a dark base came out as a white smear in the
+    # shallows. The 21 pack textures all sit in this range, so this one takes the
+    # light the same way they do and the hatch survives it.
+    base = np.array([96.0, 106.0, 110.0], dtype=np.float32)
+    line = np.array([56.0, 66.0, 72.0], dtype=np.float32)
+    stripe = ((x + y) % 128) < 16
+    a = np.where(stripe[..., None], line, base)
+    a = a + rng.normal(0.0, 5.0, size=(n, n, 1)).astype(np.float32)
+    return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
+
+
+SYNTHETIC = {"unsurveyed": unsurveyed}
+
+
+def emitted(out: pathlib.Path, name: str) -> bool:
+    files = [out / str(size) / f"{name}.{fmt}" for size in SIZES for fmt in ("webp", "jxl")]
+    return all(f.exists() for f in files) and (out / "swatch" / f"{name}.jpg").exists()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--src", type=pathlib.Path, required=True)
+    # Optional: once every texture is emitted the pack is not needed again, and a
+    # clean clone does not carry it.
+    ap.add_argument("--src", type=pathlib.Path, default=pathlib.Path("data/raw/crosshead"))
     ap.add_argument("--out", type=pathlib.Path, required=True)
     ap.add_argument("--registry", type=pathlib.Path, required=True)
     ap.add_argument("--threshold", type=float, default=1.5)
     args = ap.parse_args()
 
-    wanted = sorted(set(re.findall(r"texture: '([\w.]+)'", args.registry.read_text())))
+    wanted = sorted(set(re.findall(r"texture: '([\w.]+)'", args.registry.read_text())) | set(SYNTHETIC))
     print(f"{len(wanted)} textures referenced by the habitat registry")
+
+    # Rerunning re-encodes nothing: a texture whose eight files and swatch are all
+    # on disk keeps the entry the previous run recorded. Without this the step
+    # cannot run at all once the source pack is gone, which it is on a clean clone.
+    previous: dict[str, dict[str, object]] = {}
+    if (args.out / "index.json").exists():
+        previous = json.loads((args.out / "index.json").read_text()).get("textures", {})
 
     index: dict[str, dict[str, object]] = {}
     missing: list[str] = []
     total_webp = 0
     total_jxl = 0
+    rng = np.random.default_rng(11)
 
     for name in wanted:
-        hits = list(args.src.rglob(f"{name}.png"))
-        if not hits:
-            missing.append(name)
+        if emitted(args.out, name) and name in previous:
+            index[name] = previous[name]
             continue
-        src = hits[0]
-        a = np.asarray(Image.open(src).convert("RGB"), dtype=np.float32)
+        if name in SYNTHETIC:
+            src = pathlib.Path(f"<generated {name}>")
+            a = np.asarray(SYNTHETIC[name](rng), dtype=np.float32)
+        else:
+            hits = list(args.src.rglob(f"{name}.png"))
+            if not hits:
+                missing.append(name)
+                continue
+            src = hits[0]
+            a = np.asarray(Image.open(src).convert("RGB"), dtype=np.float32)
         before = seam_ratios(a)
         fixed = []
         if before[0] > args.threshold:

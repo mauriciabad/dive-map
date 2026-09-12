@@ -11,6 +11,7 @@ export { PALETTE } from './palette.ts';
 import { PALETTE } from './palette.ts';
 import type { IsobathStyle, LayerId } from '$lib/domain/card';
 import type { Locale } from '$lib/i18n/locale';
+import { UNSURVEYED_TEXTURE } from './textures.ts';
 
 /**
  * The seabed drawn as painted terrain, in the grammar of the texture pack it is
@@ -121,6 +122,14 @@ export const DEPTH_BANDS: readonly {
 	{ from: 50, to: 79, light: '#ff9fb6', dark: '#e04a6c' },
 	{ from: 80, to: 140, light: '#ff7a6b', dark: '#9b2418' }
 ];
+
+/**
+ * The wash over water the DEM never reached. It is the void colour, so the open
+ * sea that was already empty out there composites back to exactly itself, and
+ * habitat that carries on past the survey reads as deep water rather than as a
+ * bright shelf.
+ */
+const BEYOND_WASH = 'rgba(3, 41, 59, 0.8)';
 
 const isobathColour = (): DataDrivenPropertyValueSpecification<string> => {
 	const stops = DEPTH_BANDS.flatMap((b) => [b.from, b.light, b.to + 0.99, b.dark]);
@@ -533,6 +542,7 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			url: `pmtiles://${asset('/tiles/substrate-raw.pmtiles')}`,
 			maxzoom: 15
 		},
+		'dem-edge': { type: 'geojson', data: asset('/data/dem-edge.geojson') },
 		coastline: {
 			type: 'vector',
 			url: `pmtiles://${asset('/tiles/coastline.pmtiles')}`,
@@ -544,6 +554,23 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 	},
 	layers: [
 		{ id: 'void', type: 'background', paint: { 'background-color': PALETTE.void } },
+
+		{
+			// Where the bathymetry reached but the habitat survey did not. Left bare it
+			// showed the background through, which reads as a hole in the map next to
+			// the shore and as a stepped cliff at the survey's offshore limit. Hatch is
+			// the chart convention for ground nobody has classified, and it is generated
+			// rather than taken from the texture pack, so it cannot be read as a class.
+			id: 'seabed-unmapped',
+			type: 'fill',
+			source: 'dem-edge',
+			filter: ['==', ['get', 'kind'], 'covered'],
+			layout: { visibility: vis(options, options.groundLayer) },
+			paint: {
+				'fill-pattern': UNSURVEYED_TEXTURE,
+				'fill-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.55, 13, 0.92]
+			}
+		},
 
 		...groundLayers(options),
 
@@ -572,6 +599,37 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			source: 'seabed-dem',
 			layout: { visibility: vis(options, 'depth-tint') },
 			paint: { 'color-relief-color': DEPTH_VEIL }
+		},
+		{
+			// The DEM ends offshore at a median 52 m and both the hillshade and the veil
+			// read it, so past that boundary habitat paints bare and bright against
+			// veiled deep water. Neither layer takes a per-pixel mask, so open sea gets
+			// washed in the deep-water colour instead. The wash is the void colour, so
+			// water that was already empty out there is unchanged.
+			id: 'sea-beyond-dem',
+			type: 'fill',
+			source: 'dem-edge',
+			filter: ['==', ['get', 'kind'], 'beyond'],
+			layout: { visibility: vis(options, 'depth-tint') },
+			paint: { 'fill-color': BEYOND_WASH }
+		},
+		{
+			// The wash would still meet the veil on one pixel. This lays the same colour
+			// along the boundary as a wide blurred line, offset inwards, which spreads
+			// the junction over a few hundred metres. The rings are wound with the
+			// covered side on the left, which is what makes one negative offset push the
+			// band inwards on every ring, holes included.
+			id: 'dem-edge-fade',
+			type: 'line',
+			source: 'dem-edge',
+			filter: ['==', ['get', 'kind'], 'edge'],
+			layout: { visibility: vis(options, 'depth-tint'), 'line-join': 'round' },
+			paint: {
+				'line-color': BEYOND_WASH,
+				'line-width': 56,
+				'line-blur': 40,
+				'line-offset': -26
+			}
 		},
 
 		{

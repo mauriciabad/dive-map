@@ -9,6 +9,7 @@
  * screenshot.
  *
  * Usage: node pipeline/scripts/verify-render.mjs <url> [--shot out.png] [--no-sw]
+ *          [--at lng,lat,zoom] [--layers a,b,c] [--settle ms]
  */
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
@@ -18,6 +19,14 @@ const url = process.argv[2] ?? 'http://localhost:5178/';
 const shotAt = process.argv.indexOf('--shot');
 const shot = shotAt === -1 ? undefined : process.argv[shotAt + 1];
 const noSw = process.argv.includes('--no-sw');
+const flag = (name) => {
+  const at = process.argv.indexOf(name);
+  return at === -1 ? undefined : process.argv[at + 1];
+};
+const at = flag('--at')?.split(',').map(Number);
+const camera = at?.length === 3 ? { center: [at[0], at[1]], zoom: at[2] } : undefined;
+const extraLayers = flag('--layers')?.split(',').filter(Boolean) ?? [];
+const settleMs = Number(flag('--settle') ?? 6000);
 
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
@@ -33,7 +42,7 @@ page.on('response', (r) => { if (r.status() >= 400) failed.push(`${r.status()} $
 
 await page.goto(url, { waitUntil: 'domcontentloaded' });
 
-const result = await page.evaluate(async () => {
+const result = await page.evaluate(async ({ camera, extraLayers, settleMs }) => {
   const deadline = Date.now() + 45_000;
   const canvas = () => document.querySelector('.maplibregl-canvas');
   while (!canvas() && Date.now() < deadline) await new Promise((r) => setTimeout(r, 300));
@@ -63,14 +72,20 @@ const result = await page.evaluate(async () => {
   }
 
   const m = window.diveMap;
+  if (m && camera) {
+    m.jumpTo(camera);
+    await new Promise((r) => setTimeout(r, settleMs));
+    last = patch();
+  }
   const layers = {};
   if (m) {
-    for (const id of ['ground-fill', 'isobath', 'isobath-label', 'shoreline', 'island-edge', 'land', 'osm-dive-site']) {
+    const wanted = ['isobath', 'isobath-label', 'shoreline', 'land', 'osm-dive-site', ...extraLayers];
+    for (const id of wanted) {
       try { layers[id] = m.queryRenderedFeatures({ layers: [id] }).length; } catch { layers[id] = 'absent'; }
     }
   }
   return { pixels: last, layers, hasHandle: Boolean(m) };
-});
+}, { camera, extraLayers, settleMs });
 
 if (shot) {
   mkdirSync(dirname(shot), { recursive: true });

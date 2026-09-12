@@ -359,6 +359,22 @@
         "webp": 155484,
         "jxl": 152760
       }
+    },
+    "unsurveyed": {
+      "source": "<generated unsurveyed>",
+      "seamBefore": [
+        1.01,
+        1.04
+      ],
+      "seamAfter": [
+        1.01,
+        1.04
+      ],
+      "blended": [],
+      "bytes": {
+        "webp": 1014142,
+        "jxl": 467300
+      }
     }
   }
 }
