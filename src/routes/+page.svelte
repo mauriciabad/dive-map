@@ -63,6 +63,7 @@
 		try {
 			const card = view.framedCard;
 			const rendered = await renderCard(card, {
+				locale: view.locale,
 				isobaths: view.isobaths,
 				visible: [...view.visible],
 				groundLayer: view.groundLayer

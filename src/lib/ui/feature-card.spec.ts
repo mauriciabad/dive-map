@@ -231,6 +231,7 @@ describe('the layers a tap is allowed to hit', () => {
 	// because queryRenderedFeatures answers an unknown id with nothing.
 	it.each(['habitats', 'substrate'] as const)('all exist in the %s style', (groundLayer) => {
 		const style = buildStyle({
+			locale: 'ca',
 			isobaths: DEFAULT_ISOBATHS,
 			visible: [...DEFAULT_LAYERS],
 			groundLayer

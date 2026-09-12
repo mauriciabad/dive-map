@@ -37,6 +37,7 @@
 
 	const style = $derived(
 		buildStyle({
+			locale: view.locale,
 			isobaths: view.isobaths,
 			visible: [...view.visible],
 			groundLayer: view.groundLayer
@@ -76,8 +77,13 @@
 			maxPitch: 0,
 			canvasContextAttributes: { preserveDrawingBuffer: true },
 			attributionControl: {
-				customAttribution:
-					'Batimetria i línia de costa © ICGC, CC BY 4.0 · Hàbitats marins © Generalitat de Catalunya, CC BY 4.0 · © OpenStreetMap contributors'
+				// MapLibre renders attribution as HTML, so these are real links rather
+				// than the names of places you cannot get to.
+				customAttribution: [
+					'<a href="https://www.icgc.cat/" target="_blank" rel="noopener">ICGC</a> batimetria i línia de costa, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>',
+					'<a href="https://mediambient.gencat.cat/ca/05_ambits_dactuacio/patrimoni_natural/sistemes_dinformacio/habitats/habitats-marins/" target="_blank" rel="noopener">Hàbitats marins</a> © Generalitat de Catalunya, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>',
+					'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
+				].join(' · ')
 			}
 		});
 

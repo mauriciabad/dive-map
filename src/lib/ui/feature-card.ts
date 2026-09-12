@@ -14,6 +14,7 @@ import {
 	type OsmTags,
 	parseDiveFeature
 } from '$lib/domain/osm';
+import { GROUND_FILL_LAYERS } from '$lib/map/style';
 import type { Depth } from '$lib/domain/units';
 import { type Locale, localisedName } from '$lib/i18n/locale';
 import { type MessageKey, t } from '$lib/i18n/messages';
@@ -37,7 +38,7 @@ export const OSM_PICK_LAYERS = [
 	'osm-minor'
 ] as const;
 
-export const GROUND_PICK_LAYERS = ['ground-fill'] as const;
+export const GROUND_PICK_LAYERS = GROUND_FILL_LAYERS;
 
 export const SEABED_LIMIT = 3;
 

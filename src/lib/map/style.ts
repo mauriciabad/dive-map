@@ -7,6 +7,7 @@ import type {
 } from 'maplibre-gl';
 import { HABITATS, SUBSTRATES } from '$lib/domain/habitat';
 import type { IsobathStyle, LayerId } from '$lib/domain/card';
+import type { Locale } from '$lib/i18n/locale';
 
 /**
  * The seabed drawn as painted terrain, in the grammar of the texture pack it is
@@ -190,6 +191,7 @@ const isobathFilter = ({
 ];
 
 export interface StyleOptions {
+	readonly locale: Locale;
 	readonly isobaths: IsobathStyle;
 	readonly visible: readonly LayerId[];
 	/** Substrate instead of habitat in the ground layer. They occupy the same slot. */
@@ -199,38 +201,52 @@ export interface StyleOptions {
 const vis = (options: StyleOptions, id: LayerId): 'visible' | 'none' =>
 	options.visible.includes(id) ? 'visible' : 'none';
 
-const groundLayers = (options: StyleOptions): LayerSpecification[] => {
-	const showing = options.groundLayer;
-	return [
-		{
-			id: 'ground-fill',
-			type: 'fill',
-			source: showing,
-			'source-layer': showing,
-			layout: { visibility: vis(options, showing) },
-			paint: {
-				'fill-pattern': patternFor(showing),
-				'fill-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.55, 13, 0.92]
+/**
+ * Both grounds are always in the style and only one is visible.
+ *
+ * Swapping one layer's `source` between the two looked tidier and did not work:
+ * MapLibre's style diff cannot express a source change on an existing layer, so
+ * switching from habitats to seafloor type silently did nothing. Visibility is
+ * something the diff handles, and it keeps both sets of tiles warm for the switch
+ * back.
+ */
+const groundLayers = (options: StyleOptions): LayerSpecification[] =>
+	(['habitats', 'substrate'] as const).flatMap((ground): LayerSpecification[] => {
+		const on = options.groundLayer === ground && options.visible.includes(ground);
+		const visibility = on ? 'visible' : 'none';
+		return [
+			{
+				id: `ground-${ground}-fill`,
+				type: 'fill',
+				source: ground,
+				'source-layer': ground,
+				layout: { visibility },
+				paint: {
+					'fill-pattern': patternFor(ground),
+					'fill-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.55, 13, 0.92]
+				}
+			},
+			{
+				id: `ground-${ground}-edge`,
+				type: 'line',
+				source: ground,
+				'source-layer': ground,
+				layout: { visibility, 'line-join': 'round' },
+				paint: {
+					'line-color': PALETTE.terrainEdgeSoft,
+					'line-blur': ['interpolate', ['linear'], ['zoom'], 12, 1.5, 18, 5],
+					'line-width': ['interpolate', ['linear'], ['zoom'], 12, 1.2, 18, 5],
+					// The survey admits 40% per-class accuracy and 75% purity, so the edge
+					// is a soft shadow rather than a hard line. Certainty the data does not
+					// have would be a lie a diver could act on.
+					'line-opacity': 0.7
+				}
 			}
-		},
-		{
-			id: 'ground-edge',
-			type: 'line',
-			source: showing,
-			'source-layer': showing,
-			layout: { visibility: vis(options, showing), 'line-join': 'round' },
-			paint: {
-				'line-color': PALETTE.terrainEdgeSoft,
-				'line-blur': ['interpolate', ['linear'], ['zoom'], 12, 1.5, 18, 5],
-				'line-width': ['interpolate', ['linear'], ['zoom'], 12, 1.2, 18, 5],
-				// The survey admits 40% per-class accuracy and 75% purity, so the edge is
-				// a soft shadow rather than a hard line. Certainty the data does not have
-				// would be a lie a diver could act on.
-				'line-opacity': 0.7
-			}
-		}
-	];
-};
+		];
+	});
+
+/** Both ground fills, for anything that queries what is under a point. */
+export const GROUND_FILL_LAYERS = ['ground-habitats-fill', 'ground-substrate-fill'] as const;
 
 const isKind = (...kinds: readonly string[]): ExpressionSpecification => [
 	'in',
@@ -249,6 +265,16 @@ const isKind = (...kinds: readonly string[]): ExpressionSpecification => [
 const osmLayers = (options: StyleOptions): LayerSpecification[] => {
 	const visibility = vis(options, 'osm');
 	const labelFont = ['Alegreya Sans Bold'];
+	// A place name is only translated when a mapper said so. Falling back to `name`
+	// keeps Barda de Fitor as Barda de Fitor in every language, which is what the
+	// boat crew actually says.
+	const localName: ExpressionSpecification = [
+		'coalesce',
+		['get', `name:${options.locale}`],
+		['get', 'name'],
+		['get', 'alt_name'],
+		''
+	];
 	return [
 		{
 			id: 'osm-restricted',
@@ -372,7 +398,7 @@ const osmLayers = (options: StyleOptions): LayerSpecification[] => {
 			filter: isKind('dive-site'),
 			layout: {
 				visibility,
-				'text-field': ['coalesce', ['get', 'name'], ''],
+				'text-field': localName,
 				'text-font': labelFont,
 				'text-size': ['interpolate', ['linear'], ['zoom'], 10, 11, 18, 16],
 				'text-offset': [0, 1.1],

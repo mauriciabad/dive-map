@@ -116,23 +116,63 @@ def analyse(arr: Arrangement):
 
 
 def chaikin_round(ring, cut: float):
-    """One capped corner-cutting pass over (x, y, pin, cap, tag) points."""
+    """One corner-cutting pass, which subdivides. Points are (x, y, pin, cap, tag, ox, oy)."""
     n = len(ring)
     out = []
     for i in range(n):
-        ax, ay, apin, acap, atag = ring[i]
-        bx, by, bpin, bcap, btag = ring[(i + 1) % n]
+        ax, ay, apin, acap, atag, _, _ = ring[i]
+        bx, by, _bpin, bcap, _btag, _, _ = ring[(i + 1) % n]
         if apin:
             out.append(ring[i])
         dx, dy = bx - ax, by - ay
-        span = math.hypot(dx, dy)
-        if span == 0.0:
+        if dx == 0.0 and dy == 0.0:
             continue
-        lim = acap if acap < bcap else bcap
-        t = cut if cut * span <= lim else lim / span
-        out.append((ax + t * dx, ay + t * dy, False, acap, atag))
-        out.append((bx - t * dx, by - t * dy, False, bcap, atag))
+        px, py = ax + cut * dx, ay + cut * dy
+        qx, qy = bx - cut * dx, by - cut * dy
+        out.append((px, py, False, acap, atag, px, py))
+        out.append((qx, qy, False, bcap, atag, qx, qy))
     return out
+
+
+def smooth_vertices(arr: Arrangement, adjacency, cap, cfg):
+    """Taubin smoothing over the arrangement itself, giving every vertex one position.
+
+    Every ring later reads its vertices out of this one table, so a shared boundary is the
+    same coordinates on both sides because it is literally the same numbers. That also frees
+    the junctions to move: a vertex where three polygons meet gets a single new position and
+    all three read it, so nothing can tear. Pinning junctions, which an earlier version did,
+    left runs of three or four vertices between anchors and no room for the filter to travel.
+
+    Each vertex stays within its own cap of where it started. The cap comes from the smallest
+    polygon touching it, which is what stops sub-100 m2 features dissolving however hard the
+    rest of the map is smoothed.
+    """
+    neighbours = [sorted(adjacency.get(v, ())) for v in range(len(arr.pts))]
+    origin = [metres(p) for p in arr.pts]
+    pos = list(origin)
+    for _ in range(cfg.passes):
+        for weight in (cfg.lam, cfg.mu):
+            nxt = list(pos)
+            for v, adj in enumerate(neighbours):
+                limit = cap.get(v, 0.0)
+                if not adj or limit <= 0.0:
+                    continue
+                px, py = pos[v]
+                sx = sy = 0.0
+                for n in adj:
+                    sx += pos[n][0]
+                    sy += pos[n][1]
+                k = len(adj)
+                x = px + weight * (sx / k - px)
+                y = py + weight * (sy / k - py)
+                ox, oy = origin[v]
+                dx, dy = x - ox, y - oy
+                far = math.hypot(dx, dy)
+                if far > limit:
+                    x, y = ox + dx / far * limit, oy + dy / far * limit
+                nxt[v] = (x, y)
+            pos = nxt
+    return pos
 
 
 def douglas_peucker(run, tol: float):
@@ -202,15 +242,15 @@ def simplify_ring(ring, tol: float):
     return out
 
 
-def smooth_ring(seq, arr, pinned, cap, tags, cut, rounds, tol):
+def smooth_ring(seq, pos, pinned, cap, tags, cfg):
     plain = []
     for idx, v in enumerate(seq):
-        x, y = metres(arr.pts[v])
-        plain.append((x, y, v in pinned, cap.get(v, 0.0), tags[idx] if tags else 0))
+        x, y = pos[v]
+        plain.append((x, y, v in pinned, cap.get(v, 0.0), tags[idx] if tags else 0, x, y))
     ring = plain
-    for _ in range(rounds):
-        ring = chaikin_round(ring, cut)
-    thinned = simplify_ring(ring, tol)
+    for _ in range(cfg.rounds):
+        ring = chaikin_round(ring, cfg.cut)
+    thinned = simplify_ring(ring, cfg.tol)
     if len({(p[0], p[1]) for p in thinned}) >= 3:
         return thinned
     return ring if len({(p[0], p[1]) for p in ring}) >= 3 else plain
@@ -220,7 +260,7 @@ def to_lonlat(ring, precision: int):
     q = 10.0**precision
     out = []
     last = None
-    for x, y, _pin, _cap, tag in ring:
+    for x, y, _pin, _cap, tag, _ox, _oy in ring:
         c = (round(x / MX * q) / q, round(y / MY * q) / q)
         if c != last:
             out.append((c, tag))
@@ -238,6 +278,26 @@ def closed_coords(ring, precision: int):
     coords.append(list(coords[0]))
     return coords
 
+
+class Strength:
+    __slots__ = ("rounds", "cut", "passes", "lam", "mu", "tol")
+
+    def __init__(self, rounds, cut, passes, lam, mu, tol):
+        self.rounds, self.cut, self.passes = rounds, cut, passes
+        self.lam, self.mu, self.tol = lam, mu, tol
+
+
+# Chaikin converges on the quadratic B-spline of its input, which never leaves a corner by
+# more than an eighth of the segment, so rounds alone cannot flatten a 10 m step. The Taubin
+# passes are what travel: lambda smooths, the negative mu pushes back so the curve does not
+# shrink away. Per-vertex caps bound the total travel and hold the minimum mapping unit.
+PRESETS = {
+    "light": Strength(rounds=2, cut=0.25, passes=0, lam=0.0, mu=0.0, tol=0.2),
+    "medium": Strength(rounds=2, cut=0.25, passes=6, lam=0.60, mu=-0.62, tol=0.3),
+    "blob": Strength(rounds=2, cut=0.25, passes=18, lam=0.65, mu=-0.67, tol=0.4),
+}
+
+CAP_BY_STRENGTH = {"light": 2.0, "medium": 4.5, "blob": 6.5}
 
 SHORE_CELL = 0.0015
 
@@ -347,14 +407,17 @@ def main() -> int:
     ap.add_argument("--in", dest="src", required=True)
     ap.add_argument("--out", dest="dst")
     ap.add_argument("--limit-out")
-    ap.add_argument("--rounds", type=int, default=2)
-    ap.add_argument("--cut", type=float, default=0.25)
-    ap.add_argument("--max-offset", type=float, default=3.5)
+    ap.add_argument("--smoothing", choices=sorted(PRESETS), default="medium")
+    ap.add_argument("--max-offset", type=float)
     ap.add_argument("--size-ratio", type=float, default=0.10)
-    ap.add_argument("--tol", type=float, default=0.2)
+    ap.add_argument("--passes", type=int)
     ap.add_argument("--coastline")
     ap.add_argument("--precision", type=int, default=6)
     args = ap.parse_args()
+    cfg = PRESETS[args.smoothing]
+    if args.passes is not None:
+        cfg.passes = args.passes
+    max_offset = args.max_offset if args.max_offset is not None else CAP_BY_STRENGTH[args.smoothing]
 
     arr = Arrangement()
     features = []
@@ -370,11 +433,12 @@ def main() -> int:
         if coords:
             polys = coords if g.get("type") == "MultiPolygon" else [coords]
             for poly in polys:
-                built = [arr.add_ring(r, fid, args.size_ratio, args.max_offset) for r in poly]
+                built = [arr.add_ring(r, fid, args.size_ratio, max_offset) for r in poly]
                 shape.append([r for r in built if r is not None])
         features.append((f.get("properties") or {}, shape))
 
     pinned, cap, partner, adjacency = analyse(arr)
+    pos = smooth_vertices(arr, adjacency, cap, cfg)
 
     in_verts = sum(len(r) for r in arr.rings)
     out_verts = 0
@@ -386,9 +450,7 @@ def main() -> int:
                 for poly in shape:
                     built = []
                     for rid in poly:
-                        ring = smooth_ring(
-                            arr.rings[rid], arr, pinned, cap, None, args.cut, args.rounds, args.tol
-                        )
+                        ring = smooth_ring(arr.rings[rid], pos, pinned, cap, None, cfg)
                         coords = closed_coords(ring, args.precision)
                         if coords is None:
                             continue
@@ -413,6 +475,7 @@ def main() -> int:
 
     degrees = Counter(len(a) for a in adjacency.values())
     caps = sorted(cap.values())
+    print(f"smoothing           {args.smoothing} (chaikin {cfg.rounds}, taubin {cfg.passes}x2, cap {max_offset} m)")
     print(f"features            {len(features)}")
     print(f"rings               {len(arr.rings)}")
     print(f"distinct vertices   {len(arr.pts)}")
@@ -440,7 +503,7 @@ def main() -> int:
                 lon = (ax + bx) / 2.0 / GRID
                 lat = (ay + by) / 2.0 / GRID
                 tags.append(1 if near_coast(lon, lat, cells) else 0)
-            ring = smooth_ring(loop, arr, pinned, cap, tags, args.cut, args.rounds, args.tol)
+            ring = smooth_ring(loop, pos, pinned, cap, tags, cfg)
             run = []
             cur = None
             for c, tag in to_lonlat(ring, args.precision):
