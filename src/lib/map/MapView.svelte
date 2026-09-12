@@ -1,5 +1,18 @@
 <script lang="ts">
-	import { Map as MapLibre, NavigationControl, ScaleControl, addProtocol } from 'maplibre-gl';
+	import {
+		Map as MapLibre,
+		NavigationControl,
+		ScaleControl,
+		addProtocol,
+		setWorkerUrl
+	} from 'maplibre-gl';
+	// MapLibre resolves its worker with a bare relative URL, which the bundler then
+	// resolves against the importing chunk's directory. In the build that becomes
+	// /_app/immutable/nodes/maplibre-gl-worker.mjs and 404s. The worker does all the
+	// tile decoding and dies silently, so the map paints its background, loads
+	// nothing, and reports no error. Handing Vite the URL is what makes it emit the
+	// worker as an asset and hand back a path that actually exists.
+	import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 	import { Protocol } from 'pmtiles';
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import { buildStyle } from './style';
@@ -51,6 +64,7 @@
 	};
 
 	const mount = (container: HTMLElement) => {
+		setWorkerUrl(workerUrl);
 		addProtocol('pmtiles', new Protocol().tile);
 
 		const m = new MapLibre({
