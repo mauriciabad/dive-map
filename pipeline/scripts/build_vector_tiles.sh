@@ -91,20 +91,22 @@ tile_substrate() {
     "$1"
 }
 
+# The surveyed area is the union of the habitat polygons, so the fill is those polygons with
+# their classes stripped and coalesced. A walked dissolve was tried and abandoned: 578 vertices
+# of the source arrangement have unequal in and out degree, which shatters any boundary walk.
+# Coalescing assumes nothing about the topology, and the fill edge matches the habitat edge
+# because it is the same edge.
 tile_coverage() {
   tippecanoe -o "$1" -f -n "ICGC habitat survey coverage" \
     -Z5 -z15 -P --no-simplification-of-shared-nodes --tiny-polygon-size=0 \
-    --coalesce-densest-as-needed --drop-densest-as-needed \
-    -L "coverage:$BUILD/coverage.geojsonseq" -L "limit:$BUILD/limit.geojsonseq"
+    --coalesce --coalesce-densest-as-needed --drop-densest-as-needed \
+    -x code -x dmin -x dmax \
+    -L "coverage:$BUILD/habitats-smooth.geojsonseq" -L "limit:$BUILD/limit.geojsonseq"
 }
 
-# Rounds the raster staircase off the shared topology. One pass emits the smoothed
-# polygons and, from the same arcs, the dissolved survey coverage and its outline.
 smooth_habitats() {
   python3 "$SMOOTH" --in "$BUILD/habitats.geojsonseq" \
-    --out "$1" \
-    --coverage-out "$BUILD/coverage.geojsonseq" \
-    --limit-out "$BUILD/limit.geojsonseq"
+    --out "$1" --limit-out "$BUILD/limit.geojsonseq"
 }
 
 smooth_substrate() {
@@ -162,7 +164,7 @@ run_smoothed substrate "$RAW/substrate.geojson" extract_substrate smooth_substra
 if [ ! -e "$OUT/coverage.pmtiles" ]; then
   printf 'building coverage\n'
   ensure_extract habitats "$RAW/habitats.geojson" extract_habitats
-  [ -e "$BUILD/coverage.geojsonseq" ] || smooth_habitats "$BUILD/habitats-smooth.geojsonseq"
+  [ -e "$BUILD/limit.geojsonseq" ] || smooth_habitats "$BUILD/habitats-smooth.geojsonseq"
   stage "$OUT/coverage.pmtiles" tile_coverage
 fi
 

@@ -43,7 +43,6 @@
 
 	let handle: DrawHandle | undefined;
 	let applied: string | undefined;
-	let appliedTo: unknown;
 
 	const colourOf = (id: string | undefined): string => {
 		const annotation = id === undefined ? undefined : store.working.find((a) => a.id === id);
@@ -59,20 +58,14 @@
 		return body;
 	};
 
-	/**
-	 * A style rebuild keeps the source id and throws away the object behind it, so
-	 * identity is what says "this is a fresh, empty source" rather than the data.
-	 * Comparing both means a styledata storm costs one comparison, not one retile.
-	 */
-	const applyToSource = (m: MapLibreMap, annotations: readonly Annotation[]): void => {
+	const applyToSource = (m: MapLibreMap, annotations: readonly Annotation[], force = false): void => {
 		const source = m.getSource('annotations');
 		if (!(source instanceof GeoJSONSource)) return;
 		const data = toSourceData(annotations);
 		const key = JSON.stringify(data);
-		if (key === applied && source === appliedTo) return;
+		if (key === applied && !force) return;
 		void source.setData(data);
 		applied = key;
-		appliedTo = source;
 	};
 
 	/**
@@ -87,15 +80,20 @@
 			applyToSource(m, store.working);
 		});
 
+		/*
+		 * A layer toggle rebuilds the style, which empties this source while keeping
+		 * both its id and the object behind it, so neither the data nor the identity
+		 * tells us it happened. Push again unconditionally. `setData` raises
+		 * `sourcedata`, never `styledata`, so this cannot feed itself.
+		 */
 		const reapply = (): void => {
-			applyToSource(m, store.working);
+			applyToSource(m, store.working, true);
 		};
 		m.on('styledata', reapply);
 
 		return () => {
 			m.off('styledata', reapply);
 			applied = undefined;
-			appliedTo = undefined;
 		};
 	};
 

@@ -18,8 +18,9 @@ The corner cut is capped per vertex by the size of the smallest polygon touching
 the 100 m2 minimum mapping unit survives. Since the cap is a property of the vertex, both
 sides of every boundary read the same value.
 
-The dissolved survey coverage falls out of the same structure: its outline is exactly the
-directed edges no second polygon claims.
+The survey's outer limit falls out of the same structure: it is exactly the directed edges
+no second polygon claims. Each such edge knows the polygon behind it, so the outline can say
+where it is the shore and where the survey simply stops.
 """
 
 from __future__ import annotations
@@ -31,6 +32,7 @@ import sys
 from collections import Counter, defaultdict
 
 GRID = 10_000_000
+CLOSURE = 2
 LAT0 = 41.4
 MX = 111320.0 * math.cos(math.radians(LAT0))
 MY = 110574.0
@@ -237,41 +239,6 @@ def closed_coords(ring, precision: int):
     return coords
 
 
-def shoelace(coords) -> float:
-    s = 0.0
-    for i in range(len(coords) - 1):
-        s += coords[i][0] * coords[i + 1][1] - coords[i + 1][0] * coords[i][1]
-    return s / 2.0
-
-
-def interior_probe(ring):
-    """A vertex is useless as a probe when a hole touches its shell there, so take a point inside."""
-    n = len(ring) - 1
-    for i in range(n):
-        a, b, c = ring[i], ring[(i + 1) % n], ring[(i + 2) % n]
-        mid = ((a[0] + b[0] + c[0]) / 3.0, (a[1] + b[1] + c[1]) / 3.0)
-        if point_in_ring(mid, ring):
-            return mid
-    for i in range(n):
-        a, b = ring[i], ring[(i + 1) % n]
-        mid = ((a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0)
-        if point_in_ring(mid, ring):
-            return mid
-    return ring[0]
-
-
-def point_in_ring(pt, ring) -> bool:
-    x, y = pt
-    inside = False
-    for i in range(len(ring) - 1):
-        x0, y0 = ring[i]
-        x1, y1 = ring[i + 1]
-        if (y0 > y) != (y1 > y):
-            if x0 + (y - y0) / (y1 - y0) * (x1 - x0) > x:
-                inside = not inside
-    return inside
-
-
 def boundary_loops(arr: Arrangement, partner):
     """Traces the directed edges no second polygon claims, which is the coverage outline.
 
@@ -337,7 +304,6 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--in", dest="src", required=True)
     ap.add_argument("--out", dest="dst")
-    ap.add_argument("--coverage-out")
     ap.add_argument("--limit-out")
     ap.add_argument("--rounds", type=int, default=2)
     ap.add_argument("--cut", type=float, default=0.25)
@@ -415,67 +381,35 @@ def main() -> int:
         print(f"vertices in/out     {in_verts} -> {out_verts} ({out_verts / max(in_verts, 1):.2f}x)")
         print(f"features left with no geometry  {dropped}")
 
-    if args.coverage_out or args.limit_out:
+    if args.limit_out:
         depth = {}
         for rid, owner in enumerate(arr.ring_owner):
             depth[rid] = (features[owner][0] or {}).get("dmin")
         loops = boundary_loops(arr, partner)
-        shells, holes, lines = [], [], []
+        lines = []
         for loop in loops:
             tags = []
             for i in range(len(loop)):
                 rid = partner.get((loop[i], loop[(i + 1) % len(loop)]))
-                d = depth.get(rid) if rid is not None else None
+                if rid is None:
+                    tags.append(CLOSURE)
+                    continue
+                d = depth.get(rid)
                 tags.append(1 if (d is not None and d <= args.shore_depth) else 0)
             ring = smooth_ring(loop, arr, pinned, cap, tags, args.cut, args.rounds, args.tol)
-            coords = closed_coords(ring, args.precision)
-            if coords is None:
-                continue
-            (shells if shoelace(coords) > 0 else holes).append(coords)
             run = []
             cur = None
             for c, tag in to_lonlat(ring, args.precision):
                 if cur is None or tag == cur:
                     run.append([c[0], c[1]])
                 else:
-                    if len(run) > 1:
+                    if len(run) > 1 and cur != CLOSURE:
                         lines.append((cur, run))
                     run = [run[-1], [c[0], c[1]]]
                 cur = tag
-            if len(run) > 1:
-                lines.append((cur if cur is not None else 0, run))
+            if len(run) > 1 and cur not in (None, CLOSURE):
+                lines.append((cur, run))
 
-        shells.sort(key=lambda r: abs(shoelace(r)))
-        boxes = [
-            (min(p[0] for p in s), min(p[1] for p in s), max(p[0] for p in s), max(p[1] for p in s))
-            for s in shells
-        ]
-        assembled = [[s] for s in shells]
-        orphan = 0
-        for hole in holes:
-            probe = interior_probe(hole)
-            for si, shell in enumerate(shells):
-                bx = boxes[si]
-                if not (bx[0] <= probe[0] <= bx[2] and bx[1] <= probe[1] <= bx[3]):
-                    continue
-                if point_in_ring(probe, shell):
-                    assembled[si].append(hole)
-                    break
-            else:
-                orphan += 1
-        if args.coverage_out:
-            with open(args.coverage_out, "w", encoding="utf-8") as fh:
-                fh.write(
-                    json.dumps(
-                        {
-                            "type": "Feature",
-                            "properties": {"kind": "habitat-survey"},
-                            "geometry": {"type": "MultiPolygon", "coordinates": assembled},
-                        },
-                        separators=(",", ":"),
-                    )
-                )
-                fh.write("\n")
         if args.limit_out:
             counts = Counter()
             with open(args.limit_out, "w", encoding="utf-8") as fh:
@@ -494,7 +428,6 @@ def main() -> int:
                     )
                     fh.write("\n")
             print(f"limit lines         {dict(counts)}")
-        print(f"coverage shells     {len(shells)} holes {len(holes)} unplaced holes {orphan}")
     return 0
 
 
