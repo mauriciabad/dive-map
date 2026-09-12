@@ -1,22 +1,45 @@
 <script lang="ts">
 	import MapView from '$lib/map/MapView.svelte';
 	import ControlRail from '$lib/ui/ControlRail.svelte';
+	import LocationControl from '$lib/ui/LocationControl.svelte';
 	import CropOverlay from '$lib/ui/CropOverlay.svelte';
+	import PrintPanel from '$lib/print/PrintPanel.svelte';
+	import { type LiveView, PrintState } from '$lib/print/print-state.svelte';
 	import FeatureCard from '$lib/ui/FeatureCard.svelte';
 	import { GROUND_PICK_LAYERS, OSM_PICK_LAYERS, pickFrom } from '$lib/ui/feature-card';
 	import { whenMapReady } from '$lib/map/controls';
 	import type { MapMouseEvent } from 'maplibre-gl';
 	import { MapState } from '$lib/state/map-view.svelte';
 	import { t } from '$lib/i18n/messages';
-	import { renderCard } from '$lib/print/render';
-	import { composeCardPdf } from '$lib/print/pdf';
 
 	/** Begur and Tamariu, the water this was built for. */
 	const START = { lng: 3.2165, lat: 41.9275 };
 	const START_ZOOM = 13.4;
 
 	const view = new MapState(navigator.languages);
-	let exporting = $state(false);
+	const print = new PrintState();
+
+	/** What the print path needs from the live map, and nothing more. */
+	const live: LiveView = {
+		get centre() {
+			return view.centre;
+		},
+		get bearing() {
+			return view.bearing;
+		},
+		get layers() {
+			return [...view.visible];
+		},
+		get isobaths() {
+			return view.isobaths;
+		},
+		get groundLayer() {
+			return view.groundLayer;
+		},
+		get smoothed() {
+			return view.smoothed;
+		}
+	};
 
 	/** Wet fingers need slack; the seabed needs more, so a site on a habitat
 	 *  boundary names both sides rather than whichever pixel was under the thumb. */
@@ -48,54 +71,6 @@
 			};
 		})
 	);
-
-	const fileName = (title: string): string => {
-		const slug = title
-			.normalize('NFD')
-			.replace(/[\u0300-\u036f]/g, '')
-			.replace(/[^\w]+/g, '-')
-			.replace(/^-|-$/g, '')
-			.toLowerCase();
-		return `${slug.length > 0 ? slug : 'full'}.pdf`;
-	};
-
-	const exportSheet = async (): Promise<void> => {
-		exporting = true;
-		try {
-			const card = view.framedCard;
-			const rendered = await renderCard(card, {
-				locale: view.locale,
-				isobaths: view.isobaths,
-				visible: [...view.visible],
-				groundLayer: view.groundLayer,
-			smoothed: view.smoothed
-			});
-			if (import.meta.env.DEV) {
-				// Without the image, so the verification script can read it.
-				Reflect.set(window, 'lastRender', {
-					width: rendered.width,
-					height: rendered.height,
-					clamped: rendered.clamped,
-					complete: rendered.complete,
-					pixelSpread: rendered.pixelSpread,
-					problems: rendered.problems,
-					missingImages: rendered.missingImages,
-					habitatCodes: rendered.habitatCodes
-				});
-			}
-			const pdf = await composeCardPdf(card, rendered, view.locale);
-			const url = URL.createObjectURL(new Blob([pdf as BlobPart], { type: 'application/pdf' }));
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = fileName(card.title);
-			a.click();
-			URL.revokeObjectURL(url);
-		} catch (e) {
-			view.error = e instanceof Error ? e.message : String(e);
-		} finally {
-			exporting = false;
-		}
-	};
 </script>
 
 <svelte:head>
@@ -122,14 +97,9 @@
 		</div>
 	{/if}
 
-	{#if view.framing}
-		<CropOverlay
-			{view}
-			busy={exporting}
-			onexport={() => {
-				void exportSheet();
-			}}
-		/>
+	{#if view.panelOpen === 'print'}
+		<CropOverlay {print} {live} zoom={view.zoom} />
+		<PrintPanel {print} {live} zoom={view.zoom} locale={view.locale} />
 	{/if}
 
 	<FeatureCard
@@ -141,6 +111,7 @@
 	/>
 
 	<ControlRail {view} />
+	<LocationControl {view} />
 </main>
 
 <style>

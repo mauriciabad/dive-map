@@ -2,6 +2,11 @@
 /**
  * Build the real map style and validate it against the MapLibre style spec.
  *
+ * The live-position layers are deliberately left out: they pull in the whole geo
+ * module graph, which this stub loader cannot follow, and they carry no
+ * data-driven expressions to get wrong. `pnpm run check` and the browser checks
+ * cover them.
+ *
  * The style is the one artifact where a typo costs nothing at compile time and
  * everything at runtime: a bad expression makes a layer silently vanish rather
  * than throw. This loads the actual TypeScript module, so it checks what ships.

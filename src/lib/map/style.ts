@@ -6,6 +6,7 @@ import type {
 	StyleSpecification
 } from 'maplibre-gl';
 import { HABITATS, SUBSTRATES } from '$lib/domain/habitat';
+import { POSITION_SOURCES, positionLayers } from '$lib/geo/style-layers';
 import type { IsobathStyle, LayerId } from '$lib/domain/card';
 import type { Locale } from '$lib/i18n/locale';
 
@@ -553,6 +554,7 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			maxzoom: 16
 		},
 		osm: { type: 'geojson', data: asset('/data/osm.geojson') },
+		...POSITION_SOURCES,
 		annotations: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } }
 	},
 	layers: [
@@ -701,6 +703,10 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			}
 		},
 
-		...osmLayers(options)
+		...osmLayers(options),
+
+		// Always last and always visible: tracking is switched by emptying the
+		// sources, so turning it on does not rebuild the style.
+		...positionLayers()
 	]
 });
