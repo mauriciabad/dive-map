@@ -1,12 +1,13 @@
-import { type ScaleDenominator, scale } from './units.ts';
 import {
+	DEFAULT_FRAMING,
+	DEFAULT_FURNITURE,
 	DEFAULT_SHEET,
+	type Framing,
+	type FurnitureId,
+	type Pixels,
 	type Sheet,
-	groundCoverageMetres,
-	groundMetresPerPixel,
-	mapAreaMm,
-	pixelSize,
-	zoomForScale
+	type SheetPlan,
+	planSheet
 } from './print.ts';
 
 /**
@@ -22,6 +23,7 @@ export interface LngLat {
 }
 
 export type LayerId =
+	| 'zero-isobath'
 	| 'hillshade'
 	| 'depth-tint'
 	| 'isobaths'
@@ -57,21 +59,25 @@ export const DEFAULT_ISOBATHS: IsobathStyle = {
 
 export interface DiveCard {
 	readonly id: string;
+	/** The name on the sheet. Whatever the person printing it wants it called. */
 	readonly title: string;
 	readonly subtitle: string | undefined;
 	/** The OSM element this card is about, when it is about one. A card may frame open water. */
 	readonly osmRef: string | undefined;
 	readonly centre: LngLat;
-	readonly scale: ScaleDenominator;
+	/** Scale or zoom. Both resolve to one ground resolution; see print.ts. */
+	readonly framing: Framing;
 	/** Degrees clockwise from north. Rotating the sheet to the reef often beats north-up. */
 	readonly bearing: number;
 	readonly sheet: Sheet;
 	readonly layers: readonly LayerId[];
+	readonly furniture: readonly FurnitureId[];
 	readonly isobaths: IsobathStyle;
 	readonly annotationIds: readonly string[];
 }
 
 export const DEFAULT_LAYERS: readonly LayerId[] = [
+	'zero-isobath',
 	'hillshade',
 	'depth-tint',
 	'isobaths',
@@ -87,20 +93,18 @@ export const newCard = (centre: LngLat, title: string): DiveCard => ({
 	subtitle: undefined,
 	osmRef: undefined,
 	centre,
-	scale: scale(2000),
+	framing: DEFAULT_FRAMING,
 	bearing: 0,
 	sheet: DEFAULT_SHEET,
 	layers: DEFAULT_LAYERS,
+	furniture: DEFAULT_FURNITURE,
 	isobaths: DEFAULT_ISOBATHS,
 	annotationIds: []
 });
 
-/** Web Mercator ground resolution at zoom 0 on the equator, metres per pixel. */
-const EQUATOR_RESOLUTION = 156_543.033_928_041;
-
-/** Ground metres per CSS pixel of the live map at this zoom and latitude. */
-export const screenMetresPerPixel = (zoom: number, latitudeDeg: number): number =>
-	(EQUATOR_RESOLUTION * Math.cos((latitudeDeg * Math.PI) / 180)) / 2 ** zoom;
+/** Pixels, page size, render zoom and the resolution everything is measured against. */
+export const planFor = (card: DiveCard): SheetPlan =>
+	planSheet(card.sheet, card.framing, card.centre.lat);
 
 export interface CropFrame {
 	/** Size of the crop rectangle in CSS pixels of the live map. */
@@ -119,26 +123,22 @@ export interface CropFrame {
 /**
  * Where the printed sheet lands on the live map, so the overlay can show it.
  *
+ * The sheet and the screen look at the same ground from the same latitude, so
+ * the crop is the output raster scaled by the difference between the two zooms.
  * The overlay is axis-aligned on screen and the map rotates under it, which is
  * what dragging to frame a site actually feels like.
  */
-export const cropFrame = (
-	card: DiveCard,
-	viewportZoom: number,
-	viewport: { readonly width: number; readonly height: number }
-): CropFrame => {
-	const mpp = screenMetresPerPixel(viewportZoom, card.centre.lat);
-	const ground = groundCoverageMetres(card.sheet, card.scale);
-	const widthPx = ground.width / mpp;
-	const heightPx = ground.height / mpp;
-	const exported = pixelSize(card.sheet);
+export const cropFrame = (plan: SheetPlan, viewportZoom: number, viewport: Pixels): CropFrame => {
+	const ratio = 2 ** (viewportZoom - plan.zoom);
+	const widthPx = plan.widthPx * ratio;
+	const heightPx = plan.heightPx * ratio;
 	return {
 		widthPx,
 		heightPx,
-		exportWidthPx: exported.width,
-		exportHeightPx: exported.height,
-		groundWidthM: ground.width,
-		groundHeightM: ground.height,
+		exportWidthPx: plan.widthPx,
+		exportHeightPx: plan.heightPx,
+		groundWidthM: plan.groundWidthM,
+		groundHeightM: plan.groundHeightM,
 		overflowsViewport: widthPx > viewport.width || heightPx > viewport.height
 	};
 };
@@ -148,44 +148,46 @@ export const cropFrame = (
  * so opening the print panel can frame the sheet sensibly instead of dumping the
  * user at an arbitrary scale.
  */
-export const zoomToFitCrop = (
-	card: DiveCard,
-	viewport: { readonly width: number; readonly height: number },
-	fill = 0.8
-): number => {
-	const ground = groundCoverageMetres(card.sheet, card.scale);
-	const mppNeeded = Math.max(
-		ground.width / (viewport.width * fill),
-		ground.height / (viewport.height * fill)
+export const zoomToFitCrop = (plan: SheetPlan, viewport: Pixels, fill = 0.8): number => {
+	const ratio = Math.min(
+		(viewport.width * fill) / plan.widthPx,
+		(viewport.height * fill) / plan.heightPx
 	);
-	const atLatitude = EQUATOR_RESOLUTION * Math.cos((card.centre.lat * Math.PI) / 180);
-	return Math.log2(atLatitude / mppNeeded);
+	return plan.zoom + Math.log2(ratio);
 };
 
 /**
- * Scale bar length for the printed sheet: the longest round number of metres
- * that fits in a quarter of the map area. A bar of 137 m is useless on a boat.
+ * Scale bar for the printed sheet: the longest round number of metres that fits
+ * in a quarter of the sheet. A bar of 137 m is useless on a boat.
+ *
+ * Measured in output pixels, which is the one unit a sheet of paper and a raster
+ * both have. `printedMm` is what a ruler should read across the bar, and it is
+ * there to catch the commonest real-world lie: a printer set to fit-to-page
+ * shrinks the sheet by a few percent and says nothing.
  */
 const ROUND_METRES: readonly number[] = [
 	5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000
 ];
 
-export const scaleBar = (
-	card: DiveCard
-): { readonly metres: number; readonly lengthMm: number } => {
-	const budgetMm = mapAreaMm(card.sheet).widthMm / 4;
-	const mmPerMetre = 1000 / card.scale;
+export interface ScaleBar {
+	readonly metres: number;
+	readonly lengthPx: number;
+	readonly printedMm: number | undefined;
+}
+
+export const scaleBar = (plan: SheetPlan, budgetPx = plan.widthPx / 4): ScaleBar => {
+	const pxPerMetre = 1 / plan.groundMetresPerPixel;
 	const metres = ROUND_METRES.reduce(
-		(best, m) => (m * mmPerMetre <= budgetMm ? m : best),
+		(best, m) => (m * pxPerMetre <= budgetPx ? m : best),
 		ROUND_METRES[0] ?? 5
 	);
-	return { metres, lengthMm: metres * mmPerMetre };
+	const lengthPx = metres * pxPerMetre;
+	return {
+		metres,
+		lengthPx,
+		printedMm:
+			plan.paper === undefined ? undefined : (lengthPx / plan.widthPx) * plan.paper.pageMm.widthMm
+	};
 };
 
-/** Whether the sheet resolves detail a diver can use, in metres of seabed per printed dot. */
-export const groundResolution = (card: DiveCard): number =>
-	groundMetresPerPixel(card.scale, card.sheet.dpi);
-
-/** The zoom the export renders at, so the sheet comes out at the scale it claims. */
-export const zoomForCard = (card: DiveCard): number =>
-	zoomForScale(card.scale, card.centre.lat, card.sheet.dpi);
+export const shows = (card: DiveCard, id: FurnitureId): boolean => card.furniture.includes(id);

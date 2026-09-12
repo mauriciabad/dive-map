@@ -1,57 +1,21 @@
 <script lang="ts">
-	import CropReadout from './CropReadout.svelte';
 	import { cropFrame } from '$lib/domain/card';
-	import { SvelteControl, whenMapReady } from '$lib/map/controls';
-	import type { MapState } from '$lib/state/map-view.svelte';
+	import type { LiveView, PrintState } from '$lib/print/print-state.svelte';
 
 	interface Props {
-		readonly view: MapState;
-		readonly onexport: () => void;
-		readonly busy: boolean;
+		readonly print: PrintState;
+		readonly live: LiveView;
+		/** The live map's zoom, so the crop can be drawn at the size the sheet really covers. */
+		readonly zoom: number;
 	}
 
-	const { view, onexport, busy }: Props = $props();
+	const { print, live, zoom }: Props = $props();
 
 	const viewport = $state({ width: 1440, height: 900 });
-	const frame = $derived(cropFrame(view.framedCard, view.zoom, viewport));
-
-	/*
-	 * The readout is a MapLibre control so it stacks under the zoom buttons in the
-	 * top-right corner instead of landing on top of them. Props reach it through
-	 * getters because `mount` reads the object once and never again.
-	 */
-	$effect(() =>
-		whenMapReady((map) => {
-			const control = new SvelteControl(CropReadout, {
-				props: {
-					view,
-					get frame() {
-						return frame;
-					},
-					get busy() {
-						return busy;
-					},
-					get onexport() {
-						return onexport;
-					}
-				},
-				className: 'maplibregl-ctrl dive-ctrl-panel'
-			});
-			map.addControl(control, 'top-right');
-			return () => {
-				map.removeControl(control);
-			};
-		})
-	);
+	const frame = $derived(cropFrame(print.plan(live), zoom, viewport));
 </script>
 
-<svelte:window
-	bind:innerWidth={viewport.width}
-	bind:innerHeight={viewport.height}
-	onkeydown={(e: KeyboardEvent) => {
-		if (e.key === 'Escape') view.framing = false;
-	}}
-/>
+<svelte:window bind:innerWidth={viewport.width} bind:innerHeight={viewport.height} />
 
 <div class="stage" aria-hidden="true">
 	<div class="crop" style:width="{frame.widthPx}px" style:height="{frame.heightPx}px">
@@ -63,21 +27,29 @@
 </div>
 
 <style>
+	/*
+	 * Above the map canvas and below everything else.
+	 *
+	 * MapLibre puts its corner containers at z-index 2 and the canvas at auto, and
+	 * neither the map div nor its canvas opens a stacking context, so a fixed
+	 * layer at 1 darkens the seabed and leaves the zoom buttons, the scale, the
+	 * attribution, the control rail and the panel untouched.
+	 */
 	.stage {
 		position: fixed;
 		inset: 0;
 		display: grid;
 		place-items: center;
-		z-index: 15;
+		z-index: 1;
 		pointer-events: none;
 	}
 
 	/* The crop sits still and the map moves under it, which is what framing a
-	   sheet by hand actually feels like. */
+	   sheet by hand actually feels like. It is deliberately not clamped to the
+	   viewport: a box drawn smaller than the sheet would put the paper edge
+	   somewhere it is not. */
 	.crop {
 		position: relative;
-		max-width: calc(100vw - 1rem);
-		max-height: calc(100svh - 1rem);
 		border: 1px solid var(--color-brass-400);
 		box-shadow:
 			0 0 0 9999px rgb(10 8 6 / 0.52),

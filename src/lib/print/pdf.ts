@@ -1,38 +1,28 @@
-import { PDFDocument, rgb, type PDFFont, type PDFPage } from '@cantoo/pdf-lib';
+import { PDFDocument, type PDFFont, type PDFImage, type PDFPage, rgb } from '@cantoo/pdf-lib';
 // fontkit 2.x ships named exports only; there is no default in the browser build.
 import * as fontkit from 'fontkit';
 import { asset } from '$app/paths';
-import { type DiveCard, scaleBar } from '$lib/domain/card';
-import { PAPER, sheetSizeMm } from '$lib/domain/print';
-import { type HabitatClass, legendFor } from '$lib/domain/habitat';
-import { type Locale } from '$lib/i18n/locale';
+import type { DiveCard } from '$lib/domain/card';
+import type { SheetPlan } from '$lib/domain/print';
+import type { Locale } from '$lib/i18n/locale';
 import { t } from '$lib/i18n/messages';
-import type { RenderedCard } from './render';
+import { type Drawing, type FontRole, type Rgb, layoutFurniture } from './furniture.ts';
+import type { RenderedCard } from './render.ts';
 
 /**
- * The sheet a diver holds on the boat: a full-bleed seabed with the furniture
- * sitting on it, the way a battlemap carries its own title and key rather than
- * mounting the map in a frame. Everything is positioned in millimetres and
- * converted once, because the card is specified on paper.
+ * The sheet as a PDF: a full-bleed seabed with the furniture sitting on it, the
+ * way a battlemap carries its own title and key rather than mounting the map in
+ * a frame.
+ *
+ * The layout arrives in output pixels with a top-left origin and this is the only
+ * place it becomes points with a bottom-left one, so the flip happens once.
  */
 
 const PT_PER_MM = 72 / 25.4;
-const mm = (v: number): number => v * PT_PER_MM;
 
-const INK = rgb(0.11, 0.09, 0.06);
-const PAPER_INK = rgb(0.94, 0.89, 0.81);
-const BRASS = rgb(0.72, 0.54, 0.25);
-const DIM = rgb(0.75, 0.69, 0.6);
-const PLATE = rgb(0.08, 0.06, 0.05);
+type Fonts = Record<FontRole, PDFFont>;
 
-const LEGEND_WIDTH_MM = 46;
-const PLATE_ALPHA = 0.82;
-
-interface Fonts {
-	readonly title: PDFFont;
-	readonly label: PDFFont;
-	readonly body: PDFFont;
-}
+const colour = ([r, g, b]: Rgb) => rgb(r, g, b);
 
 const loadFont = async (doc: PDFDocument, file: string): Promise<PDFFont> => {
 	const response = await fetch(asset(`/fonts/print/${file}`));
@@ -40,230 +30,149 @@ const loadFont = async (doc: PDFDocument, file: string): Promise<PDFFont> => {
 	return doc.embedFont(new Uint8Array(await response.arrayBuffer()), { subset: true });
 };
 
-const plate = (page: PDFPage, x: number, y: number, w: number, h: number): void => {
-	page.drawRectangle({
-		x: mm(x),
-		y: mm(y),
-		width: mm(w),
-		height: mm(h),
-		color: PLATE,
-		opacity: PLATE_ALPHA,
-		borderColor: BRASS,
-		borderWidth: 0.5,
-		borderOpacity: 0.5
-	});
+/** pdf-lib takes bytes, so the lossless bitmap is encoded exactly once, here. */
+const jpegBytes = async (bitmap: ImageBitmap): Promise<Uint8Array> => {
+	const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+	const context = canvas.getContext('2d');
+	if (context === null) throw new Error('no 2d context available to encode the sheet');
+	context.drawImage(bitmap, 0, 0);
+	const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 });
+	return new Uint8Array(await blob.arrayBuffer());
 };
 
-const drawScaleBar = (page: PDFPage, card: DiveCard, fonts: Fonts, x: number, y: number): void => {
-	const bar = scaleBar(card);
-	const h = 2.2;
-	const segments = 4;
-	for (let i = 0; i < segments; i++) {
-		page.drawRectangle({
-			x: mm(x + (bar.lengthMm / segments) * i),
-			y: mm(y),
-			width: mm(bar.lengthMm / segments),
-			height: mm(h),
-			color: i % 2 === 0 ? PAPER_INK : INK,
-			borderColor: PAPER_INK,
-			borderWidth: 0.4
-		});
-	}
-	page.drawText(`0`, { x: mm(x), y: mm(y + h + 1.2), size: 7, font: fonts.body, color: PAPER_INK });
-	page.drawText(`${bar.metres} m`, {
-		x: mm(x + bar.lengthMm - 6),
-		y: mm(y + h + 1.2),
-		size: 7,
-		font: fonts.body,
-		color: PAPER_INK
-	});
-	page.drawText(`1:${card.scale}`, {
-		x: mm(x + bar.lengthMm + 4),
-		y: mm(y + 0.4),
-		size: 8,
-		font: fonts.label,
-		color: BRASS
-	});
-};
-
-const drawLegend = async (
+const embedSwatches = async (
 	doc: PDFDocument,
-	page: PDFPage,
-	classes: readonly HabitatClass[],
-	fonts: Fonts,
-	locale: Locale,
-	x: number,
-	top: number
-): Promise<void> => {
-	const rowH = 9;
-	const height = classes.length * rowH + 12;
-	plate(page, x, top - height, LEGEND_WIDTH_MM, height);
-
-	page.drawText(t(locale, 'habitats').toUpperCase(), {
-		x: mm(x + 3),
-		y: mm(top - 6),
-		size: 7,
-		font: fonts.label,
-		color: BRASS
-	});
-
-	let y = top - 12;
-	for (const c of classes) {
-		const response = await fetch(asset(`/textures/swatch/${c.texture}.jpg`));
-		if (response.ok) {
-			const image = await doc.embedJpg(new Uint8Array(await response.arrayBuffer()));
-			page.drawImage(image, { x: mm(x + 3), y: mm(y - 5.5), width: mm(6.5), height: mm(6.5) });
-			page.drawRectangle({
-				x: mm(x + 3),
-				y: mm(y - 5.5),
-				width: mm(6.5),
-				height: mm(6.5),
-				borderColor: BRASS,
-				borderWidth: 0.4
-			});
-		}
-		const name = locale === 'ca' ? c.ca : locale === 'es' ? c.es : c.en;
-		const lines = wrap(name, 26);
-		let ly = y;
-		for (const line of lines.slice(0, 2)) {
-			page.drawText(line, {
-				x: mm(x + 11.5),
-				y: mm(ly - 3.4),
-				size: 6.4,
-				font: fonts.body,
-				color: PAPER_INK
-			});
-			ly -= 3;
-		}
-		y -= rowH;
+	drawings: readonly Drawing[]
+): Promise<ReadonlyMap<string, PDFImage>> => {
+	const images = new Map<string, PDFImage>();
+	for (const drawing of drawings) {
+		if (drawing.kind !== 'image' || images.has(drawing.url)) continue;
+		const response = await fetch(drawing.url);
+		if (!response.ok) continue;
+		images.set(drawing.url, await doc.embedJpg(new Uint8Array(await response.arrayBuffer())));
 	}
+	return images;
 };
 
-const wrap = (text: string, max: number): string[] => {
-	const words = text.split(' ');
-	const lines: string[] = [];
-	let line = '';
-	for (const w of words) {
-		if (line.length + w.length + 1 > max && line.length > 0) {
-			lines.push(line);
-			line = w;
-		} else {
-			line = line.length === 0 ? w : `${line} ${w}`;
+const paint = (
+	page: PDFPage,
+	drawing: Drawing,
+	scale: number,
+	pageHeight: number,
+	fonts: Fonts,
+	images: ReadonlyMap<string, PDFImage>
+): void => {
+	switch (drawing.kind) {
+		case 'rect':
+			page.drawRectangle({
+				x: drawing.x * scale,
+				y: pageHeight - (drawing.y + drawing.h) * scale,
+				width: drawing.w * scale,
+				height: drawing.h * scale,
+				...(drawing.fill === undefined ? {} : { color: colour(drawing.fill) }),
+				...(drawing.fillOpacity === undefined ? {} : { opacity: drawing.fillOpacity }),
+				...(drawing.stroke === undefined ? {} : { borderColor: colour(drawing.stroke) }),
+				...(drawing.strokeWidth === undefined ? {} : { borderWidth: drawing.strokeWidth * scale }),
+				...(drawing.strokeOpacity === undefined ? {} : { borderOpacity: drawing.strokeOpacity })
+			});
+			return;
+		case 'text':
+			page.drawText(drawing.text, {
+				x: drawing.x * scale,
+				y: pageHeight - drawing.y * scale,
+				size: drawing.size * scale,
+				font: fonts[drawing.font],
+				color: colour(drawing.colour),
+				...(drawing.opacity === undefined ? {} : { opacity: drawing.opacity })
+			});
+			return;
+		case 'image': {
+			const image = images.get(drawing.url);
+			if (image === undefined) return;
+			page.drawImage(image, {
+				x: drawing.x * scale,
+				y: pageHeight - (drawing.y + drawing.h) * scale,
+				width: drawing.w * scale,
+				height: drawing.h * scale
+			});
+			return;
+		}
+		case 'path': {
+			const [first, ...rest] = drawing.points;
+			if (first === undefined) return;
+			const path = [
+				`M ${first[0]} ${first[1]}`,
+				...rest.map(([x, y]) => `L ${x} ${y}`),
+				drawing.closed === true ? 'Z' : ''
+			].join(' ');
+			// drawSvgPath translates to (x, y) then scales by (s, -s), so anchoring it
+			// at the top of the page turns the layout's y-down space into the page's.
+			// Its border width is set inside that scaled space, so it stays unscaled.
+			page.drawSvgPath(path, {
+				x: 0,
+				y: pageHeight,
+				scale,
+				...(drawing.fill === undefined ? {} : { color: colour(drawing.fill) }),
+				...(drawing.stroke === undefined ? {} : { borderColor: colour(drawing.stroke) }),
+				...(drawing.strokeWidth === undefined ? {} : { borderWidth: drawing.strokeWidth })
+			});
+			return;
 		}
 	}
-	if (line.length > 0) lines.push(line);
-	return lines;
 };
 
 export const composeCardPdf = async (
 	card: DiveCard,
+	plan: SheetPlan,
 	rendered: RenderedCard,
-	locale: Locale,
-	maxDepthM?: number
+	locale: Locale
 ): Promise<Uint8Array> => {
+	const paper = plan.paper;
+	if (paper === undefined) {
+		throw new Error(
+			`a PDF page needs a size in points and this sheet is ${plan.widthPx}x${plan.heightPx} pixels, which has none. Export it as a PNG.`
+		);
+	}
+	if (rendered.clamped) {
+		throw new Error(
+			`the map came back at ${rendered.width}x${rendered.height} instead of ${rendered.requestedWidth}x${rendered.requestedHeight}, so the page would print stretched under a scale it does not hold.`
+		);
+	}
+
 	const doc = await PDFDocument.create();
 	doc.registerFontkit(fontkit);
-
 	const fonts: Fonts = {
 		title: await loadFont(doc, 'Alegreya-Bold.ttf'),
 		label: await loadFont(doc, 'AlegreyaSans-Bold.ttf'),
 		body: await loadFont(doc, 'AlegreyaSans-Regular.ttf')
 	};
 
-	const sheet = sheetSizeMm(card.sheet);
-	const page = doc.addPage([mm(sheet.widthMm), mm(sheet.heightMm)]);
-	const m = card.sheet.marginMm;
+	const pageWidth = paper.pageMm.widthMm * PT_PER_MM;
+	const pageHeight = paper.pageMm.heightMm * PT_PER_MM;
+	const page = doc.addPage([pageWidth, pageHeight]);
+	const scale = pageWidth / plan.widthPx;
 
-	page.drawRectangle({
+	page.drawImage(await doc.embedJpg(await jpegBytes(rendered.bitmap)), {
 		x: 0,
 		y: 0,
-		width: mm(sheet.widthMm),
-		height: mm(sheet.heightMm),
-		color: INK
+		width: pageWidth,
+		height: pageHeight
 	});
 
-	const image = await doc.embedJpg(rendered.dataUrl);
-	page.drawImage(image, {
-		x: mm(m),
-		y: mm(m),
-		width: mm(sheet.widthMm - 2 * m),
-		height: mm(sheet.heightMm - 2 * m)
+	const drawings = layoutFurniture({
+		card,
+		plan,
+		rendered,
+		locale,
+		// Font metrics are linear, so measuring at the layout's own size returns
+		// output pixels directly and the PDF breaks lines where the PNG does.
+		measure: (text, size, font) => fonts[font].widthOfTextAtSize(text, size)
 	});
-
-	page.drawRectangle({
-		x: mm(m),
-		y: mm(m),
-		width: mm(sheet.widthMm - 2 * m),
-		height: mm(sheet.heightMm - 2 * m),
-		borderColor: BRASS,
-		borderWidth: 1.1
-	});
-
-	const titleTop = sheet.heightMm - m - 4;
-	const titleH = card.subtitle === undefined ? 15 : 20;
-	plate(page, m + 4, titleTop - titleH, 96, titleH);
-	page.drawText(card.title, {
-		x: mm(m + 7),
-		y: mm(titleTop - 10),
-		size: 17,
-		font: fonts.title,
-		color: PAPER_INK
-	});
-	if (card.subtitle !== undefined) {
-		page.drawText(card.subtitle, {
-			x: mm(m + 7),
-			y: mm(titleTop - 16),
-			size: 8.5,
-			font: fonts.body,
-			color: DIM
-		});
-	}
-
-	if (maxDepthM !== undefined) {
-		const w = 30;
-		plate(page, sheet.widthMm - m - 4 - w, titleTop - 15, w, 15);
-		page.drawText(`${maxDepthM}`, {
-			x: mm(sheet.widthMm - m - 4 - w + 4),
-			y: mm(titleTop - 12),
-			size: 22,
-			font: fonts.title,
-			color: BRASS
-		});
-		page.drawText('m', {
-			x: mm(sheet.widthMm - m - 4 - w + 4 + `${maxDepthM}`.length * 6.2),
-			y: mm(titleTop - 12),
-			size: 10,
-			font: fonts.label,
-			color: BRASS
-		});
-	}
-
-	const present = new Set(rendered.habitatCodes);
-	const legend = legendFor(present, 12);
-	if (legend.length > 0) {
-		await drawLegend(doc, page, legend, fonts, locale, sheet.widthMm - m - 4 - LEGEND_WIDTH_MM, titleTop - (maxDepthM === undefined ? 0 : 19));
-	}
-
-	const footH = 17;
-	plate(page, m + 4, m + 4, 104, footH);
-	drawScaleBar(page, card, fonts, m + 7, m + 11);
-	page.drawText(t(locale, 'disclaimer'), {
-		x: mm(m + 7),
-		y: mm(m + 7),
-		size: 6.4,
-		font: fonts.body,
-		color: DIM
-	});
-
-	page.drawText(
-		'Batimetria i línia de costa © ICGC CC BY 4.0 · Hàbitats marins © Generalitat de Catalunya CC BY 4.0 · © OpenStreetMap contributors',
-		{ x: mm(m + 4), y: mm(m - 2.6), size: 4.6, font: fonts.body, color: DIM }
-	);
+	const images = await embedSwatches(doc, drawings);
+	for (const drawing of drawings) paint(page, drawing, scale, pageHeight, fonts, images);
 
 	doc.setTitle(card.title);
 	doc.setSubject(t(locale, 'disclaimer'));
 	doc.setCreator('divemap.mauri.app');
 	return doc.save();
 };
-
-export const A3_PORTRAIT_MM = PAPER.A3;

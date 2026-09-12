@@ -1,0 +1,83 @@
+import { type DiveCard, planFor } from '$lib/domain/card';
+import { renderZoom } from '$lib/domain/print';
+import type { Locale } from '$lib/i18n/locale';
+import type { StyleOptions } from '$lib/map/style';
+import { composeCardPdf } from './pdf.ts';
+import { composeCardPng } from './png.ts';
+import { PRINT_PIXEL_RATIO, renderCard } from './render.ts';
+
+/** The whole export, from framing to a file on disk. */
+
+export type SheetFormat = 'pdf' | 'png';
+
+const slug = (title: string): string => {
+	const cleaned = title
+		.normalize('NFD')
+		.replace(/[\u0300-\u036f]/g, '')
+		.replace(/[^\w]+/g, '-')
+		.replace(/^-|-$/g, '')
+		.toLowerCase();
+	return cleaned.length > 0 ? cleaned : 'full';
+};
+
+const download = (blob: Blob, filename: string): void => {
+	const url = URL.createObjectURL(blob);
+	const anchor = document.createElement('a');
+	anchor.href = url;
+	anchor.download = filename;
+	anchor.click();
+	URL.revokeObjectURL(url);
+};
+
+/**
+ * pdf-lib hands back a view over a buffer the DOM's Blob types will not accept,
+ * because it could be shared memory. Copying into a plain ArrayBuffer is the
+ * conversion that does not need a cast.
+ */
+const ownBuffer = (bytes: Uint8Array): ArrayBuffer => {
+	const buffer = new ArrayBuffer(bytes.byteLength);
+	new Uint8Array(buffer).set(bytes);
+	return buffer;
+};
+
+export const exportSheet = async (input: {
+	readonly card: DiveCard;
+	readonly style: StyleOptions;
+	readonly locale: Locale;
+	readonly format: SheetFormat;
+}): Promise<void> => {
+	const { card, style, locale, format } = input;
+	const plan = planFor(card);
+	const rendered = await renderCard(card, style);
+	const blob =
+		format === 'pdf'
+			? new Blob([ownBuffer(await composeCardPdf(card, plan, rendered, locale))], {
+					type: 'application/pdf'
+				})
+			: await composeCardPng(card, plan, rendered, locale);
+
+	if (import.meta.env.DEV) {
+		// Everything but the image, so the verification script can read it back.
+		Reflect.set(window, 'lastRender', {
+			format,
+			width: rendered.width,
+			height: rendered.height,
+			clamped: rendered.clamped,
+			complete: rendered.complete,
+			pixelSpread: rendered.pixelSpread,
+			problems: rendered.problems,
+			missingImages: rendered.missingImages,
+			habitatCodes: rendered.habitatCodes,
+			maxDepthM: rendered.maxDepthM ?? null,
+			pageMm: plan.paper?.pageMm ?? null,
+			scale: plan.paper?.scale ?? null,
+			groundWidthM: plan.groundWidthM,
+			groundHeightM: plan.groundHeightM,
+			zoom: plan.zoom,
+			renderZoom: renderZoom(plan, PRINT_PIXEL_RATIO),
+			byteLength: blob.size
+		});
+	}
+
+	download(blob, `${slug(card.title)}.${format}`);
+};

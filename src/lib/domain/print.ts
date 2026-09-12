@@ -1,99 +1,318 @@
 import { type ScaleDenominator, scale } from './units.ts';
 
 /**
- * A card is specified at a map scale, not a zoom level. A diver reading a
- * laminated sheet on a moving boat trusts the scale bar, so the scale is the
- * thing an instructor sets and the zoom is derived from it.
+ * A sheet is specified either on paper or in pixels, and those are two different
+ * kinds of thing. Paper has a size you can measure with a ruler and a print
+ * density that turns it into dots. A pixel raster has neither, so it has no
+ * scale ratio, no page size, and its scale bar prints a length in metres with no
+ * "1:N" beside it. Nothing here invents a paper size for a raster.
+ *
+ * The framing is specified either by scale or by zoom, and both resolve to one
+ * number: ground metres per OUTPUT pixel. Everything downstream reads that, so
+ * the scale bar is measured from what the renderer actually drew rather than
+ * from what was asked for.
  */
-
-export const PAPER = {
-	A3: { widthMm: 297, heightMm: 420 },
-	A4: { widthMm: 210, heightMm: 297 }
-} as const satisfies Record<string, { widthMm: number; heightMm: number }>;
-
-export type PaperSize = keyof typeof PAPER;
-export type Orientation = 'portrait' | 'landscape';
-
-export interface Sheet {
-	readonly paper: PaperSize;
-	readonly orientation: Orientation;
-	/** Trim on every edge. Laminating pouches eat a few millimetres. */
-	readonly marginMm: number;
-	readonly dpi: number;
-}
-
-export const DEFAULT_SHEET: Sheet = {
-	paper: 'A3',
-	orientation: 'portrait',
-	marginMm: 8,
-	dpi: 200
-};
-
-/** Scales that put a Costa Brava dive site on one A3 sheet. */
-export const CARD_SCALES: readonly ScaleDenominator[] = [
-	1000, 2000, 2500, 5000, 10_000, 25_000
-].map(scale);
 
 export interface Millimetres {
 	readonly widthMm: number;
 	readonly heightMm: number;
 }
 
-export const sheetSizeMm = (sheet: Sheet): Millimetres => {
-	const { widthMm, heightMm } = PAPER[sheet.paper];
-	const [w, h] = sheet.orientation === 'portrait' ? [widthMm, heightMm] : [heightMm, widthMm];
-	return { widthMm: w, heightMm: h };
+export interface Pixels {
+	readonly width: number;
+	readonly height: number;
+}
+
+export type Orientation = 'portrait' | 'landscape';
+
+/** Portrait sizes. Orientation swaps them. */
+export const STOCK = {
+	A2: { widthMm: 420, heightMm: 594 },
+	A3: { widthMm: 297, heightMm: 420 },
+	A4: { widthMm: 210, heightMm: 297 },
+	A5: { widthMm: 148, heightMm: 210 },
+	letter: { widthMm: 215.9, heightMm: 279.4 },
+	legal: { widthMm: 215.9, heightMm: 355.6 }
+} as const satisfies Record<string, Millimetres>;
+
+export type StockId = keyof typeof STOCK;
+
+/** Biggest first, so the list reads down from a sheet you plan on to one you pocket. */
+export const STOCK_IDS = [
+	'A2',
+	'A3',
+	'A4',
+	'A5',
+	'letter',
+	'legal'
+] as const satisfies readonly StockId[];
+
+/** A named size off the shelf. "A2 landscape" is a real thing to ask a printer for. */
+export interface StockSheet {
+	readonly kind: 'stock';
+	readonly stock: StockId;
+	readonly orientation: Orientation;
+	readonly dpi: number;
+}
+
+/** A size measured out by hand. The two numbers are the orientation. */
+export interface MillimetreSheet {
+	readonly kind: 'millimetres';
+	readonly widthMm: number;
+	readonly heightMm: number;
+	readonly dpi: number;
+}
+
+/** An image. No physical size, so no density and no scale ratio. */
+export interface PixelSheet {
+	readonly kind: 'pixels';
+	readonly widthPx: number;
+	readonly heightPx: number;
+}
+
+export type Sheet = StockSheet | MillimetreSheet | PixelSheet;
+
+export const DEFAULT_SHEET: Sheet = {
+	kind: 'stock',
+	stock: 'A3',
+	orientation: 'portrait',
+	dpi: 200
 };
 
-/** Drawable area once the trim margin is taken off all four edges. */
-export const mapAreaMm = (sheet: Sheet): Millimetres => {
-	const { widthMm, heightMm } = sheetSizeMm(sheet);
-	return {
-		widthMm: widthMm - 2 * sheet.marginMm,
-		heightMm: heightMm - 2 * sheet.marginMm
-	};
-};
+export const DPI_CHOICES = [100, 150, 200, 300] as const;
 
 const MM_PER_INCH = 25.4;
 
-export const pixelSize = (sheet: Sheet): { readonly width: number; readonly height: number } => {
-	const { widthMm, heightMm } = mapAreaMm(sheet);
-	return {
-		width: Math.round((widthMm / MM_PER_INCH) * sheet.dpi),
-		height: Math.round((heightMm / MM_PER_INCH) * sheet.dpi)
-	};
+const paperSizeMm = (sheet: StockSheet | MillimetreSheet): Millimetres => {
+	if (sheet.kind === 'millimetres') return { widthMm: sheet.widthMm, heightMm: sheet.heightMm };
+	const { widthMm, heightMm } = STOCK[sheet.stock];
+	return sheet.orientation === 'portrait'
+		? { widthMm, heightMm }
+		: { widthMm: heightMm, heightMm: widthMm };
 };
 
-/** Web Mercator ground resolution at zoom 0 on the equator, metres per pixel. */
-const EQUATOR_RESOLUTION = 156_543.033_928_041;
+/** Page size in millimetres, or undefined for a raster, which has none. */
+export const sheetSizeMm = (sheet: Sheet): Millimetres | undefined =>
+	sheet.kind === 'pixels' ? undefined : paperSizeMm(sheet);
 
-/** Ground metres covered by one output pixel at this scale and print density. */
+const dotsAcross = (millimetres: number, dpi: number): number =>
+	Math.round((millimetres / MM_PER_INCH) * dpi);
+
+export const sheetPixels = (sheet: Sheet): Pixels => {
+	switch (sheet.kind) {
+		case 'pixels':
+			return { width: sheet.widthPx, height: sheet.heightPx };
+		case 'stock':
+		case 'millimetres': {
+			const { widthMm, heightMm } = paperSizeMm(sheet);
+			return {
+				width: dotsAcross(widthMm, sheet.dpi),
+				height: dotsAcross(heightMm, sheet.dpi)
+			};
+		}
+	}
+};
+
+/**
+ * A3 at 200dpi: the sheet the furniture was drawn against, and the yardstick a
+ * raster is measured by. It says how big the type looks on the page, not how big
+ * the page is.
+ */
+const REFERENCE_SHORT_MM = STOCK.A3.widthMm;
+const REFERENCE_SHORT_PX = Math.round((REFERENCE_SHORT_MM / MM_PER_INCH) * 200);
+
+/**
+ * One furniture unit in output pixels. A unit is a millimetre on A3, and the
+ * geometric mean pulls the extremes in: type set to read at arm's length on A3
+ * is absurd on A5 and lost on A2 if it simply scales.
+ */
+export const unitPixels = (sheet: Sheet): number => {
+	const { width, height } = sheetPixels(sheet);
+	const short = Math.min(width, height);
+	const reference =
+		sheet.kind === 'pixels' ? REFERENCE_SHORT_PX : (REFERENCE_SHORT_MM / MM_PER_INCH) * sheet.dpi;
+	return Math.sqrt(short * reference) / REFERENCE_SHORT_MM;
+};
+
+/**
+ * Keep-out on every edge, in units. The map runs to the paper edge now, so this
+ * exists only to hold the furniture off a cut line: a trimmer and a laminating
+ * pouch each eat a few millimetres, and a disclaimer inside the weld is gone.
+ */
+const SAFE_UNITS = 9;
+
+export type Framing =
+	| { readonly by: 'scale'; readonly scale: ScaleDenominator }
+	| { readonly by: 'zoom'; readonly zoom: number };
+
+/** Scales that put a Costa Brava dive site on one sheet. */
+export const CARD_SCALES: readonly ScaleDenominator[] = [
+	500, 1000, 2000, 2500, 5000, 10_000, 25_000
+].map(scale);
+
+export const DEFAULT_FRAMING: Framing = { by: 'scale', scale: scale(2000) };
+
+/**
+ * Ground metres per CSS pixel at zoom 0 on the equator.
+ *
+ * MapLibre's world is 512 CSS pixels across at zoom 0, not the 256 of the old
+ * slippy-map constant. Measured against `map.unproject` on the live map: at
+ * 41.91N, zoom 17 is 0.444418 m per CSS pixel, which is this number, and half
+ * of 156543.033928041.
+ */
+const EQUATOR_RESOLUTION = 78_271.516_964_020_4;
+
+const mercatorResolution = (latitudeDeg: number): number =>
+	EQUATOR_RESOLUTION * Math.cos((latitudeDeg * Math.PI) / 180);
+
+/** Ground metres covered by one printed dot at this scale and print density. */
 export const groundMetresPerPixel = (denominator: ScaleDenominator, dpi: number): number =>
 	(MM_PER_INCH / dpi / 1000) * denominator;
 
-/**
- * MapLibre's zoom for a given printed scale. Mercator resolution varies with
- * latitude, so a card at 42N needs a different zoom from the same scale at the
- * equator.
- */
+/** Ground metres per CSS pixel at a MapLibre zoom. */
+export const zoomResolution = (zoom: number, latitudeDeg: number): number =>
+	mercatorResolution(latitudeDeg) / 2 ** zoom;
+
+export const zoomForResolution = (metresPerPixel: number, latitudeDeg: number): number =>
+	Math.log2(mercatorResolution(latitudeDeg) / metresPerPixel);
+
 export const zoomForScale = (
 	denominator: ScaleDenominator,
 	latitudeDeg: number,
 	dpi: number
-): number => {
-	const target = groundMetresPerPixel(denominator, dpi);
-	const atLatitude = EQUATOR_RESOLUTION * Math.cos((latitudeDeg * Math.PI) / 180);
-	return Math.log2(atLatitude / target);
+): number => zoomForResolution(groundMetresPerPixel(denominator, dpi), latitudeDeg);
+
+/** The ratio a sheet comes out at, worked back from the resolution it was drawn at. */
+export const scaleForResolution = (metresPerPixel: number, dpi: number): ScaleDenominator =>
+	scale((metresPerPixel * 1000) / (MM_PER_INCH / dpi));
+
+export type FurnitureId =
+	'title' | 'depth' | 'legend' | 'scaleBar' | 'northArrow' | 'disclaimer' | 'attribution';
+
+export const FURNITURE_IDS = [
+	'title',
+	'depth',
+	'legend',
+	'scaleBar',
+	'northArrow',
+	'disclaimer',
+	'attribution'
+] as const satisfies readonly FurnitureId[];
+
+/**
+ * The ICGC licence asks for the attribution and the bathymetry metadata forbids
+ * navigation use, so a sheet without those two lines is a sheet a dive centre
+ * should think twice about handing out. They default on and the panel says so.
+ */
+export const LEGAL_FURNITURE: readonly FurnitureId[] = ['disclaimer', 'attribution'];
+
+export const DEFAULT_FURNITURE: readonly FurnitureId[] = FURNITURE_IDS;
+
+/** What the sheet is on paper. Absent for a raster, which is none of these things. */
+export interface PaperPlan {
+	readonly pageMm: Millimetres;
+	readonly scale: ScaleDenominator;
+	/**
+	 * Dots per inch the raster actually lands at once it is stretched over the
+	 * page, which is the requested density carrying the rounding of a whole
+	 * number of pixels. A3 at 200dpi is 2339 dots across 297 mm, so 200.04.
+	 */
+	readonly printedDpi: number;
+}
+
+/**
+ * Everything the export needs, resolved once. The renderer, both composers and
+ * the crop overlay read this rather than each deriving pixels and resolution
+ * again and disagreeing by a rounding.
+ *
+ * Geometry is in output pixels throughout, because that is the one unit both a
+ * sheet of paper and a raster have.
+ */
+export interface SheetPlan {
+	readonly widthPx: number;
+	readonly heightPx: number;
+	readonly safePx: number;
+	readonly unitPx: number;
+	/**
+	 * Zoom in the live map's terms: one output pixel of the sheet covers the
+	 * ground of one CSS pixel on screen at this zoom. The renderer offsets it by
+	 * its own pixel ratio; see `renderZoom`.
+	 */
+	readonly zoom: number;
+	readonly groundMetresPerPixel: number;
+	readonly groundWidthM: number;
+	readonly groundHeightM: number;
+	readonly paper: PaperPlan | undefined;
+	/** Past the canvas ceiling, so the export would come back clamped and stretched. */
+	readonly oversized: boolean;
+}
+
+/** WebKit refuses a canvas past this many pixels, and A3 at 300dpi is 4% over it. */
+export const CANVAS_PIXEL_CAP = 16_777_216;
+
+export const exceedsCanvasCap = (sheet: Sheet): boolean => {
+	const { width, height } = sheetPixels(sheet);
+	return width * height > CANVAS_PIXEL_CAP;
 };
 
-/** Ground width and height the sheet will cover, for choosing a scale that fits a site. */
-export const groundCoverageMetres = (
-	sheet: Sheet,
-	denominator: ScaleDenominator
-): { readonly width: number; readonly height: number } => {
-	const { widthMm, heightMm } = mapAreaMm(sheet);
+/**
+ * Mercator scale varies across a sheet, so the ratio is exact only at the centre
+ * latitude this is given. At 42N on A3 at 1:2000 the variation is 0.05 mm across
+ * 840 m of paper, a fraction of what a laser printer's own registration drifts,
+ * so it is measured at the centre and not modelled.
+ */
+export const planSheet = (sheet: Sheet, framing: Framing, latitudeDeg: number): SheetPlan => {
+	const { width, height } = sheetPixels(sheet);
+	const page = sheetSizeMm(sheet);
+	// The requested density, corrected for the raster being a whole number of
+	// pixels. Measure the ratio against what lands on the page, not what was asked
+	// for, or a 1:2000 sheet prints at 1:1999.6 and the bar beside it disagrees.
+	const printedDpi = page === undefined ? 200 : width / (page.widthMm / MM_PER_INCH);
+	const metresPerPixel =
+		framing.by === 'zoom'
+			? zoomResolution(framing.zoom, latitudeDeg)
+			: groundMetresPerPixel(framing.scale, printedDpi);
+	const unit = unitPixels(sheet);
 	return {
-		width: (widthMm / 1000) * denominator,
-		height: (heightMm / 1000) * denominator
+		widthPx: width,
+		heightPx: height,
+		safePx: SAFE_UNITS * unit,
+		unitPx: unit,
+		zoom: zoomForResolution(metresPerPixel, latitudeDeg),
+		groundMetresPerPixel: metresPerPixel,
+		groundWidthM: width * metresPerPixel,
+		groundHeightM: height * metresPerPixel,
+		paper:
+			page === undefined
+				? undefined
+				: {
+						pageMm: page,
+						scale: scaleForResolution(metresPerPixel, printedDpi),
+						printedDpi
+					},
+		oversized: width * height > CANVAS_PIXEL_CAP
 	};
 };
+
+/**
+ * The MapLibre zoom to set on the print map.
+ *
+ * MapLibre's zoom is metres per CSS pixel and `pixelRatio` multiplies the
+ * drawing buffer under it, so a sheet rendered at ratio 2 needs a zoom one lower
+ * to put the ground where the plan says. Printing at ratio 2 is deliberate: it
+ * is what makes map labels and line weights land thick enough to read on
+ * laminate, at the cost of styling the sheet as if it were one zoom wider.
+ */
+export const renderZoom = (plan: SheetPlan, pixelRatio: number): number =>
+	plan.zoom - Math.log2(pixelRatio);
+
+/**
+ * The same framing expressed as a zoom, for the moment a sheet stops being
+ * paper. A scale is a ratio between paper and ground, so it means nothing on a
+ * raster; the conversion runs through the outgoing sheet, whose density is still
+ * known, rather than leaving behind a ratio nothing can honour.
+ */
+export const asZoomFraming = (framing: Framing, sheet: Sheet, latitudeDeg: number): Framing =>
+	framing.by === 'zoom'
+		? framing
+		: { by: 'zoom', zoom: planSheet(sheet, framing, latitudeDeg).zoom };
