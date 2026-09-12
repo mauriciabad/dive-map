@@ -469,17 +469,38 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 	version: 8,
 	name: 'Seabed',
 	glyphs: asset('/fonts/{fontstack}/{range}.pbf'),
+	// Every source declares its real maxzoom. Without it MapLibre keeps asking for
+	// tiles above what the archive holds, gets nothing back, and reports no error,
+	// so the map simply empties out as you zoom in. A printed card at 1:2000 sits
+	// at z18.8, well past every archive here, and came out blank because of it.
 	sources: {
 		'seabed-dem': {
 			type: 'raster-dem',
 			url: `pmtiles://${asset('/tiles/seabed-dem.pmtiles')}`,
 			encoding: 'mapbox',
-			tileSize: 512
+			tileSize: 512,
+			maxzoom: 14
 		},
-		isobaths: { type: 'vector', url: `pmtiles://${asset('/tiles/isobaths.pmtiles')}` },
-		habitats: { type: 'vector', url: `pmtiles://${asset('/tiles/habitats.pmtiles')}` },
-		substrate: { type: 'vector', url: `pmtiles://${asset('/tiles/substrate.pmtiles')}` },
-		coastline: { type: 'vector', url: `pmtiles://${asset('/tiles/coastline.pmtiles')}` },
+		isobaths: {
+			type: 'vector',
+			url: `pmtiles://${asset('/tiles/isobaths.pmtiles')}`,
+			maxzoom: 16
+		},
+		habitats: {
+			type: 'vector',
+			url: `pmtiles://${asset('/tiles/habitats.pmtiles')}`,
+			maxzoom: 15
+		},
+		substrate: {
+			type: 'vector',
+			url: `pmtiles://${asset('/tiles/substrate.pmtiles')}`,
+			maxzoom: 15
+		},
+		coastline: {
+			type: 'vector',
+			url: `pmtiles://${asset('/tiles/coastline.pmtiles')}`,
+			maxzoom: 16
+		},
 		osm: { type: 'geojson', data: asset('/data/osm.geojson') },
 		annotations: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } }
 	},

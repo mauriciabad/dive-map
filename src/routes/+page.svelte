@@ -67,6 +67,19 @@
 				visible: [...view.visible],
 				groundLayer: view.groundLayer
 			});
+			if (import.meta.env.DEV) {
+				// Without the image, so the verification script can read it.
+				Reflect.set(window, 'lastRender', {
+					width: rendered.width,
+					height: rendered.height,
+					clamped: rendered.clamped,
+					complete: rendered.complete,
+					pixelSpread: rendered.pixelSpread,
+					problems: rendered.problems,
+					missingImages: rendered.missingImages,
+					habitatCodes: rendered.habitatCodes
+				});
+			}
 			const pdf = await composeCardPdf(card, rendered, view.locale);
 			const url = URL.createObjectURL(new Blob([pdf as BlobPart], { type: 'application/pdf' }));
 			const a = document.createElement('a');

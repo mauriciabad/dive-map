@@ -25,20 +25,37 @@ export interface RenderedCard {
 	readonly requestedWidth: number;
 	readonly requestedHeight: number;
 	readonly clamped: boolean;
+	/** False when tiles were still arriving at the deadline, so the sheet may be short. */
+	readonly complete: boolean;
 	/** Habitat codes present in the frame, for the legend. */
 	readonly habitatCodes: readonly string[];
+	/** Anything the print map complained about while drawing. */
+	readonly problems: readonly string[];
+	/** Luminance spread over the sheet. Near zero means a flat, empty card. */
+	readonly pixelSpread: number;
+	/** Patterns the style asked for and never got, which paint as nothing at all. */
+	readonly missingImages: readonly string[];
 }
 
-const idle = (map: MapLibre): Promise<void> =>
-	new Promise((resolve) => {
-		if (map.loaded() && map.areTilesLoaded()) {
-			resolve();
-			return;
-		}
-		map.once('idle', () => {
-			resolve();
-		});
-	});
+/**
+ * Wait for every tile in frame, by polling rather than by listening.
+ *
+ * `idle` is a single shot: if it fires between the load handler and the listener
+ * being attached, the next one can arrive after a repaint but before any tile has
+ * drawn, and the export silently captures an empty sheet.
+ */
+const tilesSettled = async (map: MapLibre, timeoutMs = 60_000): Promise<boolean> => {
+	const deadline = Date.now() + timeoutMs;
+	let steady = 0;
+	while (Date.now() < deadline) {
+		await new Promise((r) => setTimeout(r, 250));
+		steady = map.loaded() && map.areTilesLoaded() ? steady + 1 : 0;
+		// Three consecutive clean reads, because a new tile request can land
+		// between two of them and briefly make a half-drawn map look finished.
+		if (steady >= 3) return true;
+	}
+	return false;
+};
 
 export const renderCard = async (
 	card: DiveCard,
@@ -54,11 +71,30 @@ export const renderCard = async (
 
 	addProtocol('pmtiles', new Protocol().tile);
 
+	// Decode the patterns before the map exists. A tile resolves fill-pattern when
+	// it is parsed, and a pattern added afterwards never reaches an already-parsed
+	// tile, so the habitats come out unpainted. The live map only escapes this
+	// because styledata fires early and repeatedly.
+	const textures = await loadTextures(texturePalette(), PRINT_TEXTURE_SIZE);
+
+	// On-screen but invisible, not parked off-canvas. A container at left:-20000px
+	// is never composited, so the map runs, reports itself loaded, and hands back a
+	// drawing buffer holding nothing but the clear colour.
 	const host = document.createElement('div');
-	host.style.cssText = `position:fixed;left:-20000px;top:0;width:${width / devicePixelRatio}px;height:${height / devicePixelRatio}px;`;
+	host.style.cssText = [
+		'position:fixed',
+		'inset:0',
+		'z-index:-1',
+		'opacity:0.01',
+		'pointer-events:none',
+		`width:${width / devicePixelRatio}px`,
+		`height:${height / devicePixelRatio}px`
+	].join(';');
 	document.body.append(host);
 
 	try {
+		const problems: string[] = [];
+		const missingImages: string[] = [];
 		const map = new MapLibre({
 			container: host,
 			style: buildStyle(style),
@@ -73,6 +109,16 @@ export const renderCard = async (
 			fadeDuration: 0
 		});
 
+		map.on('error', (e) => problems.push(e.error.message.slice(0, 160)));
+		map.on('styleimagemissing', (e) => missingImages.push(e.id));
+		const install = (): void => {
+			for (const { name, bitmap } of textures) {
+				if (!map.hasImage(name)) map.addImage(name, bitmap, { pixelRatio: 2 });
+			}
+		};
+		map.on('styledata', install);
+		install();
+
 		await new Promise<void>((resolve, reject) => {
 			map.once('load', () => {
 				resolve();
@@ -82,14 +128,11 @@ export const renderCard = async (
 			});
 		});
 
-		const loaded = await loadTextures(texturePalette(), PRINT_TEXTURE_SIZE);
-		for (const { name, bitmap } of loaded) {
-			if (map.hasImage(name)) map.updateImage(name, bitmap);
-			else map.addImage(name, bitmap, { pixelRatio: 2 });
-		}
 
 		map.triggerRepaint();
-		await idle(map);
+		const settled = await tilesSettled(map);
+		// One more frame after the last tile lands, so the buffer holds it.
+		await new Promise((r) => requestAnimationFrame(() => { requestAnimationFrame(r); }));
 
 		const codes = new Set<string>();
 		for (const f of map.queryRenderedFeatures({ layers: ['ground-fill'] })) {
@@ -99,6 +142,32 @@ export const renderCard = async (
 		}
 
 		const canvas = map.getCanvas();
+		const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
+		let pixelSpread = -1;
+		if (gl !== null) {
+			const side = 300;
+			const px = new Uint8Array(side * side * 4);
+			gl.readPixels(
+				Math.floor(canvas.width / 2 - side / 2),
+				Math.floor(canvas.height / 2 - side / 2),
+				side,
+				side,
+				gl.RGBA,
+				gl.UNSIGNED_BYTE,
+				px
+			);
+			let sum = 0;
+			let sumSq = 0;
+			for (let i = 0; i < px.length; i += 4) {
+				const l = 0.299 * (px[i] ?? 0) + 0.587 * (px[i + 1] ?? 0) + 0.114 * (px[i + 2] ?? 0);
+				sum += l;
+				sumSq += l * l;
+			}
+			const n = px.length / 4;
+			const mean = sum / n;
+			pixelSpread = Math.round(Math.sqrt(sumSq / n - mean * mean) * 100) / 100;
+		}
+
 		const rendered: RenderedCard = {
 			dataUrl: canvas.toDataURL('image/jpeg', 0.92),
 			width: canvas.width,
@@ -106,6 +175,10 @@ export const renderCard = async (
 			requestedWidth: width,
 			requestedHeight: height,
 			clamped: canvas.width < width || canvas.height < height,
+			complete: settled,
+			problems,
+			pixelSpread,
+			missingImages,
 			habitatCodes: [...codes]
 		};
 		map.remove();
