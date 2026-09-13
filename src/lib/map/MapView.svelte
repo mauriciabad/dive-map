@@ -1,6 +1,7 @@
 <script lang="ts">
 	import {
 		Map as MapLibre,
+		Marker,
 		NavigationControl,
 		ScaleControl,
 		addProtocol,
@@ -165,10 +166,51 @@
 		map = m;
 		return () => {
 			publishMap(undefined);
+			pin?.remove();
+			pin = undefined;
 			m.remove();
 			map = undefined;
 		};
 	};
+
+	/**
+	 * The point the card is describing, marked on the map.
+	 *
+	 * A card headed "the bottom here" names a depth and a pair of coordinates and
+	 * nothing on screen says which pixel they came from, which on open sand is
+	 * every pixel for a hundred metres.
+	 *
+	 * It is a marker rather than a style layer because the selection is not one of
+	 * the options the style is built from, and threading it through would rebuild
+	 * the style on every tap. A marker is a DOM overlay, so it also stays put
+	 * across the setStyle a layer toggle runs, and stays off the printed sheet,
+	 * where a pin from someone's last tap would be an error.
+	 */
+	let pin: Marker | undefined;
+
+	const pinElement = (): HTMLElement => {
+		const element = document.createElement('div');
+		element.className = 'pick-pin';
+		element.ariaHidden = 'true';
+		return element;
+	};
+
+	$effect(() => {
+		const at = view.selection?.position;
+		if (at === undefined) {
+			pin?.remove();
+			pin = undefined;
+			return;
+		}
+		if (map === undefined) return;
+		// The position goes on before the map does. MapLibre draws the marker as
+		// part of adding it, and a marker with nowhere to be throws in that draw.
+		if (pin === undefined) {
+			pin = new Marker({ element: pinElement() }).setLngLat([at.lng, at.lat]).addTo(map);
+		} else {
+			pin.setLngLat([at.lng, at.lat]);
+		}
+	});
 
 	$effect(() => {
 		// The map is constructed with the first style already. Pushing it again here
@@ -188,5 +230,17 @@
 		position: absolute;
 		inset: 0;
 		background: var(--color-table-900);
+	}
+
+	/* Global because MapLibre owns the node, so Svelte never stamps it. */
+	:global(.pick-pin) {
+		width: 1.15rem;
+		height: 1.15rem;
+		border-radius: 50%;
+		border: 2px solid var(--color-brass-300);
+		background: radial-gradient(circle, var(--color-brass-300) 0 2px, transparent 2px);
+		box-shadow:
+			0 0 0 1px rgb(0 0 0 / 0.55),
+			0 1px 3px rgb(0 0 0 / 0.5);
 	}
 </style>

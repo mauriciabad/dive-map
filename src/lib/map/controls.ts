@@ -1,6 +1,7 @@
 import { type Component, mount, unmount } from 'svelte';
 import type { IControl, Map as MapLibre } from 'maplibre-gl';
 import { constrainToData } from './camera.ts';
+import { pointerOverMarks } from './cursor.ts';
 import { showDepthUnderCursor } from './depth.ts';
 import { liveOsmFeatures } from './live-osm.ts';
 
@@ -92,4 +93,5 @@ export const whenMapReady = (attachment: MapAttachment): (() => void) => {
 // and they come and go with the map.
 whenMapReady(constrainToData);
 whenMapReady(showDepthUnderCursor);
+whenMapReady(pointerOverMarks);
 whenMapReady(liveOsmFeatures);
