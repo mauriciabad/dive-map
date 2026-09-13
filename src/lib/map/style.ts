@@ -57,7 +57,6 @@ import {
 	MARKER_HALO,
 	MARKER_INK,
 	MARKER_PLATE,
-	MARKER_RIM,
 	MINOR_KINDS,
 	markerFrom,
 	markerHalo,
@@ -1122,11 +1121,11 @@ const osmLayers = (options: StyleOptions): LayerSpecification[] => {
 				'icon-allow-overlap': true,
 				'icon-ignore-placement': false
 			},
-			paint: {
-				'icon-color': MARKER_PLATE,
-				'icon-halo-color': MARKER_RIM,
-				'icon-halo-width': 1.6
-			}
+			// No rim. The owner asked for the dive flag in red and white and nothing
+			// else, and a halo on an SDF plate draws a brass edge round every plate
+			// kind at once, so the flag was the one that could not have what it asked
+			// for while this was here.
+			paint: { 'icon-color': MARKER_PLATE }
 		},
 		// Furniture first, then the dive and what threatens it, so a crowded marina
 		// never draws over a wreck.
