@@ -7,10 +7,13 @@
 	import Swatch from './controls/Swatch.svelte';
 	import type { Choice, TextureSample } from './controls/types';
 	import LegendRow from './LegendRow.svelte';
+	import MarkerRow from './MarkerRow.svelte';
 	import { buildLegend, sampleFor } from './legend';
 	import { InFrameGround } from './legend.svelte';
 	import { PANEL_ID } from './panel';
 	import type { Ground } from '$lib/domain/habitat';
+	import { DIVE_FEATURE_KINDS } from '$lib/domain/osm';
+	import { markerLayerId } from '$lib/domain/card';
 	import { whenMapReady } from '$lib/map/controls';
 	import {
 		type TextureFormat,
@@ -75,6 +78,33 @@
 		</Note>
 	</Field>
 
+	<Field label={t(view.locale, 'legendMarkers')}>
+		{#if view.shows('osm')}
+			<Note>{t(view.locale, 'legendMarkersHint')}</Note>
+			<div class="marks">
+				{#each DIVE_FEATURE_KINDS as kind (kind)}
+					<MarkerRow
+						{kind}
+						locale={view.locale}
+						on={view.shows(markerLayerId(kind))}
+						onchange={() => {
+							view.toggle(markerLayerId(kind));
+						}}
+					/>
+				{/each}
+			</div>
+			<Note>{t(view.locale, 'legendNameOnly')}</Note>
+		{:else}
+			<Note tone="warn">{t(view.locale, 'legendMarkersOff')}</Note>
+			<Action
+				label={t(view.locale, 'legendShowMarkers')}
+				onclick={() => {
+					view.toggle('osm');
+				}}
+			/>
+		{/if}
+	</Field>
+
 	{#if !view.shows(view.groundLayer)}
 		<Field label={t(view.locale, 'legendInFrame')}>
 			<Note tone="warn">{t(view.locale, 'legendGroundOff')}</Note>
@@ -133,6 +163,12 @@
 </Panel>
 
 <style>
+	.marks {
+		display: flex;
+		flex-direction: column;
+		gap: 0.1rem;
+	}
+
 	.rows {
 		display: flex;
 		flex-direction: column;

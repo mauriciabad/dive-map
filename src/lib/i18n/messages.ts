@@ -64,6 +64,13 @@ const ca = {
 	legendHic: 'HIC {code}',
 	legendHicNote:
 		'HIC: hàbitat d’interès comunitari de la Directiva d’hàbitats de la UE. L’asterisc marca els prioritaris.',
+	legendMarkers: 'Marques del mapa',
+	legendMarkersHint:
+		'El color diu de quina família és; el dibuix diu què és. Apaga el que no facis servir.',
+	legendMarkersOff: 'Les marques estan apagades. Activa-les per veure-les al mapa.',
+	legendShowMarkers: 'Mostrar les marques',
+	legendNameOnly: 'Els ports només surten amb el nom, sense marca.',
+	markersOpen: 'Què vol dir cada marca',
 	legendUnsurveyed: 'Sense cartografiar',
 	legendUnsurveyedHint: 'Aigua amb batimetria però sense classe d’hàbitat.',
 	substrateEstimate: 'Classes estimades. La cartografia admet un 70 % d’encert per classe.',
@@ -253,6 +260,13 @@ const es: Catalogue = {
 	legendHic: 'HIC {code}',
 	legendHicNote:
 		'HIC: hábitat de interés comunitario de la Directiva de hábitats de la UE. El asterisco marca los prioritarios.',
+	legendMarkers: 'Marcas del mapa',
+	legendMarkersHint:
+		'El color dice de qué familia es; el dibujo dice qué es. Apaga lo que no uses.',
+	legendMarkersOff: 'Las marcas están apagadas. Actívalas para verlas en el mapa.',
+	legendShowMarkers: 'Mostrar las marcas',
+	legendNameOnly: 'Los puertos solo salen con el nombre, sin marca.',
+	markersOpen: 'Qué significa cada marca',
 	legendUnsurveyed: 'Sin cartografiar',
 	legendUnsurveyedHint: 'Agua con batimetría pero sin clase de hábitat.',
 	substrateEstimate: 'Clases estimadas. La cartografía admite un 70 % de acierto por clase.',
@@ -440,6 +454,13 @@ const en: Catalogue = {
 	legendHic: 'HIC {code}',
 	legendHicNote:
 		'HIC: habitat of Community interest under the EU Habitats Directive. The asterisk marks priority habitats.',
+	legendMarkers: 'Map marks',
+	legendMarkersHint:
+		'Colour says which family it belongs to, the drawing says what it is. Switch off what you do not use.',
+	legendMarkersOff: 'The marks are switched off. Turn them on to see them on the map.',
+	legendShowMarkers: 'Show the marks',
+	legendNameOnly: 'A harbour is shown by its name alone, with no mark.',
+	markersOpen: 'What each mark means',
 	legendUnsurveyed: 'Not surveyed',
 	legendUnsurveyedHint: 'Water with bathymetry but no habitat class.',
 	substrateEstimate: 'Estimated classes. The survey accepts 70% accuracy per class.',

@@ -30,7 +30,7 @@
 		{ id: 'hillshade', icon: 'relief', key: 'relief' },
 		{ id: 'depth-tint', icon: 'depth', key: 'depthTint' },
 		{ id: 'coastline', icon: 'frame', key: 'coastline' },
-		{ id: 'osm', icon: 'buoy', key: 'osmFeatures' },
+		{ id: 'osm', icon: 'markerMooring', key: 'osmFeatures' },
 		{ id: 'annotations', icon: 'annotate', key: 'annotations' }
 	];
 
@@ -77,6 +77,13 @@
 				}}
 			/>
 		{/each}
+		<Action
+			label={t(view.locale, 'markersOpen')}
+			icon="legend"
+			onclick={() => {
+				view.openPanel('legend');
+			}}
+		/>
 	</div>
 </Panel>
 

@@ -1,3 +1,4 @@
+import { DIVE_FEATURE_KINDS, type DiveFeatureKind } from './osm.ts';
 import {
 	DEFAULT_FRAMING,
 	DEFAULT_FURNITURE,
@@ -22,6 +23,16 @@ export interface LngLat {
 	readonly lat: number;
 }
 
+/**
+ * One switch per kind of OSM feature, so a diver can drop the marina's four
+ * hundred mooring piles without losing the dive sites. Derived from the kinds
+ * rather than typed out, because a kind with no switch would be undroppable and
+ * a switch with no kind would be dead.
+ */
+export type MarkerLayerId = `marker-${DiveFeatureKind}`;
+
+export const markerLayerId = (kind: DiveFeatureKind): MarkerLayerId => `marker-${kind}`;
+
 export type LayerId =
 	| 'zero-isobath'
 	| 'hillshade'
@@ -31,7 +42,8 @@ export type LayerId =
 	| 'substrate'
 	| 'coastline'
 	| 'osm'
-	| 'annotations';
+	| 'annotations'
+	| MarkerLayerId;
 
 export interface IsobathStyle {
 	/** Draw a line every this many metres. The tiles carry 1 m, the style filters. */
@@ -84,7 +96,8 @@ export const DEFAULT_LAYERS: readonly LayerId[] = [
 	'habitats',
 	'coastline',
 	'osm',
-	'annotations'
+	'annotations',
+	...DIVE_FEATURE_KINDS.map(markerLayerId)
 ];
 
 export const newCard = (centre: LngLat, title: string): DiveCard => ({

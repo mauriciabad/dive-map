@@ -3,7 +3,13 @@
 	import { asset } from '$app/paths';
 	import Icon from '$lib/ui/Icon.svelte';
 	import { type Annotation, KINDS, KIND_IDS, newAnnotation } from './annotation.ts';
-	import { type DrawHandle, type DrawModeName, createDraw, roundPosition, toSourceData } from './draw.ts';
+	import {
+		type DrawHandle,
+		type DrawModeName,
+		createDraw,
+		roundPosition,
+		toSourceData
+	} from './draw.ts';
 	import { type AnnotateKey, at } from './messages.ts';
 	import { AnnotationStore, KIND_KEYS } from './store.svelte.ts';
 	import { browserStore } from './storage.ts';
@@ -58,7 +64,11 @@
 		return body;
 	};
 
-	const applyToSource = (m: MapLibreMap, annotations: readonly Annotation[], force = false): void => {
+	const applyToSource = (
+		m: MapLibreMap,
+		annotations: readonly Annotation[],
+		force = false
+	): void => {
 		const source = m.getSource('annotations');
 		if (!(source instanceof GeoJSONSource)) return;
 		const data = toSourceData(annotations);
@@ -243,7 +253,7 @@
 			</fieldset>
 
 			<button type="button" class="row" onclick={dropPointAtCentre}>
-				<Icon name="buoy" size={20} />
+				<Icon name="markerMooring" size={20} />
 				<span>{at(locale, 'pointAtCentre')}</span>
 			</button>
 
@@ -289,10 +299,22 @@
 			<strong>{at(locale, 'conflictTitle')}</strong>
 			<p>{at(locale, 'conflictBody', { n: store.conflicts.length })}</p>
 			<div class="choices">
-				<button type="button" class="pill" onclick={() => { store.resolveConflicts('mine'); }}>
+				<button
+					type="button"
+					class="pill"
+					onclick={() => {
+						store.resolveConflicts('mine');
+					}}
+				>
 					{at(locale, 'keepMine')}
 				</button>
-				<button type="button" class="pill" onclick={() => { store.resolveConflicts('theirs'); }}>
+				<button
+					type="button"
+					class="pill"
+					onclick={() => {
+						store.resolveConflicts('theirs');
+					}}
+				>
 					{at(locale, 'useFile')}
 				</button>
 			</div>
@@ -305,7 +327,13 @@
 				{#if store.arrived > 0}{at(locale, 'arrivedFromRepo', { n: store.arrived })}{/if}
 				{#if store.withdrawn > 0}{at(locale, 'withdrawnFromRepo', { n: store.withdrawn })}{/if}
 			</span>
-			<button type="button" class="icon-btn" onclick={() => { store.dismissNotice(); }}>
+			<button
+				type="button"
+				class="icon-btn"
+				onclick={() => {
+					store.dismissNotice();
+				}}
+			>
 				<Icon name="close" size={18} />
 				<span class="sr">{at(locale, 'dismiss')}</span>
 			</button>
@@ -334,7 +362,14 @@
 			</button>
 		{/if}
 
-		<button type="button" class="pill" disabled={!store.canUndo} onclick={() => { store.undo(); }}>
+		<button
+			type="button"
+			class="pill"
+			disabled={!store.canUndo}
+			onclick={() => {
+				store.undo();
+			}}
+		>
 			{at(locale, 'undo')}
 		</button>
 
@@ -350,7 +385,6 @@
 
 	<div class="sr" aria-live="polite">{store.announcement}</div>
 </div>
-
 
 <style>
 	.sr {
@@ -403,7 +437,9 @@
 		background: transparent;
 		color: var(--color-brass-300);
 		cursor: pointer;
-		transition: background 160ms ease-out, color 160ms ease-out;
+		transition:
+			background 160ms ease-out,
+			color 160ms ease-out;
 	}
 
 	.tab:hover {
@@ -428,7 +464,9 @@
 		font: inherit;
 		font-size: 0.82rem;
 		cursor: pointer;
-		transition: border-color 150ms ease-out, background 150ms ease-out;
+		transition:
+			border-color 150ms ease-out,
+			background 150ms ease-out;
 	}
 
 	.pill:hover:not(:disabled) {
@@ -488,7 +526,9 @@
 		font-size: 0.82rem;
 		text-align: left;
 		cursor: pointer;
-		transition: border-color 150ms ease-out, background 150ms ease-out;
+		transition:
+			border-color 150ms ease-out,
+			background 150ms ease-out;
 	}
 
 	.cell:hover {

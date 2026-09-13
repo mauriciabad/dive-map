@@ -27,13 +27,13 @@ export interface FeaturePick {
 }
 
 export const OSM_PICK_LAYERS = [
-	'osm-dive-site',
+	'osm-marker-key',
+	'osm-marker-minor',
+	'osm-marker-disc',
 	'osm-dive-site-label',
-	'osm-wreck',
-	'osm-mooring',
+	'osm-harbour-label',
 	'osm-site-area',
-	'osm-restricted',
-	'osm-minor'
+	'osm-restricted'
 ] as const;
 
 export const GROUND_PICK_LAYERS = GROUND_FILL_LAYERS;

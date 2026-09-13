@@ -1,5 +1,6 @@
 import { Map as MapLibre, addProtocol } from 'maplibre-gl';
 import { Protocol } from 'pmtiles';
+import { installMarkerImages } from '$lib/map/marker-images';
 import { GROUND_FILL_LAYERS, type StyleOptions, buildStyle } from '$lib/map/style';
 import { PRINT_TEXTURE_SIZE, loadTextures, texturePalette } from '$lib/map/textures';
 import { type DiveCard, planFor } from '$lib/domain/card';
@@ -156,6 +157,7 @@ export const renderCard = async (
 					map.addImage(texture.name, texture.bitmap, { pixelRatio: texture.pixelRatio });
 				}
 			}
+			installMarkerImages(map);
 		};
 		map.on('styledata', install);
 		install();

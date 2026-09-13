@@ -21,6 +21,9 @@
 	stroke-linejoin="round"
 	aria-hidden="true"
 >
+	{#each icon.fill ?? [] as d (d)}
+		<path {d} fill="currentColor" />
+	{/each}
 	{#each icon.d as d (d)}
 		<path {d} />
 	{/each}

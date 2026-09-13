@@ -13,9 +13,11 @@
 	// nothing, and reports no error. Handing Vite the URL is what makes it emit the
 	// worker as an asset and hand back a path that actually exists.
 	import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
+	import { untrack } from 'svelte';
 	import { Protocol } from 'pmtiles';
 	import { publishMap } from './controls';
 	import 'maplibre-gl/dist/maplibre-gl.css';
+	import { installMarkerImages } from './marker-images';
 	import { buildStyle } from './style';
 	import { type LoadedTexture, loadTextures, sizeForScreen, texturePalette } from './textures';
 	import type { MapState } from '$lib/state/map-view.svelte';
@@ -62,6 +64,10 @@
 			// and a 512 px one on a 3x phone, and the legend swatch declares 256.
 			if (!m.hasImage(name)) m.addImage(name, bitmap, { pixelRatio });
 		}
+		// Marker glyphs go the same way and for the same reason. They are drawn
+		// rather than fetched, so they are ready before the first style finishes
+		// loading and there is no window where the markers are missing.
+		installMarkerImages(m);
 	};
 
 	const loadPatterns = async (m: MapLibre): Promise<void> => {
@@ -78,9 +84,16 @@
 		setWorkerUrl(workerUrl);
 		addProtocol('pmtiles', new Protocol().tile);
 
+		// An attachment is an effect, so reading the derived style here would make
+		// every layer toggle tear the map down and build a new one: tiles refetched,
+		// patterns re-decoded, and the camera thrown back to the start position in
+		// the middle of a dive briefing. The style updates below through setStyle,
+		// which is the whole point of keeping `applied`.
+		const first = untrack(() => style);
+
 		const m = new MapLibre({
 			container,
-			style,
+			style: first,
 			center: [centre.lng, centre.lat],
 			zoom,
 			maxPitch: 0,
@@ -112,6 +125,7 @@
 		m.on('move', syncCamera);
 		syncCamera();
 
+		restorePatterns(m);
 		m.on('styledata', () => {
 			restorePatterns(m);
 		});
@@ -126,7 +140,7 @@
 
 		if (import.meta.env.DEV) Reflect.set(window, 'diveMap', m);
 
-		applied = style;
+		applied = first;
 		map = m;
 		return () => {
 			publishMap(undefined);

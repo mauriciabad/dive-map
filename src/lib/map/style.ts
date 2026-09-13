@@ -9,8 +9,21 @@ import { HABITATS, SUBSTRATES } from '$lib/domain/habitat';
 import { POSITION_SOURCES, positionLayers } from '$lib/geo/style-layers';
 export { PALETTE } from './palette.ts';
 import { PALETTE } from './palette.ts';
-import type { IsobathStyle, LayerId } from '$lib/domain/card';
+import { type IsobathStyle, type LayerId, markerLayerId } from '$lib/domain/card';
+import type { DiveFeatureKind } from '$lib/domain/osm';
 import type { Locale } from '$lib/i18n/locale';
+import {
+	DISC_KINDS,
+	KEY_KINDS,
+	LABEL_ONLY_KINDS,
+	MARKERS,
+	MARKER_DISC_IMAGE,
+	MARKER_INK,
+	MARKER_RIM,
+	MINOR_KINDS,
+	markerHalo,
+	markerImageId
+} from './markers.ts';
 import { UNSURVEYED_TEXTURE } from './textures.ts';
 
 /**
@@ -274,6 +287,93 @@ const isKind = (...kinds: readonly string[]): ExpressionSpecification => [
 ];
 
 /**
+ * Per-kind switches ride the same visible set as every other layer, so a card
+ * prints exactly the markers the screen showed. A kind is dropped by filtering it
+ * out of its group rather than by hiding a layer of its own, which keeps ten
+ * switches down to four layers.
+ */
+const shown = (
+	options: StyleOptions,
+	kinds: readonly DiveFeatureKind[]
+): readonly DiveFeatureKind[] =>
+	kinds.filter((kind) => options.visible.includes(markerLayerId(kind)));
+
+/** The image is 32 CSS pixels wide at size 1, so these are marks of 22 to 40 pixels. */
+const MARKER_SIZE: DataDrivenPropertyValueSpecification<number> = [
+	'interpolate',
+	['linear'],
+	['zoom'],
+	10,
+	0.7,
+	14,
+	0.95,
+	18,
+	1.25
+];
+
+/**
+ * kind -> value as one object lookup rather than a variadic `match`. Same reason
+ * as `patternFor`: it is a single literal instead of a tuple TypeScript cannot
+ * prove is well formed, and it stays valid when every kind in a group is
+ * switched off and the list is empty.
+ */
+const byKind = (
+	kinds: readonly DiveFeatureKind[],
+	value: (kind: DiveFeatureKind) => string,
+	fallback: string
+): DataDrivenPropertyValueSpecification<string> => {
+	const lookup: Record<string, string> = {};
+	for (const kind of kinds) lookup[kind] = value(kind);
+	return ['coalesce', ['get', ['get', 'kind'], ['literal', lookup]], fallback];
+};
+
+const byNumberKind = (
+	kinds: readonly DiveFeatureKind[],
+	value: (kind: DiveFeatureKind) => number,
+	fallback: number
+): DataDrivenPropertyValueSpecification<number> => {
+	const lookup: Record<string, number> = {};
+	for (const kind of kinds) lookup[kind] = value(kind);
+	return ['coalesce', ['get', ['get', 'kind'], ['literal', lookup]], fallback];
+};
+
+/**
+ * One layer per collision group. Key marks are few and must never be dropped;
+ * minor ones run to four hundred mooring piles inside a single marina, so they
+ * thin out as they crowd instead of painting a mat.
+ */
+const markerLayer = (
+	id: string,
+	options: StyleOptions,
+	kinds: readonly DiveFeatureKind[],
+	{ crowds, minzoom }: { readonly crowds: boolean; readonly minzoom?: number }
+): LayerSpecification => ({
+	id,
+	type: 'symbol',
+	source: 'osm',
+	...(minzoom === undefined ? {} : { minzoom }),
+	filter: isKind(...kinds),
+	layout: {
+		visibility: vis(options, 'osm'),
+		'icon-image': byKind(kinds, markerImageId, MARKER_DISC_IMAGE),
+		'icon-size': MARKER_SIZE,
+		// A key mark is never dropped, but it still occupies its pixels, so a
+		// neighbour's label steps around it rather than landing on top of it.
+		'icon-allow-overlap': !crowds,
+		'icon-ignore-placement': false,
+		// The dive site outranks the furniture when two marks want the same pixels.
+		'symbol-sort-key': ['index-of', ['get', 'kind'], ['literal', [...kinds]]]
+	},
+	paint: {
+		'icon-color': byKind(kinds, (kind) => MARKERS[kind].colour, PALETTE.paper),
+		'icon-halo-color': MARKER_INK,
+		// MapLibre divides this by icon-size before reading the field, so a constant
+		// is a constant on screen. Past 6 the shader draws no halo at all.
+		'icon-halo-width': byNumberKind(kinds, (kind) => markerHalo(MARKERS[kind]), 2.2)
+	}
+});
+
+/**
  * OSM features, drawn as objects sitting on the painted ground rather than as
  * flat pins. Each carries its own drop shadow so it reads as a thing on a table,
  * which is also what makes it survive a busy texture underneath.
@@ -294,23 +394,25 @@ const osmLayers = (options: StyleOptions): LayerSpecification[] => {
 		['get', 'alt_name'],
 		''
 	];
+	const discs = shown(options, DISC_KINDS);
+	const restricted = shown(options, ['restricted-area']);
 	return [
 		{
 			id: 'osm-restricted',
 			type: 'fill',
 			source: 'osm',
-			filter: ['all', ['==', ['geometry-type'], 'Polygon'], isKind('restricted-area')],
+			filter: ['all', ['==', ['geometry-type'], 'Polygon'], isKind(...restricted)],
 			layout: { visibility },
-			paint: { 'fill-color': PALETTE.hazard, 'fill-opacity': 0.14 }
+			paint: { 'fill-color': MARKERS['restricted-area'].colour, 'fill-opacity': 0.14 }
 		},
 		{
 			id: 'osm-restricted-edge',
 			type: 'line',
 			source: 'osm',
-			filter: ['all', ['==', ['geometry-type'], 'Polygon'], isKind('restricted-area')],
+			filter: ['all', ['==', ['geometry-type'], 'Polygon'], isKind(...restricted)],
 			layout: { visibility },
 			paint: {
-				'line-color': PALETTE.hazard,
+				'line-color': MARKERS['restricted-area'].colour,
 				'line-width': 1.6,
 				'line-dasharray': [3, 2],
 				'line-opacity': 0.8
@@ -320,7 +422,11 @@ const osmLayers = (options: StyleOptions): LayerSpecification[] => {
 			id: 'osm-site-area',
 			type: 'line',
 			source: 'osm',
-			filter: ['all', ['==', ['geometry-type'], 'Polygon'], isKind('dive-site', 'rock')],
+			filter: [
+				'all',
+				['==', ['geometry-type'], 'Polygon'],
+				isKind(...shown(options, ['dive-site', 'rock']))
+			],
 			layout: { visibility, 'line-join': 'round' },
 			paint: {
 				'line-color': PALETTE.paper,
@@ -329,98 +435,83 @@ const osmLayers = (options: StyleOptions): LayerSpecification[] => {
 			}
 		},
 		{
-			id: 'osm-shadow',
+			// The plate's own shadow, so a dive site reads as a thing lying on the
+			// chart rather than a hole punched in it.
+			id: 'osm-marker-shadow',
 			type: 'circle',
 			source: 'osm',
-			filter: ['all', ['==', ['geometry-type'], 'Point'], isKind('dive-site', 'mooring', 'wreck')],
+			filter: isKind(...discs),
 			layout: { visibility },
 			paint: {
 				'circle-color': 'rgba(10, 8, 5, 0.45)',
 				'circle-blur': 0.8,
 				'circle-translate': [1.5, 2.5],
-				'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 4, 18, 11]
+				'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 8, 14, 11, 18, 14]
 			}
 		},
 		{
-			id: 'osm-mooring',
-			type: 'circle',
+			// The one circle left on this map. It is an affordance, not a colour
+			// carrier: it says this is the thing you came for and you can tap it.
+			// Every other kind is its own silhouette on bare ground.
+			id: 'osm-marker-disc',
+			type: 'symbol',
 			source: 'osm',
-			filter: ['all', ['==', ['geometry-type'], 'Point'], isKind('mooring')],
-			layout: { visibility },
+			filter: isKind(...discs),
+			layout: {
+				visibility,
+				'icon-image': MARKER_DISC_IMAGE,
+				'icon-size': MARKER_SIZE,
+				'icon-allow-overlap': true,
+				'icon-ignore-placement': false
+			},
 			paint: {
-				'circle-color': PALETTE.buoy,
-				'circle-stroke-color': PALETTE.ink,
-				'circle-stroke-width': 1.4,
-				'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 2.5, 18, 7]
+				'icon-color': MARKER_INK,
+				'icon-halo-color': MARKER_RIM,
+				'icon-halo-width': 1.6
 			}
 		},
+		// Furniture first, then the dive and what threatens it, so a crowded marina
+		// never draws over a wreck.
+		markerLayer('osm-marker-minor', options, shown(options, MINOR_KINDS), {
+			crowds: true,
+			minzoom: 11
+		}),
+		markerLayer('osm-marker-key', options, shown(options, KEY_KINDS), { crowds: false }),
 		{
-			id: 'osm-wreck',
-			type: 'circle',
+			// A harbour is the one kind with no mark at all. Its name is what anybody
+			// is looking for, and a pin at the centroid of a basin points at water.
+			id: 'osm-harbour-label',
+			type: 'symbol',
 			source: 'osm',
-			filter: ['all', ['==', ['geometry-type'], 'Point'], isKind('wreck')],
-			layout: { visibility },
+			minzoom: 11,
+			filter: isKind(...shown(options, LABEL_ONLY_KINDS)),
+			layout: {
+				visibility,
+				'text-field': localName,
+				'text-font': labelFont,
+				'text-size': ['interpolate', ['linear'], ['zoom'], 11, 10, 18, 14],
+				'text-max-width': 8,
+				'text-letter-spacing': 0.05
+			},
 			paint: {
-				'circle-color': PALETTE.terrainEdge,
-				'circle-stroke-color': PALETTE.paper,
-				'circle-stroke-width': 1.6,
-				'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 3.5, 18, 9]
-			}
-		},
-		{
-			id: 'osm-dive-site',
-			type: 'circle',
-			source: 'osm',
-			filter: ['all', ['==', ['geometry-type'], 'Point'], isKind('dive-site')],
-			layout: { visibility },
-			paint: {
-				'circle-color': PALETTE.paper,
-				'circle-stroke-color': PALETTE.ink,
-				'circle-stroke-width': 2,
-				'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 4, 18, 10]
-			}
-		},
-		{
-			// Lights, harbours, slipways, ladders and dive centres. Quiet on purpose:
-			// they are the furniture of getting in and out of the water, not the dive.
-			// They exist mainly so a diver can tap one and read it.
-			id: 'osm-minor',
-			type: 'circle',
-			source: 'osm',
-			minzoom: 12,
-			filter: [
-				'all',
-				['==', ['geometry-type'], 'Point'],
-				isKind('light', 'harbour', 'slipway', 'ladder', 'dive-centre')
-			],
-			layout: { visibility },
-			paint: {
-				'circle-color': [
-					'match',
-					['get', 'kind'],
-					'light',
-					PALETTE.buoy,
-					'dive-centre',
-					PALETTE.paper,
-					PALETTE.brass
-				],
-				'circle-opacity': 0.85,
-				'circle-stroke-color': PALETTE.ink,
-				'circle-stroke-width': 1.2,
-				'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 2.2, 18, 5]
+				'text-color': MARKERS.harbour.colour,
+				'text-halo-color': PALETTE.ink,
+				'text-halo-width': 1.8,
+				'text-opacity': 0.9
 			}
 		},
 		{
 			id: 'osm-dive-site-label',
 			type: 'symbol',
 			source: 'osm',
-			filter: isKind('dive-site'),
+			filter: isKind(...shown(options, ['dive-site'])),
 			layout: {
 				visibility,
 				'text-field': localName,
 				'text-font': labelFont,
 				'text-size': ['interpolate', ['linear'], ['zoom'], 10, 11, 18, 16],
-				'text-offset': [0, 1.1],
+				// Clear of the plate, which grows with the zoom the text does.
+				'text-offset': [0, 1.4],
 				'text-anchor': 'top',
 				'text-max-width': 9,
 				'symbol-sort-key': ['-', 0, ['coalesce', ['get', 'maxDepth'], 0]]
@@ -436,13 +527,13 @@ const osmLayers = (options: StyleOptions): LayerSpecification[] => {
 			type: 'symbol',
 			source: 'osm',
 			minzoom: 13,
-			filter: ['all', isKind('dive-site'), ['has', 'maxDepth']],
+			filter: ['all', isKind(...shown(options, ['dive-site'])), ['has', 'maxDepth']],
 			layout: {
 				visibility,
 				'text-field': ['concat', '-', ['to-string', ['get', 'maxDepth']], ' m'],
 				'text-font': labelFont,
 				'text-size': ['interpolate', ['linear'], ['zoom'], 13, 10, 18, 13],
-				'text-offset': [0, 2.5],
+				'text-offset': [0, 2.8],
 				'text-anchor': 'top'
 			},
 			paint: {

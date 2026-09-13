@@ -61,6 +61,26 @@ export type DiveFeature =
 
 export type DiveFeatureKind = DiveFeature['kind'];
 
+/**
+ * Every kind, in the order a diver reads them: what the dive is, what threatens
+ * it, then the furniture of getting in and out of the water. The legend, the
+ * layer switches and the style's own grouping all walk this list rather than
+ * writing the kinds out again, and `markers.spec.ts` fails if it ever falls
+ * behind the union above.
+ */
+export const DIVE_FEATURE_KINDS = [
+	'dive-site',
+	'wreck',
+	'rock',
+	'restricted-area',
+	'mooring',
+	'light',
+	'dive-centre',
+	'slipway',
+	'ladder',
+	'harbour'
+] as const satisfies readonly DiveFeatureKind[];
+
 const semicolonList = (raw: string | undefined): readonly string[] =>
 	raw === undefined
 		? []
