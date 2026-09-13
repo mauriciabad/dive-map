@@ -1,4 +1,4 @@
-import { assetPolicy, precachePaths } from './assets.ts';
+import { assetPolicy, precachePaths, withinDeployment } from './assets.ts';
 import { CHUNK_CACHE, isStaleCache, runtimeCache, shellCache } from './cache-names.ts';
 import {
 	cacheStorageChunkStore,
@@ -33,29 +33,52 @@ export interface ServiceWorkerScope {
 
 export interface ServiceWorkerManifest {
 	readonly version: string;
+	/**
+	 * Where the site is served from, worked out by `$service-worker` from
+	 * `location.pathname` rather than from the build. Empty at the site root and
+	 * `/dive-map` on the github.io project URL, and every path below carries it.
+	 */
+	readonly base: string;
 	readonly build: readonly string[];
 	readonly files: readonly string[];
 	readonly prerendered: readonly string[];
 }
 
+/** The origin the worker answers for, and where in it the site starts. */
+export interface Deployment {
+	readonly origin: string;
+	readonly base: string;
+}
+
 export type FetchRoute = 'ignore' | 'range' | 'runtime' | 'shell' | 'network-first';
 
+/**
+ * Cache keys, which are served paths and carry the base. What a path is *for* is
+ * decided by its own part, which does not.
+ */
 export function precacheList(manifest: ServiceWorkerManifest): string[] {
 	return [
-		...new Set([...manifest.build, ...manifest.prerendered, ...precachePaths(manifest.files)])
+		...new Set([
+			...manifest.build,
+			...manifest.prerendered,
+			...precachePaths(manifest.base, manifest.files)
+		])
 	];
 }
 
 export function routeRequest(
 	request: Pick<Request, 'method' | 'url'>,
-	origin: string,
+	deployment: Deployment,
 	precached: ReadonlySet<string>
 ): FetchRoute {
 	if (request.method !== 'GET') return 'ignore';
 	const url = new URL(request.url);
-	if (url.origin !== origin) return 'ignore';
+	if (url.origin !== deployment.origin) return 'ignore';
+	// Same host, someone else's project. On a shared origin that is another site.
+	const own = withinDeployment(deployment.base, url.pathname);
+	if (own === undefined) return 'ignore';
 
-	switch (assetPolicy(url.pathname)) {
+	switch (assetPolicy(own)) {
 		case 'range':
 			return 'range';
 		case 'runtime':
@@ -72,6 +95,7 @@ export function registerServiceWorker(
 	const shell = shellCache(manifest.version);
 	const runtime = runtimeCache(manifest.version);
 	const precached = new Set(precacheList(manifest));
+	const deployment: Deployment = { origin: scope.location.origin, base: manifest.base };
 	const ranges = createRangeReader({
 		store: cacheStorageChunkStore(CHUNK_CACHE),
 		fetch: (input, init) => fetch(input, init)
@@ -136,7 +160,10 @@ export function registerServiceWorker(
 			const hit = await caches.match(request);
 			if (hit !== undefined) return hit;
 			// A deep link opened offline still gets the prerendered shell to boot from.
-			const root = request.mode === 'navigate' ? await caches.match('/') : undefined;
+			// The shell is cached under its served path, so on a subpath that is
+			// `/dive-map/` and asking for `/` finds nothing at all.
+			const root =
+				request.mode === 'navigate' ? await caches.match(`${manifest.base}/`) : undefined;
 			if (root !== undefined) return root;
 			throw error;
 		}
@@ -144,7 +171,7 @@ export function registerServiceWorker(
 
 	scope.addEventListener('fetch', (event) => {
 		const { request } = event;
-		switch (routeRequest(request, scope.location.origin, precached)) {
+		switch (routeRequest(request, deployment, precached)) {
 			case 'ignore':
 				return;
 			case 'range':

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { PMTiles } from 'pmtiles';
 import { describe, expect, it } from 'vitest';
 import { CATALOGUE_TEXTURES, SEABED_TEXTURES } from '$lib/domain/habitat';
-import { assetPolicy, precachePaths } from './assets.ts';
+import { assetPolicy, precachePaths, withinDeployment } from './assets.ts';
 import { CHUNK_CACHE, isStaleCache } from './cache-names.ts';
 import { cachedRangeSource } from './pmtiles-source.ts';
 import { precacheList, routeRequest, type FetchRoute } from './service-worker.ts';
@@ -399,8 +399,31 @@ describe('asset policy', () => {
 		expect(assetPolicy('/tiles/dem.pmtiles')).toBe('range');
 		expect(assetPolicy('/data/osm.geojson')).toBe('precache');
 		expect(
-			precachePaths(['/tiles/a.pmtiles', '/data/osm.geojson', '/textures/1024/x.webp'])
+			precachePaths('', ['/tiles/a.pmtiles', '/data/osm.geojson', '/textures/1024/x.webp'])
 		).toEqual(['/data/osm.geojson']);
+	});
+
+	// Issue #18. On the github.io project URL `$service-worker` reports a base of
+	// /dive-map and every path arrives carrying it, so rules written against the
+	// site root matched nothing and `precache`, the default, swallowed the lot.
+	it('reads the same paths the same way under a project subpath', () => {
+		expect(
+			precachePaths('/dive-map', [
+				'/dive-map/tiles/a.pmtiles',
+				'/dive-map/data/osm.geojson',
+				'/dive-map/textures/1024/x.webp',
+				'/dive-map/textures/512/ch_sand.webp'
+			])
+		).toEqual(['/dive-map/data/osm.geojson', '/dive-map/textures/512/ch_sand.webp']);
+	});
+
+	it('keeps a path that is not the site to itself', () => {
+		expect(withinDeployment('/dive-map', '/dive-map/textures/index.json')).toBe(
+			'/textures/index.json'
+		);
+		expect(withinDeployment('/dive-map', '/dive-map')).toBe('/');
+		expect(withinDeployment('/dive-map', '/other-project/app.js')).toBeUndefined();
+		expect(withinDeployment('', '/textures/index.json')).toBe('/textures/index.json');
 	});
 });
 
@@ -408,6 +431,7 @@ describe('service worker routing', () => {
 	const origin = 'https://divemap.mauri.app';
 	const manifest = {
 		version: '1700000000000',
+		base: '',
 		build: ['/_app/immutable/entry/app.js'],
 		files: ['/textures/256/ch_sand.webp', '/textures/1024/ch_sand.webp', '/tiles/bathy.pmtiles'],
 		prerendered: ['/']
@@ -422,7 +446,7 @@ describe('service worker routing', () => {
 
 	it('sends each request to the strategy that keeps it alive offline', () => {
 		const route = (url: string, method = 'GET'): FetchRoute =>
-			routeRequest({ method, url }, origin, precached);
+			routeRequest({ method, url }, { origin, base: '' }, precached);
 
 		expect(route(`${origin}/tiles/bathy.pmtiles`)).toBe('range');
 		expect(route(`${origin}/textures/1024/ch_sand.webp`)).toBe('runtime');
@@ -434,6 +458,29 @@ describe('service worker routing', () => {
 		// saved area is for the survey. Cross-origin is what keeps it out.
 		expect(route('https://www.ign.es/wms-inspire/pnoa-ma?service=WMS')).toBe('ignore');
 		expect(route(`${origin}/`, 'POST')).toBe('ignore');
+	});
+
+	// The same four answers on the github.io project URL, where every path carries
+	// /dive-map. The last one is a neighbour on the same host: not this site, so not
+	// this worker's to answer.
+	it('sends them the same way under a project subpath', () => {
+		const base = '/dive-map';
+		const under = {
+			version: manifest.version,
+			base,
+			build: [`${base}/_app/immutable/entry/app.js`],
+			files: manifest.files.map((path) => base + path),
+			prerendered: [`${base}/`]
+		};
+		const set = new Set(precacheList(under));
+		const route = (url: string): FetchRoute =>
+			routeRequest({ method: 'GET', url }, { origin, base }, set);
+
+		expect(route(`${origin}${base}/tiles/bathy.pmtiles`)).toBe('range');
+		expect(route(`${origin}${base}/textures/1024/ch_sand.webp`)).toBe('runtime');
+		expect(route(`${origin}${base}/textures/256/ch_sand.webp`)).toBe('shell');
+		expect(route(`${origin}${base}/data/osm.geojson`)).toBe('network-first');
+		expect(route(`${origin}/another-project/app.js`)).toBe('ignore');
 	});
 
 	/**

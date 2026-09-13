@@ -1,4 +1,10 @@
-import { type Ground, type SeabedClass, byProminence, seabedClassByCode } from '$lib/domain/habitat';
+import { asset } from '$app/paths';
+import {
+	type Ground,
+	type SeabedClass,
+	byProminence,
+	seabedClassByCode
+} from '$lib/domain/habitat';
 import {
 	type DiveEntry,
 	type DiveFeature,
@@ -342,4 +348,4 @@ export const subtitleOf = (feature: DiveFeature, locale: Locale): readonly strin
 };
 
 /** The 160 px swatch, not the 256 px map tile: a legend chip needs 7 kB, not 240 kB. */
-export const texturePath = (texture: string): string => `/textures/swatch/${texture}.jpg`;
+export const texturePath = (texture: string): string => asset(`/textures/swatch/${texture}.jpg`);
