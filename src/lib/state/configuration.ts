@@ -19,6 +19,7 @@ import {
 	isSeabedKey,
 	isSeabedTexture
 } from '$lib/domain/habitat';
+import { parseIsobathPaint } from '$lib/domain/isobaths';
 import { DIVE_FEATURE_KINDS } from '$lib/domain/osm';
 import { type PrintSettings, parsePrintSettings } from '$lib/domain/print';
 import { type Locale, isLocale } from '$lib/i18n/locale';
@@ -251,7 +252,11 @@ const parseIsobaths = (value: unknown): IsobathStyle => {
 		autoInterval: booleanOr(value['autoInterval'], DEFAULT_ISOBATHS.autoInterval),
 		emphasised,
 		maxDepthM: numberWithin(value['maxDepthM'], 5, DEPTH_LIMIT) ?? DEFAULT_ISOBATHS.maxDepthM,
-		labels: booleanOr(value['labels'], DEFAULT_ISOBATHS.labels)
+		labels: booleanOr(value['labels'], DEFAULT_ISOBATHS.labels),
+		// What the depth ruler painted. Absent, damaged, or hand-edited past what the
+		// panel can show, this spreads nothing at all and the isobaths keep the depth
+		// ramp they have always had, which is the same line `textures` takes above.
+		...parseIsobathPaint(value['paint'])
 	};
 };
 

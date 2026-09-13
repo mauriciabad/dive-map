@@ -238,26 +238,8 @@ export class MapState {
 		this.#suspended.clear();
 	}
 
-	setInterval(metres: number): void {
-		this.isobaths = { ...this.isobaths, intervalM: metres, autoInterval: false };
-	}
-
 	setAutoInterval(): void {
 		this.isobaths = { ...this.isobaths, autoInterval: true };
-	}
-
-	setMaxDepth(metres: number): void {
-		this.isobaths = { ...this.isobaths, maxDepthM: metres };
-	}
-
-	toggleEmphasis(depth: number): void {
-		const on = this.isobaths.emphasised.includes(depth);
-		this.isobaths = {
-			...this.isobaths,
-			emphasised: on
-				? this.isobaths.emphasised.filter((d) => d !== depth)
-				: [...this.isobaths.emphasised, depth].sort((a, b) => a - b)
-		};
 	}
 
 	toggleLabels(): void {
