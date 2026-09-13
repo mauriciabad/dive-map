@@ -24,6 +24,11 @@ export const pointerOverMarks = (map: MapLibre): (() => void) => {
 	const canvas = map.getCanvas();
 
 	const onmove = (e: MapMouseEvent): void => {
+		// Between styles, and before the first one loads, there are no layers to
+		// query. MapLibre answers a query naming a layer it does not have by firing
+		// an error event rather than throwing, so the catch below never sees it and
+		// the map's error handler puts a banner over a map that is loading fine.
+		if (!map.isStyleLoaded()) return;
 		const { x, y } = e.point;
 		let over: boolean;
 		try {
@@ -36,7 +41,6 @@ export const pointerOverMarks = (map: MapLibre): (() => void) => {
 					{ layers: [...OSM_PICK_LAYERS] }
 				).length > 0;
 		} catch {
-			// Between styles there is a moment with no layers to query.
 			return;
 		}
 		canvas.style.cursor = over ? 'pointer' : '';
