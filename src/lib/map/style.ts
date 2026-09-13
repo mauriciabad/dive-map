@@ -261,6 +261,13 @@ const isobathCasing = (options: StyleOptions): NonNullable<LineLayerSpecificatio
  * The tiles carry every metre. Filtering the interval here rather than baking it
  * means the side panel can change it with no new data, and an emphasised depth
  * survives an interval that would otherwise drop it.
+ *
+ * 0 m is in the set like any other depth, so the isobath panel can offer it. It
+ * used to be excluded here on the grounds that it was the coastline rather than a
+ * contour, which was true of the line the map drew then and is not true now: the
+ * shoreline is this same 0 m contour. Drawing it twice is what the map wants,
+ * once as the land edge under the coastline switch and once in the contour ink
+ * when a diver asks for it.
  */
 const AUTO_INTERVAL: ExpressionSpecification = ['step', ['zoom'], 20, 12, 10, 14, 5, 15, 2, 16, 1];
 
@@ -272,10 +279,6 @@ const isobathFilter = ({
 }: IsobathStyle): ExpressionSpecification => [
 	'all',
 	['<=', ['to-number', ['get', 'depth']], maxDepthM],
-	// 0 m is the coastline, not a depth contour. It has its own layer and its own
-	// switch, and leaving it in here drew it twice, once under the interval rules
-	// that can thin it out.
-	['!=', ['to-number', ['get', 'depth']], 0],
 	[
 		'any',
 		['in', ['to-number', ['get', 'depth']], ['literal', [...emphasised]]],
@@ -774,6 +777,9 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 				'<a href="https://pnoa.ign.es/" target="_blank" rel="noopener">PNOA</a> cedido por © Instituto Geográfico Nacional de España'
 		},
 		'dem-edge': { type: 'geojson', data: asset('/data/dem-edge.geojson') },
+		// Land only, and the land is the inside of the 0 m isobath. The line that
+		// bounds it is not in here: it is the 0 m contour in `isobaths`, which is the
+		// same geometry unstitched and unsimplified.
 		coastline: {
 			type: 'vector',
 			url: `pmtiles://${asset('/tiles/coastline.pmtiles')}`,
@@ -1027,8 +1033,8 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 				// they are the cuts at the two borders and the synthetic inland closure.
 				// Over the world land outside them that pixel reads 53 against 74 and
 				// comes and goes with the tile simplification, which is what drew a dotted
-				// rectangle across Aragon. The coast itself is drawn by `shoreline` and
-				// `island-edge`, so nothing here needs an outline.
+				// rectangle across Aragon. The coast itself is drawn by `shoreline`, so
+				// nothing here needs an outline.
 				'fill-antialias': false
 			}
 		},
@@ -1064,28 +1070,18 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 		}),
 
 		{
-			// The real surveyed shoreline. Stroking the land polygon instead would draw
-			// the synthetic inland closure and the straight cuts at the French and
-			// Valencian borders as if they were coast.
+			// The shoreline, drawn from the 0 m isobath rather than from the land
+			// polygon under it. Two reasons, and both have been paid for. Stroking the
+			// polygon draws the synthetic inland closure and the straight cuts at the
+			// French and Valencian borders as if they were coast. And the polygon is a
+			// stitched, simplified reading of this contour, where this is the contour
+			// itself, including the harbour walls and river channels the stitch walks
+			// past and the island rings that used to need a second layer to get drawn.
 			id: 'shoreline',
 			type: 'line',
-			source: 'coastline',
-			'source-layer': 'coastline',
-			layout: { visibility: vis(options, 'coastline'), 'line-join': 'round' },
-			paint: {
-				'line-color': PALETTE.landEdge,
-				'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 18, 3.5]
-			}
-		},
-		{
-			// ICGC's coastline product contains no island geometry, so Illes Medes and
-			// the rest come from the 0 m isobath instead and have no line to draw.
-			// Stroke their polygon or the most dived site in Catalonia has no edge.
-			id: 'island-edge',
-			type: 'line',
-			source: 'coastline',
-			'source-layer': 'land',
-			filter: ['==', ['get', 'src'], 'isobata-0m'],
+			source: 'isobaths',
+			'source-layer': 'isobaths',
+			filter: ['==', ['to-number', ['get', 'depth']], 0],
 			layout: { visibility: vis(options, 'coastline'), 'line-join': 'round' },
 			paint: {
 				'line-color': PALETTE.landEdge,
