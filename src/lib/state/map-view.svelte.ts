@@ -238,10 +238,6 @@ export class MapState {
 		this.#suspended.clear();
 	}
 
-	setAutoInterval(): void {
-		this.isobaths = { ...this.isobaths, autoInterval: true };
-	}
-
 	toggleLabels(): void {
 		this.isobaths = { ...this.isobaths, labels: !this.isobaths.labels };
 	}
