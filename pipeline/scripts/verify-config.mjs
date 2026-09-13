@@ -192,6 +192,8 @@ const saveButton = (page) =>
 
 const rowNamed = (page, name) => panel(page).getByRole('button', { name, exact: true });
 
+const stockChip = (page, label) => panel(page).getByRole('button', { name: label, exact: true });
+
 /** Always ends with that row showing its actions, whatever it was showing before. */
 const openRow = async (page, name) => {
 	const chevron = panel(page).getByRole('button', {
@@ -324,6 +326,12 @@ check('the first tab stayed where it was', sameCamera(stillA, changed), { a: sti
 if (shotDir) await b.screenshot({ path: `${shotDir}/config-second-tab.png` });
 await b.close();
 
+// The sheet is part of a configuration, so set one that is not the shipped A3
+// before saving. A4 is a chip in the print panel and reports its own pressed state.
+await openSection(a, /^print$|^imprimir$/i);
+await stockChip(a, 'A4').click();
+await closePanel(a);
+
 // Saved by hand, which is the only thing that writes to the shared library.
 const NAME = 'Fons i relleu';
 await openSection(a, /configurations|configuracions|configuraciones/i);
@@ -339,6 +347,11 @@ check(
 		library.saved[0]?.configuration.ground === 'substrate' &&
 		!('camera' in library.saved[0].configuration),
 	library
+);
+check(
+	'the saved configuration carries the sheet it was set up with',
+	library.saved[0]?.configuration.print?.sheet?.stock === 'A4',
+	library.saved[0]?.configuration.print
 );
 if (shotDir) await a.screenshot({ path: `${shotDir}/config-panel.png` });
 await a.setViewportSize({ width: 390, height: 844 });
@@ -383,6 +396,18 @@ check(
 check('and nothing failed to load along the way', loaded.failure === undefined, loaded);
 check('loading it did not move the map', sameCamera(loaded, START), loaded);
 if (shotDir) await c.screenshot({ path: `${shotDir}/config-loaded.png` });
+
+// The sheet came back with the rest of it. This session started on the shipped
+// A3, so a pressed A4 can only have come out of the saved configuration.
+await closePanel(c);
+await openSection(c, /^print$|^imprimir$/i);
+check(
+	'loading it brought the sheet back too',
+	(await stockChip(c, 'A4').getAttribute('aria-pressed')) === 'true' &&
+		(await stockChip(c, 'A3').getAttribute('aria-pressed')) === 'false'
+);
+await closePanel(c);
+await openSection(c, /configurations|configuracions|configuraciones/i);
 
 // Renaming keeps the configuration and its place; deleting asks first.
 const RENAMED = 'Fons i relleu, nit';

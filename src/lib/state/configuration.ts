@@ -9,6 +9,7 @@ import {
 } from '$lib/domain/card';
 import type { Ground } from '$lib/domain/habitat';
 import { DIVE_FEATURE_KINDS } from '$lib/domain/osm';
+import { type PrintSettings, parsePrintSettings } from '$lib/domain/print';
 import { type Locale, isLocale } from '$lib/i18n/locale';
 import type { KeyValueStore } from './storage.ts';
 
@@ -24,10 +25,9 @@ import type { KeyValueStore } from './storage.ts';
  *
  * The camera is per tab instead, which is what `Working` below carries.
  *
- * Two more things land in `Configuration` later and the shape is built to take
- * them as plain fields: the print sheet settings, once the print path exposes a
- * serialisable shape of its own, and the per-seabed-class texture choice from
- * issue #3. Neither needs a change to the stored format or a version bump for
+ * One more thing lands in `Configuration` later and the shape takes it as a plain
+ * field, the way the print sheet did: the per-seabed-class texture choice from
+ * issue #3. It needs no change to the stored format and no version bump for
  * anyone who never set one.
  */
 export interface Configuration {
@@ -37,6 +37,14 @@ export interface Configuration {
 	readonly smoothed: boolean;
 	readonly isobaths: IsobathStyle;
 	readonly locale: Locale;
+	/**
+	 * The sheet a card is cut to, when one was saved alongside the rest.
+	 *
+	 * Optional and staying optional. Anything written before the print path had a
+	 * storable shape carries none, and the shipped configuration carries none
+	 * either, so resetting the layers leaves a half-framed sheet where it was.
+	 */
+	readonly print?: PrintSettings;
 }
 
 /** Where one tab is pointed. Per tab, never named, never shared. */
@@ -198,12 +206,16 @@ export const parseConfiguration = (value: unknown, locale: Locale): Configuratio
 	if (!isRecord(value)) return undefined;
 	const ground = value['ground'];
 	const stored = value['locale'];
+	// A sheet that will not parse is left out rather than replaced by the default
+	// one. Handing back A3 portrait would claim somebody chose it.
+	const print = parsePrintSettings(value['print']);
 	return {
 		layers: parseLayers(value['layers']) ?? DEFAULT_LAYERS,
 		ground: ground === 'substrate' || ground === 'habitats' ? ground : 'habitats',
 		smoothed: booleanOr(value['smoothed'], true),
 		isobaths: parseIsobaths(value['isobaths']),
-		locale: typeof stored === 'string' && isLocale(stored) ? stored : locale
+		locale: typeof stored === 'string' && isLocale(stored) ? stored : locale,
+		...(print === undefined ? {} : { print })
 	};
 };
 

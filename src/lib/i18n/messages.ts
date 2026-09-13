@@ -202,7 +202,7 @@ const ca = {
 	zoneSpeedLimit: 'Límit de velocitat',
 	configs: 'Configuracions',
 	configsWhatIsSaved:
-		'Una configuració desa les capes, les marques, les isòbates, el fons i l’idioma. No desa on mires: carregar-ne una no et mou de lloc.',
+		'Una configuració desa les capes, les marques, les isòbates, el fons, el full d’impressió i l’idioma. No desa on mires: carregar-ne una no et mou de lloc.',
 	configsThisTab: 'En aquesta pestanya',
 	configsThisTabHint:
 		'Aquesta pestanya recorda el que fas i ho retroba si recarregues. Cada pestanya va per lliure.',
@@ -448,7 +448,7 @@ const es: Catalogue = {
 	zoneSpeedLimit: 'Límite de velocidad',
 	configs: 'Configuraciones',
 	configsWhatIsSaved:
-		'Una configuración guarda las capas, las marcas, las isóbatas, el fondo y el idioma. No guarda dónde miras: cargar una no te mueve de sitio.',
+		'Una configuración guarda las capas, las marcas, las isóbatas, el fondo, la hoja de impresión y el idioma. No guarda dónde miras: cargar una no te mueve de sitio.',
 	configsThisTab: 'En esta pestaña',
 	configsThisTabHint:
 		'Esta pestaña recuerda lo que haces y lo recupera si recargas. Cada pestaña va por libre.',
@@ -689,7 +689,7 @@ const en: Catalogue = {
 	zoneSpeedLimit: 'Speed limit',
 	configs: 'Configurations',
 	configsWhatIsSaved:
-		'A configuration saves the layers, the marks, the isobaths, the bottom and the language. It does not save where you are looking, so loading one never moves you.',
+		'A configuration saves the layers, the marks, the isobaths, the bottom, the print sheet and the language. It does not save where you are looking, so loading one never moves you.',
 	configsThisTab: 'In this tab',
 	configsThisTabHint:
 		'This tab remembers what you are doing and gets it back if you reload. Each tab goes its own way.',

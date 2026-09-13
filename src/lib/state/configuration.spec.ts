@@ -172,6 +172,21 @@ describe('parsing a stored configuration', () => {
 	it('takes the whole configuration back when every field is missing', () => {
 		expect(configurationFrom({})).toEqual({ ...shippedConfiguration('en') });
 	});
+
+	it('takes a saved sheet back the way it was written', () => {
+		const print = {
+			sheet: { kind: 'stock', stock: 'A4', orientation: 'landscape', dpi: 300, bleedMm: 3 },
+			framing: { by: 'scale', scale: 5000 },
+			furniture: ['title', 'scaleBar']
+		};
+		expect(configurationFrom({ ...ca, print })).toMatchObject({ print });
+	});
+
+	/** A3 portrait handed back here would claim somebody chose it. */
+	it('leaves out a sheet it cannot read rather than inventing one', () => {
+		expect(configurationFrom({ ...ca, print: { sheet: { kind: 'napkin' } } })?.print).toBeUndefined();
+		expect(configurationFrom({ ...ca })?.print).toBeUndefined();
+	});
 });
 
 describe('parseCamera', () => {

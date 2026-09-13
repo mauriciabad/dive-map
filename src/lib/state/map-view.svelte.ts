@@ -80,7 +80,8 @@ export class MapState {
 			ground: this.groundLayer,
 			smoothed: this.smoothed,
 			isobaths: this.isobaths,
-			locale: this.locale
+			locale: this.locale,
+			print: this.print.settings
 		};
 	}
 
@@ -96,6 +97,10 @@ export class MapState {
 		this.smoothed = configuration.smoothed;
 		this.isobaths = configuration.isobaths;
 		this.locale = configuration.locale;
+		// Through the print state's own transitions rather than over its fields, so a
+		// stored pixel sheet carrying a scale ratio comes back framed by zoom. The
+		// latitude is the live one because that is where the ratio has to hold.
+		if (configuration.print !== undefined) this.print.apply(configuration.print, this.centre.lat);
 	}
 
 	/**
