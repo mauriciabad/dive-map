@@ -11,8 +11,8 @@ import {
 	type StockId,
 	asZoomFraming,
 	planSheet,
-	sheetPixels,
-	sheetSizeMm
+	trimPixels,
+	trimSizeMm
 } from '$lib/domain/print';
 import type { DiveCard, IsobathStyle, LayerId, LngLat } from '$lib/domain/card';
 import { type ScaleDenominator, scale } from '$lib/domain/units';
@@ -108,20 +108,27 @@ export class PrintState {
 	useStock(latitudeDeg: number): void {
 		if (this.sheet.kind === 'stock') return;
 		this.#reframe(
-			{ kind: 'stock', stock: this.#lastStock, orientation: 'portrait', dpi: this.#dpi() },
+			{
+				kind: 'stock',
+				stock: this.#lastStock,
+				orientation: 'portrait',
+				dpi: this.#dpi(),
+				bleedMm: this.#bleed()
+			},
 			latitudeDeg
 		);
 	}
 
 	useMillimetres(latitudeDeg: number): void {
 		if (this.sheet.kind === 'millimetres') return;
-		const size = sheetSizeMm(this.sheet) ?? { widthMm: 297, heightMm: 420 };
+		const size = trimSizeMm(this.sheet) ?? { widthMm: 297, heightMm: 420 };
 		this.#reframe(
 			{
 				kind: 'millimetres',
 				widthMm: Math.round(size.widthMm),
 				heightMm: Math.round(size.heightMm),
-				dpi: this.#dpi()
+				dpi: this.#dpi(),
+				bleedMm: this.#bleed()
 			},
 			latitudeDeg
 		);
@@ -129,9 +136,10 @@ export class PrintState {
 
 	usePixels(latitudeDeg: number): void {
 		if (this.sheet.kind === 'pixels') return;
-		// Seeded with the raster this sheet would have produced, then edited as
-		// pixels. It is a starting number, not a claim that the two are the same.
-		const { width, height } = sheetPixels(this.sheet);
+		// Seeded with the card this sheet would have been cut down to, then edited as
+		// pixels. It is a starting number, not a claim that the two are the same. The
+		// bleed is left out because a raster is never cut.
+		const { width, height } = trimPixels(this.sheet);
 		this.#reframe(
 			{
 				kind: 'pixels',
@@ -144,6 +152,10 @@ export class PrintState {
 
 	#dpi(): number {
 		return this.sheet.kind === 'pixels' ? 200 : this.sheet.dpi;
+	}
+
+	#bleed(): number {
+		return this.sheet.kind === 'pixels' ? 0 : this.sheet.bleedMm;
 	}
 
 	setStock(stock: StockId): void {
@@ -160,6 +172,11 @@ export class PrintState {
 	setDpi(dpi: number): void {
 		if (this.sheet.kind === 'pixels') return;
 		this.sheet = { ...this.sheet, dpi };
+	}
+
+	setBleed(bleedMm: number): void {
+		if (this.sheet.kind === 'pixels') return;
+		this.sheet = { ...this.sheet, bleedMm: Math.max(0, bleedMm) };
 	}
 
 	setMillimetres(widthMm: number, heightMm: number): void {

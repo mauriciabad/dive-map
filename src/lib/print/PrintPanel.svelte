@@ -2,6 +2,7 @@
 	import { exportSheet } from './export';
 	import { cropFrame } from '$lib/domain/card';
 	import {
+		BLEED_CHOICES,
 		CARD_SCALES,
 		DPI_CHOICES,
 		LEGAL_FURNITURE,
@@ -89,6 +90,13 @@
 		}))
 	);
 
+	const bleeds = $derived<readonly Choice<number>[]>(
+		BLEED_CHOICES.map((bleedMm) => ({
+			value: bleedMm,
+			label: bleedMm === 0 ? '0' : `${bleedMm} mm`
+		}))
+	);
+
 	const framings = $derived<readonly Choice<'scale' | 'zoom'>[]>([
 		{ value: 'scale', label: t(locale, 'printByScale') },
 		{ value: 'zoom', label: t(locale, 'printByZoom') }
@@ -107,7 +115,9 @@
 	const readings = $derived<readonly Reading[]>([
 		{
 			label: t(locale, 'printCoverage'),
-			value: `${Math.round(plan.groundWidthM)}×${Math.round(plan.groundHeightM)} m`
+			// The card's ground, not the raster's, so this agrees with the box on the
+			// map. With a bleed the two differ by the strip that gets cut off.
+			value: `${Math.round(frame.groundWidthM)}×${Math.round(frame.groundHeightM)} m`
 		},
 		{ label: 'px', value: `${plan.widthPx}×${plan.heightPx}` },
 		...(plan.paper === undefined
@@ -235,6 +245,17 @@
 					print.setDpi(dpi);
 				}}
 			/>
+			<span class="sublabel">{t(locale, 'printBleed')}</span>
+			<Segmented
+				options={bleeds}
+				value={sheet.bleedMm}
+				numeric
+				label={t(locale, 'printBleed')}
+				onselect={(bleedMm: number) => {
+					print.setBleed(bleedMm);
+				}}
+			/>
+			<Note>{t(locale, 'printBleedNote')}</Note>
 		{/if}
 	</Field>
 

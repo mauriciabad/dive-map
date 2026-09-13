@@ -18,10 +18,23 @@ const measure: Measure = (text, size, font) =>
 const HERE = { lng: 3.2165, lat: 41.9275 };
 
 const SHEETS = {
-	'A3 portrait': { kind: 'stock', stock: 'A3', orientation: 'portrait', dpi: 200 },
-	'A4 landscape': { kind: 'stock', stock: 'A4', orientation: 'landscape', dpi: 200 },
-	'A5 portrait': { kind: 'stock', stock: 'A5', orientation: 'portrait', dpi: 200 },
-	'500 by 250 mm': { kind: 'millimetres', widthMm: 500, heightMm: 250, dpi: 150 },
+	'A3 portrait': { kind: 'stock', stock: 'A3', orientation: 'portrait', dpi: 200, bleedMm: 0 },
+	'A4 landscape': {
+		kind: 'stock',
+		stock: 'A4',
+		orientation: 'landscape',
+		dpi: 200,
+		bleedMm: 0
+	},
+	'A5 portrait': { kind: 'stock', stock: 'A5', orientation: 'portrait', dpi: 200, bleedMm: 0 },
+	'500 by 250 mm': { kind: 'millimetres', widthMm: 500, heightMm: 250, dpi: 150, bleedMm: 0 },
+	'A3 with 3 mm bleed': {
+		kind: 'stock',
+		stock: 'A3',
+		orientation: 'portrait',
+		dpi: 200,
+		bleedMm: 3
+	},
 	'1920 by 1080 raster': { kind: 'pixels', widthPx: 1920, heightPx: 1080 }
 } as const satisfies Record<string, Sheet>;
 
@@ -115,15 +128,23 @@ const overlaps = (a: Rect, b: Rect): boolean =>
 const texts = (drawings: readonly Drawing[]): readonly string[] =>
 	drawings.filter((d) => d.kind === 'text').map((d) => d.text);
 
+/** A mark is the one thing drawn outside the card, so it is the one thing excused. */
+const isTrimMark = (drawing: Drawing): boolean =>
+	drawing.kind === 'path' && drawing.points.length === 2;
+
 const expectInside = (card: DiveCard, drawings: readonly Drawing[]): void => {
 	const plan = planFor(card);
+	const low = plan.bleedPx + plan.safePx;
+	const highX = plan.widthPx - plan.bleedPx - plan.safePx;
+	const highY = plan.heightPx - plan.bleedPx - plan.safePx;
 	for (const drawing of drawings) {
+		if (isTrimMark(drawing)) continue;
 		const box = extent(drawing);
 		expect({ kind: drawing.kind, ...box }).toMatchObject({
-			x0: expect.closeTo(Math.max(box.x0, plan.safePx), 6) as number,
-			y0: expect.closeTo(Math.max(box.y0, plan.safePx), 6) as number,
-			x1: expect.closeTo(Math.min(box.x1, plan.widthPx - plan.safePx), 6) as number,
-			y1: expect.closeTo(Math.min(box.y1, plan.heightPx - plan.safePx), 6) as number
+			x0: expect.closeTo(Math.max(box.x0, low), 6) as number,
+			y0: expect.closeTo(Math.max(box.y0, low), 6) as number,
+			x1: expect.closeTo(Math.min(box.x1, highX), 6) as number,
+			y1: expect.closeTo(Math.min(box.y1, highY), 6) as number
 		});
 	}
 };
@@ -146,7 +167,8 @@ const SIGNATURE: Record<FurnitureId, (drawings: readonly Drawing[]) => boolean> 
 	depth: (d) => texts(d).includes('42'),
 	legend: (d) => d.some((one) => one.kind === 'image'),
 	scaleBar: (d) => texts(d).includes('0'),
-	northArrow: (d) => d.some((one) => one.kind === 'path'),
+	// A half of the needle, which a two-point trim mark can never be mistaken for.
+	northArrow: (d) => d.some((one) => one.kind === 'path' && one.points.length === 3),
 	disclaimer: (d) => texts(d).some((text) => text.startsWith('Per a orientació')),
 	attribution: (d) => texts(d).some((text) => text.startsWith('Batimetria'))
 };
@@ -273,5 +295,31 @@ describe('type that does not fit', () => {
 		expectInside(short, drawings);
 		expectNoOverlap(drawings);
 		expect(drawings.filter((d) => d.kind === 'image').length).toBeLessThan(5);
+	});
+});
+
+describe('the trim marks', () => {
+	const bled = cardOn(SHEETS['A3 with 3 mm bleed']);
+	const plan = planFor(bled);
+
+	it('draws none at all when the sheet is not cut', () => {
+		expect(lay(cardOn(SHEETS['A3 portrait'])).filter(isTrimMark)).toEqual([]);
+	});
+
+	it('draws two per corner, each over a heavier dark line', () => {
+		expect(lay(bled).filter(isTrimMark).length).toBe(16);
+	});
+
+	it('keeps every mark in the bleed, short of the cut and clear of the card', () => {
+		const bleed = plan.bleedPx;
+		for (const mark of lay(bled).filter(isTrimMark)) {
+			const box = extent(mark);
+			const inBand =
+				box.x1 <= bleed + 1e-6 ||
+				box.x0 >= plan.widthPx - bleed - 1e-6 ||
+				box.y1 <= bleed + 1e-6 ||
+				box.y0 >= plan.heightPx - bleed - 1e-6;
+			expect({ box, inBand }).toMatchObject({ inBand: true });
+		}
 	});
 });

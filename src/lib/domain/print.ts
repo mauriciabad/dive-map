@@ -47,12 +47,27 @@ export const STOCK_IDS = [
 	'legal'
 ] as const satisfies readonly StockId[];
 
+/**
+ * How far the map runs past the line the sheet is cut on, on every side.
+ *
+ * A guillotine drifts a millimetre either way, and a cut that lands a hair outside
+ * the artwork leaves a white hairline down one edge of the card. The fix is older
+ * than the printing press: paint past the cut and throw the excess away. Three
+ * millimetres is what a print shop asks for.
+ *
+ * Zero is the default, because the sheet this exists for is run on an office A3
+ * laser and laminated whole. That machine cannot reach its own paper edge and
+ * nobody trims afterwards, so bleed there is paper thrown away for nothing.
+ */
+export const BLEED_CHOICES = [0, 3, 5] as const;
+
 /** A named size off the shelf. "A2 landscape" is a real thing to ask a printer for. */
 export interface StockSheet {
 	readonly kind: 'stock';
 	readonly stock: StockId;
 	readonly orientation: Orientation;
 	readonly dpi: number;
+	readonly bleedMm: number;
 }
 
 /** A size measured out by hand. The two numbers are the orientation. */
@@ -61,6 +76,7 @@ export interface MillimetreSheet {
 	readonly widthMm: number;
 	readonly heightMm: number;
 	readonly dpi: number;
+	readonly bleedMm: number;
 }
 
 /** An image. No physical size, so no density and no scale ratio. */
@@ -76,7 +92,8 @@ export const DEFAULT_SHEET: Sheet = {
 	kind: 'stock',
 	stock: 'A3',
 	orientation: 'portrait',
-	dpi: 200
+	dpi: 200,
+	bleedMm: 0
 };
 
 export const DPI_CHOICES = [100, 150, 200, 300] as const;
@@ -91,26 +108,45 @@ const paperSizeMm = (sheet: StockSheet | MillimetreSheet): Millimetres => {
 		: { widthMm: heightMm, heightMm: widthMm };
 };
 
-/** Page size in millimetres, or undefined for a raster, which has none. */
-export const sheetSizeMm = (sheet: Sheet): Millimetres | undefined =>
+/** What the sheet is once it is cut, in millimetres. A raster is never cut. */
+export const trimSizeMm = (sheet: Sheet): Millimetres | undefined =>
 	sheet.kind === 'pixels' ? undefined : paperSizeMm(sheet);
 
 const dotsAcross = (millimetres: number, dpi: number): number =>
 	Math.round((millimetres / MM_PER_INCH) * dpi);
 
-export const sheetPixels = (sheet: Sheet): Pixels => {
+/** What comes off the press, trim plus the bleed on all four sides. */
+export const pageSizeMm = (sheet: Sheet): Millimetres | undefined => {
+	if (sheet.kind === 'pixels') return undefined;
+	const { widthMm, heightMm } = paperSizeMm(sheet);
+	return {
+		widthMm: widthMm + 2 * sheet.bleedMm,
+		heightMm: heightMm + 2 * sheet.bleedMm
+	};
+};
+
+/** The finished card in output pixels. The furniture is laid out inside this. */
+export const trimPixels = (sheet: Sheet): Pixels => {
 	switch (sheet.kind) {
 		case 'pixels':
 			return { width: sheet.widthPx, height: sheet.heightPx };
 		case 'stock':
 		case 'millimetres': {
 			const { widthMm, heightMm } = paperSizeMm(sheet);
-			return {
-				width: dotsAcross(widthMm, sheet.dpi),
-				height: dotsAcross(heightMm, sheet.dpi)
-			};
+			return { width: dotsAcross(widthMm, sheet.dpi), height: dotsAcross(heightMm, sheet.dpi) };
 		}
 	}
+};
+
+/** Bleed in output pixels, so the trim is a whole number of pixels in from the edge. */
+export const bleedPixels = (sheet: Sheet): number =>
+	sheet.kind === 'pixels' ? 0 : dotsAcross(sheet.bleedMm, sheet.dpi);
+
+/** The raster to render: the trim with the bleed added on every side. */
+export const sheetPixels = (sheet: Sheet): Pixels => {
+	const trim = trimPixels(sheet);
+	const bleed = bleedPixels(sheet);
+	return { width: trim.width + 2 * bleed, height: trim.height + 2 * bleed };
 };
 
 /**
@@ -127,7 +163,10 @@ const REFERENCE_SHORT_PX = Math.round((REFERENCE_SHORT_MM / MM_PER_INCH) * 200);
  * is absurd on A5 and lost on A2 if it simply scales.
  */
 export const unitPixels = (sheet: Sheet): number => {
-	const { width, height } = sheetPixels(sheet);
+	// The trim, not the raster. Asking for bleed must not resize the type: the card
+	// in the diver's hand is the same card whether or not it was cut out of a
+	// larger sheet.
+	const { width, height } = trimPixels(sheet);
 	const short = Math.min(width, height);
 	const reference =
 		sheet.kind === 'pixels' ? REFERENCE_SHORT_PX : (REFERENCE_SHORT_MM / MM_PER_INCH) * sheet.dpi;
@@ -135,9 +174,10 @@ export const unitPixels = (sheet: Sheet): number => {
 };
 
 /**
- * Keep-out on every edge, in units. The map runs to the paper edge now, so this
- * exists only to hold the furniture off a cut line: a trimmer and a laminating
- * pouch each eat a few millimetres, and a disclaimer inside the weld is gone.
+ * Keep-out inside the trim, in units. The map runs past the paper edge now, so
+ * this exists only to hold the furniture off the cut: a guillotine and a
+ * laminating pouch each eat a few millimetres, and a disclaimer inside the weld is
+ * a disclaimer nobody can read.
  */
 const SAFE_UNITS = 9;
 
@@ -210,12 +250,17 @@ export const DEFAULT_FURNITURE: readonly FurnitureId[] = FURNITURE_IDS;
 
 /** What the sheet is on paper. Absent for a raster, which is none of these things. */
 export interface PaperPlan {
+	/** The whole page, trim plus bleed on every side. The PDF's MediaBox. */
 	readonly pageMm: Millimetres;
+	/** The card once it is cut out. The PDF's TrimBox, and equal to pageMm at no bleed. */
+	readonly trimMm: Millimetres;
+	readonly bleedMm: number;
 	readonly scale: ScaleDenominator;
 	/**
 	 * Dots per inch the raster actually lands at once it is stretched over the
 	 * page, which is the requested density carrying the rounding of a whole
 	 * number of pixels. A3 at 200dpi is 2339 dots across 297 mm, so 200.04.
+	 * Measured across the trim, because that is the sheet the ratio is a ratio of.
 	 */
 	readonly printedDpi: number;
 }
@@ -229,8 +274,12 @@ export interface PaperPlan {
  * sheet of paper and a raster have.
  */
 export interface SheetPlan {
+	/** The raster, bleed included. What the renderer draws and the file holds. */
 	readonly widthPx: number;
 	readonly heightPx: number;
+	/** How far in from each edge the sheet is cut. Zero on a raster and at no bleed. */
+	readonly bleedPx: number;
+	/** Keep-out inside the trim, so furniture clears both the cut and the laminate weld. */
 	readonly safePx: number;
 	readonly unitPx: number;
 	/**
@@ -263,11 +312,13 @@ export const exceedsCanvasCap = (sheet: Sheet): boolean => {
  */
 export const planSheet = (sheet: Sheet, framing: Framing, latitudeDeg: number): SheetPlan => {
 	const { width, height } = sheetPixels(sheet);
-	const page = sheetSizeMm(sheet);
+	const trim = trimPixels(sheet);
+	const trimMm = trimSizeMm(sheet);
+	const page = pageSizeMm(sheet);
 	// The requested density, corrected for the raster being a whole number of
-	// pixels. Measure the ratio against what lands on the page, not what was asked
+	// pixels. Measure the ratio against what lands on the card, not what was asked
 	// for, or a 1:2000 sheet prints at 1:1999.6 and the bar beside it disagrees.
-	const printedDpi = page === undefined ? 200 : width / (page.widthMm / MM_PER_INCH);
+	const printedDpi = trimMm === undefined ? 200 : trim.width / (trimMm.widthMm / MM_PER_INCH);
 	const metresPerPixel =
 		framing.by === 'zoom'
 			? zoomResolution(framing.zoom, latitudeDeg)
@@ -276,6 +327,7 @@ export const planSheet = (sheet: Sheet, framing: Framing, latitudeDeg: number): 
 	return {
 		widthPx: width,
 		heightPx: height,
+		bleedPx: bleedPixels(sheet),
 		safePx: SAFE_UNITS * unit,
 		unitPx: unit,
 		zoom: zoomForResolution(metresPerPixel, latitudeDeg),
@@ -283,16 +335,22 @@ export const planSheet = (sheet: Sheet, framing: Framing, latitudeDeg: number): 
 		groundWidthM: width * metresPerPixel,
 		groundHeightM: height * metresPerPixel,
 		paper:
-			page === undefined
+			trimMm === undefined || page === undefined
 				? undefined
 				: {
 						pageMm: page,
+						trimMm,
+						bleedMm: sheet.kind === 'pixels' ? 0 : sheet.bleedMm,
 						scale: scaleForResolution(metresPerPixel, printedDpi),
 						printedDpi
 					},
 		oversized: width * height > CANVAS_PIXEL_CAP
 	};
 };
+
+/** The finished card in output pixels, measured in from the raster's edges. */
+export const trimWidthPx = (plan: SheetPlan): number => plan.widthPx - 2 * plan.bleedPx;
+export const trimHeightPx = (plan: SheetPlan): number => plan.heightPx - 2 * plan.bleedPx;
 
 /**
  * The MapLibre zoom to set on the print map.

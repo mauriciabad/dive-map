@@ -152,6 +152,16 @@ export const composeCardPdf = async (
 	const page = doc.addPage([pageWidth, pageHeight]);
 	const scale = pageWidth / plan.widthPx;
 
+	// Where the card is inside the paper. A guillotine operator and every prepress
+	// tool made since read the TrimBox; without it a bleed is a page a few
+	// millimetres too big and no way to know by how much. BleedBox is the whole
+	// page, because the map runs to the paper edge either way.
+	if (paper.bleedMm > 0) {
+		const inset = paper.bleedMm * PT_PER_MM;
+		page.setBleedBox(0, 0, pageWidth, pageHeight);
+		page.setTrimBox(inset, inset, pageWidth - 2 * inset, pageHeight - 2 * inset);
+	}
+
 	page.drawImage(await doc.embedJpg(await jpegBytes(rendered.bitmap)), {
 		x: 0,
 		y: 0,

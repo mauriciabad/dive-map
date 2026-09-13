@@ -7,37 +7,48 @@ import {
 	asZoomFraming,
 	exceedsCanvasCap,
 	groundMetresPerPixel,
+	bleedPixels,
+	pageSizeMm,
 	planSheet,
 	renderZoom,
 	scaleForResolution,
 	sheetPixels,
-	sheetSizeMm,
+	trimHeightPx,
+	trimPixels,
+	trimSizeMm,
+	trimWidthPx,
 	unitPixels,
 	zoomForScale,
 	zoomResolution
 } from './print.ts';
 
-const A3: Sheet = { kind: 'stock', stock: 'A3', orientation: 'portrait', dpi: 200 };
-const A4_LANDSCAPE: Sheet = { kind: 'stock', stock: 'A4', orientation: 'landscape', dpi: 200 };
-const CUSTOM_MM: Sheet = { kind: 'millimetres', widthMm: 500, heightMm: 250, dpi: 150 };
+const A3: Sheet = { kind: 'stock', stock: 'A3', orientation: 'portrait', dpi: 200, bleedMm: 0 };
+const A4_LANDSCAPE: Sheet = {
+	kind: 'stock',
+	stock: 'A4',
+	orientation: 'landscape',
+	dpi: 200,
+	bleedMm: 0
+};
+const CUSTOM_MM: Sheet = { kind: 'millimetres', widthMm: 500, heightMm: 250, dpi: 150, bleedMm: 0 };
 const CUSTOM_PX: Sheet = { kind: 'pixels', widthPx: 1920, heightPx: 1080 };
 const HERE = 41.95;
 
 describe('sheet sizes', () => {
 	it('runs the map to the paper edge, so the sheet is the map area', () => {
-		expect(sheetSizeMm(A3)).toEqual({ widthMm: 297, heightMm: 420 });
+		expect(trimSizeMm(A3)).toEqual({ widthMm: 297, heightMm: 420 });
 	});
 
 	it('swaps the stock size for landscape', () => {
-		expect(sheetSizeMm(A4_LANDSCAPE)).toEqual({ widthMm: 297, heightMm: 210 });
+		expect(trimSizeMm(A4_LANDSCAPE)).toEqual({ widthMm: 297, heightMm: 210 });
 	});
 
 	it('takes a custom size in millimetres as given', () => {
-		expect(sheetSizeMm(CUSTOM_MM)).toEqual({ widthMm: 500, heightMm: 250 });
+		expect(trimSizeMm(CUSTOM_MM)).toEqual({ widthMm: 500, heightMm: 250 });
 	});
 
 	it('gives a raster no page size rather than inventing one', () => {
-		expect(sheetSizeMm(CUSTOM_PX)).toBeUndefined();
+		expect(trimSizeMm(CUSTOM_PX)).toBeUndefined();
 		expect(sheetPixels(CUSTOM_PX)).toEqual({ width: 1920, height: 1080 });
 	});
 
@@ -50,7 +61,13 @@ describe('sheet sizes', () => {
 	});
 
 	it('catches a sheet the canvas will refuse before anything tries to draw it', () => {
-		const a2At300: Sheet = { kind: 'stock', stock: 'A2', orientation: 'portrait', dpi: 300 };
+		const a2At300: Sheet = {
+			kind: 'stock',
+			stock: 'A2',
+			orientation: 'portrait',
+			dpi: 300,
+			bleedMm: 0
+		};
 		expect(sheetPixels(a2At300).width * sheetPixels(a2At300).height).toBeGreaterThan(
 			CANVAS_PIXEL_CAP
 		);
@@ -58,14 +75,20 @@ describe('sheet sizes', () => {
 	});
 
 	it('holds the furniture at one physical size as the density changes', () => {
-		const at300: Sheet = { kind: 'stock', stock: 'A3', orientation: 'portrait', dpi: 300 };
+		const at300: Sheet = {
+			kind: 'stock',
+			stock: 'A3',
+			orientation: 'portrait',
+			dpi: 300,
+			bleedMm: 0
+		};
 		expect(unitPixels(A3)).toBeCloseTo(7.87, 2);
 		// 300dpi is 1.5x the dots, so a unit is 1.5x the dots and the same millimetre.
 		expect(unitPixels(at300) / unitPixels(A3)).toBeCloseTo(1.5, 2);
 	});
 
 	it('pulls furniture size in at the extremes instead of scaling it flat', () => {
-		const a5: Sheet = { kind: 'stock', stock: 'A5', orientation: 'portrait', dpi: 200 };
+		const a5: Sheet = { kind: 'stock', stock: 'A5', orientation: 'portrait', dpi: 200, bleedMm: 0 };
 		const ratio = unitPixels(a5) / unitPixels(A3);
 		expect(ratio).toBeGreaterThan(148 / 297);
 		expect(ratio).toBeLessThan(1);
@@ -136,5 +159,59 @@ describe('scale and zoom are two names for one resolution', () => {
 		expect(plan.groundWidthM).toBeCloseTo(594, 0);
 		expect(plan.groundHeightM).toBeCloseTo(840, 0);
 		expect(plan.groundWidthM / ((plan.paper?.pageMm.widthMm ?? 0) / 1000)).toBeCloseTo(2000, 0);
+	});
+});
+
+describe('bleed', () => {
+	const A3_BLED: Sheet = {
+		kind: 'stock',
+		stock: 'A3',
+		orientation: 'portrait',
+		dpi: 200,
+		bleedMm: 3
+	};
+
+	it('leaves the card alone and grows the paper around it', () => {
+		expect(trimSizeMm(A3_BLED)).toEqual({ widthMm: 297, heightMm: 420 });
+		expect(pageSizeMm(A3_BLED)).toEqual({ widthMm: 303, heightMm: 426 });
+		expect(trimPixels(A3_BLED)).toEqual(trimPixels(A3));
+	});
+
+	it('puts the same bleed on all four sides, as whole pixels', () => {
+		const bleed = bleedPixels(A3_BLED);
+		expect(bleed).toBe(24);
+		expect(sheetPixels(A3_BLED)).toEqual({
+			width: trimPixels(A3).width + 2 * bleed,
+			height: trimPixels(A3).height + 2 * bleed
+		});
+	});
+
+	it('does not resize the type, because the card is the same card', () => {
+		expect(unitPixels(A3_BLED)).toBe(unitPixels(A3));
+	});
+
+	it('keeps the printed ratio measured against the card, not the offcut', () => {
+		const framing = { by: 'scale', scale: scale(2000) } as const;
+		const plain = planSheet(A3, framing, HERE);
+		const bled = planSheet(A3_BLED, framing, HERE);
+		expect(bled.groundMetresPerPixel).toBe(plain.groundMetresPerPixel);
+		expect(bled.paper?.scale).toBe(plain.paper?.scale);
+		expect(bled.paper?.printedDpi).toBe(plain.paper?.printedDpi);
+	});
+
+	it('reports the raster it renders and the card inside it', () => {
+		const bled = planSheet(A3_BLED, { by: 'scale', scale: scale(2000) }, HERE);
+		expect(bled.bleedPx).toBe(24);
+		expect(trimWidthPx(bled)).toBe(2339);
+		expect(trimHeightPx(bled)).toBe(3307);
+		expect(bled.widthPx).toBe(2387);
+		expect(bled.paper?.bleedMm).toBe(3);
+	});
+
+	it('gives a raster no bleed, because nothing cuts an image', () => {
+		const raster = planSheet(CUSTOM_PX, { by: 'zoom', zoom: 17 }, HERE);
+		expect(raster.bleedPx).toBe(0);
+		expect(bleedPixels(CUSTOM_PX)).toBe(0);
+		expect(pageSizeMm(CUSTOM_PX)).toBeUndefined();
 	});
 });

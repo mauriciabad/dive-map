@@ -15,7 +15,7 @@ const LAPTOP = { width: 1440, height: 900 };
 const PHONE = { width: 390, height: 780 };
 const HERE = { lng: 3.2165, lat: 41.9275 };
 
-const A3: Sheet = { kind: 'stock', stock: 'A3', orientation: 'portrait', dpi: 200 };
+const A3: Sheet = { kind: 'stock', stock: 'A3', orientation: 'portrait', dpi: 200, bleedMm: 0 };
 const RASTER: Sheet = { kind: 'pixels', widthPx: 1600, heightPx: 1200 };
 
 const at = (denominator: number): DiveCard => ({

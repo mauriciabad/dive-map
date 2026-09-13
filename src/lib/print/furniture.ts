@@ -108,7 +108,7 @@ const SIZE = {
 	ruler: 2.1,
 	disclaimer: 2.4,
 	attribution: 1.8,
-	north: 3.2
+	north: 3
 } as const;
 
 /**
@@ -478,10 +478,60 @@ const scaleBarPiece = (
 };
 
 /**
- * North, turned by the bearing the sheet was framed at. Mercator is conformal, so
- * north is one direction over the whole sheet and the bearing is the only thing
- * that moves it. The N stays upright at the needle's point rather than turning
- * with it, because a letter printed upside down on a boat is not a letter.
+ * The needle in furniture units, pointing north before the bearing turns it.
+ *
+ * It is split down its axis, one half filled and one half hollow, which is how a
+ * chart has drawn north for three hundred years and the reason it cannot be read
+ * backwards. A symmetrical needle on a laminated card at arm's length in the sun is
+ * a line with two ends, and which end is the one thing this element exists to say.
+ */
+const NEEDLE = {
+	tip: [0, -7.6] as const,
+	right: [2.35, 4.6] as const,
+	notch: [0, 2.2] as const,
+	left: [-2.35, 4.6] as const,
+	/**
+	 * Centre of the N, at the point. Everything here is sized so that this plus the
+	 * glyph around it clears `NORTH_SIDE / 2`, which is what keeps the whole thing
+	 * inside the plate at a bearing of 180 as well as at 0.
+	 */
+	label: [0, -9.8] as const
+};
+
+/**
+ * Where the arrow's plate lands on the sheet, in output pixels.
+ *
+ * Exported because a check that the arrow points north has to find it on the
+ * finished file, and a verifier that carries its own copy of this arithmetic
+ * eventually disagrees with the layout and passes anyway.
+ */
+export const northPlateBox = (plan: SheetPlan): Box => {
+	const side = NORTH_SIDE * plan.unitPx;
+	const inset = plan.bleedPx + plan.safePx;
+	return {
+		x: plan.widthPx - inset - side,
+		y: plan.heightPx - inset - side,
+		w: side,
+		h: side
+	};
+};
+
+/**
+ * North, turned by the bearing the sheet was framed at.
+ *
+ * Mercator is conformal, so north is one direction over the whole sheet and the
+ * bearing is the only thing that moves it. MapLibre's bearing is the compass
+ * direction that is up, so north sits that many degrees anticlockwise of up.
+ *
+ * The fill and the hairline are the scale bar's rather than the arrow's own. Both
+ * are instruments, they sit side by side along the foot of the sheet, and a diver
+ * reads them in one glance. The N is brass like the ratio beside the bar, because
+ * it is the one word here that names what the thing is.
+ *
+ * The plate is square and the needle fits the circle inside it, so nothing crosses
+ * an edge at any bearing. The air at the sides is the turning circle, not slack.
+ * The N stays upright rather than turning with the needle, because a letter printed
+ * upside down on a boat is not a letter.
  */
 const northPiece = (bearing: number, unit: number, measure: Measure): Piece => {
 	const side = NORTH_SIDE * unit;
@@ -491,12 +541,6 @@ const northPiece = (bearing: number, unit: number, measure: Measure): Piece => {
 		px * Math.cos(radians) + py * Math.sin(radians),
 		py * Math.cos(radians) - px * Math.sin(radians)
 	];
-	const needle: readonly (readonly [number, number])[] = [
-		[0, -6],
-		[3, 4],
-		[0, 1.5],
-		[-3, 4]
-	];
 
 	return {
 		width: side,
@@ -504,32 +548,80 @@ const northPiece = (bearing: number, unit: number, measure: Measure): Piece => {
 		draw: (x, y) => {
 			const cx = x + side / 2;
 			const cy = y + side / 2;
-			const [tipX, tipY] = turn([0, -9]);
+			const at = (point: readonly [number, number]): readonly [number, number] => {
+				const [rx, ry] = turn([point[0] * unit, point[1] * unit]);
+				return [cx + rx, cy + ry];
+			};
+			const [labelX, labelY] = at(NEEDLE.label);
+			const half = (corner: readonly [number, number], fill: Rgb): Drawing => ({
+				kind: 'path',
+				points: [at(NEEDLE.tip), at(corner), at(NEEDLE.notch)],
+				fill,
+				stroke: PAPER_INK,
+				strokeWidth: HAIRLINE * unit,
+				closed: true
+			});
 			return [
 				plateOf({ x, y, w: side, h: side }, unit),
-				{
-					kind: 'path',
-					points: needle.map(([px, py]) => {
-						const [rx, ry] = turn([px * unit, py * unit]);
-						return [cx + rx, cy + ry] as const;
-					}),
-					fill: BRASS,
-					stroke: PAPER_INK,
-					strokeWidth: HAIRLINE * unit,
-					closed: true
-				},
+				half(NEEDLE.left, PAPER_INK),
+				half(NEEDLE.right, INK),
 				{
 					kind: 'text',
-					x: cx + tipX * unit - measure('N', size, 'label') / 2,
-					y: cy + tipY * unit + size * 0.36,
+					x: labelX - measure('N', size, 'label') / 2,
+					y: labelY + size * 0.36,
 					text: 'N',
 					size,
 					font: 'label',
-					colour: PAPER_INK
+					colour: BRASS
 				}
 			];
 		}
 	};
+};
+
+/**
+ * Where to cut, drawn inside the bleed so the marks go in the offcut.
+ *
+ * A bleed with no marks is a page a few millimetres larger than the card and
+ * nothing to say where the card is, which is worse than no bleed at all. Two
+ * hairlines per corner, each running in from the paper edge and stopping short of
+ * the corner itself, so a cut that lands a fraction wide leaves no tick behind on
+ * the card. Each one is laid over a heavier dark line, because the bleed they sit
+ * in is seabed and a single pale hairline on bright sand is not there at all.
+ */
+const trimMarks = (plan: SheetPlan): readonly Drawing[] => {
+	const bleed = plan.bleedPx;
+	if (bleed <= 0) return [];
+	const reach = bleed * 0.62;
+	const right = plan.widthPx;
+	const bottom = plan.heightPx;
+	const runs: readonly (readonly [number, number, number, number])[] = [
+		[0, bleed, reach, bleed],
+		[bleed, 0, bleed, reach],
+		[right, bleed, right - reach, bleed],
+		[right - bleed, 0, right - bleed, reach],
+		[0, bottom - bleed, reach, bottom - bleed],
+		[bleed, bottom, bleed, bottom - reach],
+		[right, bottom - bleed, right - reach, bottom - bleed],
+		[right - bleed, bottom, right - bleed, bottom - reach]
+	];
+	const line = (
+		[x1, y1, x2, y2]: readonly [number, number, number, number],
+		colour: Rgb,
+		width: number
+	): Drawing => ({
+		kind: 'path',
+		points: [
+			[x1, y1],
+			[x2, y2]
+		],
+		stroke: colour,
+		strokeWidth: width
+	});
+	return [
+		...runs.map((run) => line(run, INK, HAIRLINE * 3 * plan.unitPx)),
+		...runs.map((run) => line(run, PAPER_INK, HAIRLINE * plan.unitPx))
+	];
 };
 
 export const layoutFurniture = (input: {
@@ -541,10 +633,12 @@ export const layoutFurniture = (input: {
 }): readonly Drawing[] => {
 	const { card, plan, rendered, locale, measure } = input;
 	const unit = plan.unitPx;
-	const left = plan.safePx;
-	const top = plan.safePx;
-	const right = plan.widthPx - plan.safePx;
-	const bottom = plan.heightPx - plan.safePx;
+	// Measured in from the cut, not from the paper. Everything below is inside the
+	// card that comes off the guillotine; the bleed outside it holds only map.
+	const left = plan.bleedPx + plan.safePx;
+	const top = plan.bleedPx + plan.safePx;
+	const right = plan.widthPx - plan.bleedPx - plan.safePx;
+	const bottom = plan.heightPx - plan.bleedPx - plan.safePx;
 
 	// The columns reserve their width whether or not anything is in them, so
 	// switching an element off can never widen a neighbour into a third.
@@ -554,7 +648,7 @@ export const layoutFurniture = (input: {
 	);
 	const bottomWidth = Math.max(0, right - (NORTH_SIDE + COLUMN_GAP) * unit - left);
 
-	const drawings: Drawing[] = [];
+	const drawings: Drawing[] = [...trimMarks(plan)];
 	const add = (piece: Piece | undefined, x: number, y: number): void => {
 		if (piece !== undefined) drawings.push(...piece.draw(x, y));
 	};
@@ -639,8 +733,8 @@ export const layoutFurniture = (input: {
 	if (shows(card, 'scaleBar')) stackUp(scaleBarPiece(plan, bottomWidth, unit, measure));
 
 	if (shows(card, 'northArrow')) {
-		const arrow = northPiece(card.bearing, unit, measure);
-		add(arrow, right - arrow.width, bottom - arrow.height);
+		const box = northPlateBox(plan);
+		add(northPiece(card.bearing, unit, measure), box.x, box.y);
 	}
 
 	return drawings;

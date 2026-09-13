@@ -8,7 +8,9 @@ import {
 	type Pixels,
 	type Sheet,
 	type SheetPlan,
-	planSheet
+	planSheet,
+	trimHeightPx,
+	trimWidthPx
 } from './print.ts';
 
 /**
@@ -143,15 +145,19 @@ export interface CropFrame {
  */
 export const cropFrame = (plan: SheetPlan, viewportZoom: number, viewport: Pixels): CropFrame => {
 	const ratio = 2 ** (viewportZoom - plan.zoom);
-	const widthPx = plan.widthPx * ratio;
-	const heightPx = plan.heightPx * ratio;
+	// The trim, not the raster. The box on screen is a promise about the card that
+	// comes off the guillotine, and the bleed around it is ground nobody keeps.
+	const trimWidth = trimWidthPx(plan);
+	const trimHeight = trimHeightPx(plan);
+	const widthPx = trimWidth * ratio;
+	const heightPx = trimHeight * ratio;
 	return {
 		widthPx,
 		heightPx,
 		exportWidthPx: plan.widthPx,
 		exportHeightPx: plan.heightPx,
-		groundWidthM: plan.groundWidthM,
-		groundHeightM: plan.groundHeightM,
+		groundWidthM: trimWidth * plan.groundMetresPerPixel,
+		groundHeightM: trimHeight * plan.groundMetresPerPixel,
 		overflowsViewport: widthPx > viewport.width || heightPx > viewport.height
 	};
 };

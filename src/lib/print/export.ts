@@ -2,6 +2,7 @@ import { type DiveCard, planFor } from '$lib/domain/card';
 import { renderZoom } from '$lib/domain/print';
 import type { Locale } from '$lib/i18n/locale';
 import type { StyleOptions } from '$lib/map/style';
+import { northPlateBox } from './furniture.ts';
 import { composeCardPdf } from './pdf.ts';
 import { composeCardPng } from './png.ts';
 import { PRINT_PIXEL_RATIO, renderCard } from './render.ts';
@@ -83,7 +84,14 @@ export const exportSheet = async (input: {
 			habitatCodes: rendered.habitatCodes,
 			maxDepthM: rendered.maxDepthM ?? null,
 			pageMm: plan.paper?.pageMm ?? null,
+			trimMm: plan.paper?.trimMm ?? null,
+			bleedMm: plan.paper?.bleedMm ?? 0,
 			scale: plan.paper?.scale ?? null,
+			bearing: card.bearing,
+			// So a check can find the arrow on the finished sheet and read off which
+			// way it actually points, rather than recomputing the rotation and
+			// agreeing with itself.
+			northPlate: northPlateBox(plan),
 			groundWidthM: plan.groundWidthM,
 			groundHeightM: plan.groundHeightM,
 			zoom: plan.zoom,
