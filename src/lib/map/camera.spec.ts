@@ -1,4 +1,4 @@
-import type { Map as MapLibre } from 'maplibre-gl';
+import { LngLat, type Map as MapLibre } from 'maplibre-gl';
 import { describe, expect, it } from 'vitest';
 import { constrainToData } from './camera.ts';
 
@@ -7,81 +7,99 @@ import { constrainToData } from './camera.ts';
  * the map opens and which is outside the data ring. That is the only case the
  * guard does anything in, and it is the case the zoom button died in.
  */
-const OUTSIDE = { lng: 1.9235, lat: 41.4232 };
+const OUTSIDE = new LngLat(1.9235, 41.4232);
 
 /** Tamariu, well inside the footprint, so the guard has nothing to say. */
-const INSIDE = { lng: 3.2085, lat: 41.9172 };
+const INSIDE = new LngLat(3.2085, 41.9172);
 
-interface Listeners {
-	move: (() => void)[];
-	moveend: (() => void)[];
-	resize: (() => void)[];
-}
+/** Far enough out that the pull is unmistakable rather than a rounding step. */
+const FAR_OUT = new LngLat(0.4, 40.2);
 
 /**
- * The correction is recorded but never applied, so the camera stays where it was
- * put and every trigger is scored on its own. Applying it would move the centre
- * inside the limit on the first correction and make every later assertion pass
- * for the wrong reason. `setCenter` still fires `move` the way MapLibre does, so
- * the reentry guard is under test too.
+ * The hook is the whole guard, so the double only has to hand it over and record
+ * the jumps the guard makes on its own. One jump at attach is the design; any
+ * jump after that is the bug this shape exists to close, because a jump halts
+ * the gesture handlers and ends the drag under the diver's finger.
  */
-const fakeMap = (centre: { lng: number; lat: number }, zooming: boolean) => {
-	const listeners: Listeners = { move: [], moveend: [], resize: [] };
-	const corrections: { lng: number; lat: number }[] = [];
+const fakeMap = () => {
+	const jumps: LngLat[] = [];
+	let hook: ((next: { center: LngLat; zoom: number }) => { center?: LngLat }) | null = null;
+	let centre = OUTSIDE;
 	const map = {
 		getCanvas: () => ({ clientWidth: 1200, clientHeight: 800 }),
 		getCenter: () => centre,
-		getZoom: () => 12,
 		getMaxZoom: () => 22,
 		cameraForBounds: () => ({ zoom: 7 }),
 		setMinZoom: () => undefined,
-		setCenter: (next: { lng: number; lat: number }) => {
-			corrections.push(next);
-			for (const fire of listeners.move) fire();
+		setCenter: (next: LngLat) => {
+			jumps.push(next);
+			centre = next;
 		},
-		isZooming: () => zooming,
-		on: (event: keyof Listeners, fire: () => void) => {
-			listeners[event].push(fire);
+		setTransformCameraUpdate: (fn: typeof hook) => {
+			hook = fn;
 		},
+		on: () => undefined,
 		off: () => undefined
 	};
-	return { map: map as unknown as MapLibre, listeners, corrections };
+	return {
+		map: map as unknown as MapLibre,
+		jumps,
+		ask: (center: LngLat, zoom = 12) => {
+			if (hook === null) throw new Error('the guard installed no hook');
+			return hook({ center, zoom });
+		}
+	};
 };
 
 describe('keeping the camera where there is something to show', () => {
-	it('leaves a centre inside the footprint alone', () => {
-		const { map, listeners, corrections } = fakeMap(INSIDE, false);
+	it('consents to a centre inside the footprint', () => {
+		const { map, ask } = fakeMap();
 		constrainToData(map);
-		for (const fire of listeners.move) fire();
-		expect(corrections).toEqual([]);
+		expect(ask(INSIDE)).toEqual({});
 	});
 
-	it('pulls a centre outside the footprint back while panning', () => {
-		const { map, listeners, corrections } = fakeMap(OUTSIDE, false);
+	it('holds a centre outside the footprint at the edge of the ring', () => {
+		const { map, ask } = fakeMap();
 		constrainToData(map);
-		corrections.length = 0;
-		for (const fire of listeners.move) fire();
-		expect(corrections.length).toBe(1);
+		const held = ask(FAR_OUT).center;
+		expect(held).toBeDefined();
+		if (held === undefined) return;
+		// Back towards the coast on both axes, and not all the way to it.
+		expect(held.lng).toBeGreaterThan(FAR_OUT.lng);
+		expect(held.lat).toBeGreaterThan(FAR_OUT.lat);
+		// Held, not overshot: asking again from where it landed moves it under a
+		// metre, so a finger against the boundary sees a camera that has stopped.
+		const again = ask(held).center ?? held;
+		expect(Math.abs(again.lng - held.lng)).toBeLessThan(1e-5);
 	});
 
 	/**
-	 * The regression. `setCenter` is a jump and a jump stops the running animation,
-	 * so correcting here killed the zoom button's own ease: from 7.6 the presses
-	 * landed on 8.6, 8.92, 8.93, 8.93, 8.94 and then nothing.
+	 * The regression, and its sibling. A jump halts whatever the map is doing:
+	 * 5db7d8a was the zoom button's ease being killed a few hundredths of a level
+	 * in, and the owner then reported the same jump ending a drag that reached the
+	 * boundary, so coming back the other way needed a fresh touch. The guard now
+	 * answers the camera instead of moving it, and jumps exactly once, before
+	 * anybody has touched the map.
 	 */
-	it('does not touch the centre while the zoom is animating', () => {
-		const { map, listeners, corrections } = fakeMap(OUTSIDE, true);
+	it('jumps once at attach and never again', () => {
+		const { map, jumps, ask } = fakeMap();
 		constrainToData(map);
-		corrections.length = 0;
-		for (const fire of listeners.move) fire();
-		expect(corrections).toEqual([]);
+		expect(jumps.length).toBe(1);
+		for (let i = 0; i < 20; i++) ask(FAR_OUT, 9 + i / 10);
+		expect(jumps.length).toBe(1);
 	});
 
-	it('corrects the same centre once the zoom has landed', () => {
-		const { map, listeners, corrections } = fakeMap(OUTSIDE, true);
+	it('keeps less of the ring in frame as the zoom goes in', () => {
+		const { map, ask } = fakeMap();
 		constrainToData(map);
-		corrections.length = 0;
-		for (const fire of listeners.moveend) fire();
-		expect(corrections.length).toBe(1);
+		const wide = ask(FAR_OUT, 9).center;
+		const close = ask(FAR_OUT, 14).center;
+		expect(wide).toBeDefined();
+		expect(close).toBeDefined();
+		if (wide === undefined || close === undefined) return;
+		// The circle inscribed in the viewport covers less ground the further in
+		// the zoom goes, so the camera has to sit nearer the coast to keep the same
+		// fraction of it on screen. East is towards the coast here.
+		expect(close.lng).toBeGreaterThan(wide.lng);
 	});
 });

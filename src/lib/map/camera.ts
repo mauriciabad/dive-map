@@ -1,4 +1,9 @@
-import { LngLatBounds, type Map as MapLibre, MercatorCoordinate } from 'maplibre-gl';
+import {
+	type CameraUpdateTransformFunction,
+	LngLatBounds,
+	type Map as MapLibre,
+	MercatorCoordinate
+} from 'maplibre-gl';
 import { DATA_EXTENT } from './data-extent.ts';
 
 /**
@@ -13,23 +18,21 @@ import { DATA_EXTENT } from './data-extent.ts';
  * circle inscribed in the viewport of it. That circle is in frame at any
  * bearing, so ground inside it is drawn, and the diagonal costs nothing.
  *
- * Clamping runs on `move` rather than only on `moveend`. Correcting after a
- * gesture ends reads as the map snapping back; correcting during it reads as the
- * map refusing to go further, which is what a boundary should feel like.
+ * The guard is a `transformCameraUpdate` hook rather than a correction fired on
+ * `move`. MapLibre calls the hook with the camera it is about to take up, on
+ * every frame of a gesture and every frame of an animation, and takes back
+ * whatever the hook returns. So the boundary is enforced by refusing to go
+ * further out, which is a camera that never travels, rather than by a jump that
+ * puts it back.
  *
- * It does not run while the zoom is changing, though. `setCenter` is a jump and a
- * jump stops whatever camera animation is in flight, so correcting during the
- * button's ease cancelled the very ease that was running. That made the button
- * unusable from the opening view, whose centre is the bounding box centre of a
- * diagonal coast and therefore outside the ring: every press advanced a few
- * hundredths of a zoom level and was killed, so the map stuck just under 9 and a
- * diver could not reach a dive site. Measured from 7.6, the presses landed on
- * 8.6, 8.92, 8.93, 8.93, 8.94 and then nothing.
- *
- * Panning is left correcting live, because that is the gesture that actually
- * meets the boundary and the push-back is the point of it. A zoom is corrected
- * once it has landed instead, on `moveend`, where there is no longer an
- * animation for the correction to cancel.
+ * That distinction is the whole bug this shape exists to close. `setCenter` is a
+ * jump, and `Camera.stop` halts the gesture handlers on its way through, so a
+ * finger held against the boundary had its drag cancelled under it and the diver
+ * had to lift and start again to come back the other way. The same jump killed
+ * the zoom button's ease, which 5db7d8a worked around by not correcting while
+ * the zoom was animating. The hook needs neither exception: nothing here jumps,
+ * so there is no animation to cancel and no gesture to end, and a drag that
+ * meets the edge simply stops moving out and follows the finger back in.
  */
 
 interface Vertex {
@@ -113,8 +116,6 @@ const closestOnRing = (x: number, y: number): Vertex & { readonly distance: numb
 };
 
 export const constrainToData = (map: MapLibre): (() => void) => {
-	let correcting = false;
-
 	/**
 	 * As far out as anyone needs to go is the whole survey on screen. Recomputed
 	 * on resize because a phone turning from portrait to landscape moves the
@@ -127,47 +128,37 @@ export const constrainToData = (map: MapLibre): (() => void) => {
 	};
 
 	/**
-	 * `settled` is the `moveend` pass. By then the animation has landed and there is
-	 * nothing left for a correction to cancel, so the ease check is skipped.
+	 * The camera MapLibre is about to take up, answered with the one it may have.
+	 * An empty answer is consent, so a centre over the survey costs one point in
+	 * polygon test and nothing else.
 	 */
-	const clampCentre = (settled = false): void => {
-		if (correcting) return;
-		if (!settled && map.isZooming()) return;
+	const hold: CameraUpdateTransformFunction = (next) => {
 		const canvas = map.getCanvas();
 		const inscribed = Math.min(canvas.clientWidth, canvas.clientHeight) / 2;
-		if (inscribed <= 0) return;
-		const centre = MercatorCoordinate.fromLngLat(map.getCenter());
-		if (inside(centre.x, centre.y)) return;
-		const limit = (inscribed * KEEP_WITHIN) / (WORLD_AT_ZOOM_0 * 2 ** map.getZoom());
+		if (inscribed <= 0) return {};
+		const centre = MercatorCoordinate.fromLngLat(next.center);
+		if (inside(centre.x, centre.y)) return {};
+		const limit = (inscribed * KEEP_WITHIN) / (WORLD_AT_ZOOM_0 * 2 ** next.zoom);
 		const edge = closestOnRing(centre.x, centre.y);
-		if (edge.distance <= limit || edge.distance === 0) return;
+		if (edge.distance <= limit || edge.distance === 0) return {};
 		const pull = limit / edge.distance;
-		correcting = true;
-		map.setCenter(
-			new MercatorCoordinate(
+		return {
+			center: new MercatorCoordinate(
 				edge.x + (centre.x - edge.x) * pull,
 				edge.y + (centre.y - edge.y) * pull,
 				0
 			).toLngLat()
-		);
-		correcting = false;
-	};
-
-	const duringMove = (): void => {
-		clampCentre();
-	};
-	const afterMove = (): void => {
-		clampCentre(true);
+		};
 	};
 
 	clampZoom();
-	clampCentre(true);
-	map.on('move', duringMove);
-	map.on('moveend', afterMove);
+	map.setTransformCameraUpdate(hold);
+	// The camera the map was built with never went through the hook. This is the
+	// one jump the guard makes, and it is made before anyone has touched the map.
+	map.setCenter(map.getCenter());
 	map.on('resize', clampZoom);
 	return () => {
-		map.off('move', duringMove);
-		map.off('moveend', afterMove);
+		map.setTransformCameraUpdate(null);
 		map.off('resize', clampZoom);
 	};
 };
