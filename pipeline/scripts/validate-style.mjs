@@ -81,7 +81,16 @@ for (const ground of ['habitats', 'substrate']) {
 	for (const isobaths of [
 		DEFAULT_ISOBATHS,
 		{ ...DEFAULT_ISOBATHS, intervalM: 1, labels: false },
-		{ ...DEFAULT_ISOBATHS, intervalM: 10, maxDepthM: 50, emphasised: [10, 20, 30] }
+		{ ...DEFAULT_ISOBATHS, intervalM: 10, maxDepthM: 50, emphasised: [10, 20, 30] },
+		{
+			...DEFAULT_ISOBATHS,
+			emphasised: [0, 5, 18, 80],
+			paint: {
+				method: 'upwards',
+				marks: { 0: { colour: '#ffaa00', plain: false }, 18: { colour: '#00ff88', plain: true } },
+				edgeOwnColour: false
+			}
+		}
 	]) {
 		// worldPainted true so the hillshade is in the style being validated rather
 		// than switched off, which is the state this script exists to check.

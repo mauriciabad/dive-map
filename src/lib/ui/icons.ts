@@ -125,6 +125,29 @@ export const ICONS = {
 
 	chevron: { d: ['M9 5l7 7-7 7'] },
 
+	plus: { d: ['M12 5v14', 'M5 12h14'] },
+
+	/**
+	 * Three rails, the grip on the side of a thing that moves. Drawn as the ruler's
+	 * own lines so that what a diver grabs looks like what they are grabbing.
+	 */
+	grip: { d: ['M5 8.5h14', 'M5 12h14', 'M5 15.5h14'] },
+
+	/** A bin with its lid proud of the body, which is what reads at 18 px. */
+	trash: {
+		d: ['M4.5 6.5h15', 'M9.5 6.5V4h5v2.5', 'M10 11v6', 'M14 11v6'],
+		fill: ['M6.4 8.5h11.2l-1 11.5H7.4z']
+	},
+
+	/**
+	 * Paint running up to the surface and down to the next line. The bar is the
+	 * contour the paint stops at, so the pair say which line a band belongs to
+	 * rather than merely which way is up.
+	 */
+	paintUp: { d: ['M4 4h16', 'M12 20V8', 'M7.5 12.5 12 8l4.5 4.5'] },
+
+	paintDown: { d: ['M4 20h16', 'M12 4v12', 'M7.5 11.5 12 16l4.5-4.5'] },
+
 	/*
 	 * Map marks, from here down. Same box and same stroke as the panel icons
 	 * above, drawn heavier because they are read at about 20 px over a painted

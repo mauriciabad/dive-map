@@ -1,12 +1,15 @@
 <script lang="ts">
 	import Panel from './Panel.svelte';
-	import Chip from './controls/Chip.svelte';
-	import ChipGroup from './controls/ChipGroup.svelte';
+	import DepthRuler from './controls/DepthRuler.svelte';
 	import Field from './controls/Field.svelte';
 	import Note from './controls/Note.svelte';
 	import Range from './controls/Range.svelte';
+	import Segmented from './controls/Segmented.svelte';
 	import Toggle from './controls/Toggle.svelte';
+	import type { Choice } from './controls/types';
 	import { PANEL_ID } from './panel';
+	import type { IsobathStyle } from '$lib/domain/card';
+	import { type PaintMethod, metresLabel, paintOf, withMethod } from '$lib/domain/isobaths';
 	import { t } from '$lib/i18n/messages';
 	import type { MapState } from '$lib/state/map-view.svelte';
 
@@ -16,8 +19,6 @@
 	}
 
 	const { view, onclose }: Props = $props();
-
-	const EMPHASIS_CHOICES = [0, 5, 10, 18, 20, 30, 40, 50, 60] as const;
 
 	/**
 	 * Below every real interval, so the shallow end of the track is where the map
@@ -32,16 +33,16 @@
 	/** Deep enough for the whole survey, which bottoms out at 80.7 m. */
 	const DEEPEST_M = 100;
 
-	/** Written as an escape so no invisible character lands in the source. */
-	const THIN = '\u2009';
-
-	const metres = (value: number): string => `${value}${THIN}m`;
-
 	const interval = $derived(view.isobaths.autoInterval ? AUTO : view.isobaths.intervalM);
 
 	/** A hand-edited blob can carry a setting past the end of the track. Show it rather than clamp it. */
 	const coarsest = $derived(Math.max(COARSEST_M, view.isobaths.intervalM));
 	const deepest = $derived(Math.max(DEEPEST_M, view.isobaths.maxDepthM));
+
+	const methods = $derived<readonly Choice<PaintMethod>[]>([
+		{ value: 'upwards', label: t(view.locale, 'paintUpwards'), icon: 'paintUp' },
+		{ value: 'downwards', label: t(view.locale, 'paintDownwards'), icon: 'paintDown' }
+	]);
 </script>
 
 <Panel
@@ -57,7 +58,8 @@
 			value={interval}
 			min={AUTO}
 			max={coarsest}
-			format={(value: number) => (value === AUTO ? t(view.locale, 'autoInterval') : metres(value))}
+			format={(value: number) =>
+				value === AUTO ? t(view.locale, 'autoInterval') : metresLabel(value)}
 			onchange={(next: number) => {
 				view.isobaths =
 					next === AUTO
@@ -68,32 +70,42 @@
 		<Note>{t(view.locale, 'autoIntervalHint')}</Note>
 	</Field>
 
-	<Field label={t(view.locale, 'emphasised')}>
-		<ChipGroup columns={4}>
-			{#each EMPHASIS_CHOICES as depth (depth)}
-				<Chip
-					label={metres(depth)}
-					pressed={view.isobaths.emphasised.includes(depth)}
-					onclick={() => {
-						view.toggleEmphasis(depth);
-					}}
-				/>
-			{/each}
-		</ChipGroup>
-		<Note>{t(view.locale, 'zeroIsobathHint')}</Note>
-	</Field>
-
 	<Field label={t(view.locale, 'maxDepth')}>
 		<Range
 			label={t(view.locale, 'maxDepth')}
 			value={view.isobaths.maxDepthM}
 			min={5}
 			max={deepest}
-			format={metres}
+			format={metresLabel}
 			onchange={(next: number) => {
 				view.isobaths = { ...view.isobaths, maxDepthM: next };
 			}}
 		/>
+	</Field>
+
+	<Field label={t(view.locale, 'paintMethod')}>
+		<Segmented
+			options={methods}
+			value={paintOf(view.isobaths).method}
+			label={t(view.locale, 'paintMethod')}
+			onselect={(next: PaintMethod) => {
+				view.isobaths = withMethod(view.isobaths, next);
+			}}
+		/>
+		<Note>{t(view.locale, 'paintMethodHint')}</Note>
+	</Field>
+
+	<Field label={t(view.locale, 'emphasised')}>
+		<DepthRuler
+			locale={view.locale}
+			style={view.isobaths}
+			zoom={view.zoom}
+			onchange={(next: IsobathStyle) => {
+				view.isobaths = next;
+			}}
+		/>
+		<Note>{t(view.locale, 'rulerHint')}</Note>
+		<Note>{t(view.locale, 'zeroIsobathHint')}</Note>
 	</Field>
 
 	<Toggle

@@ -1,3 +1,4 @@
+import type { IsobathPaint } from './isobaths.ts';
 import { DIVE_FEATURE_KINDS, type DiveFeatureKind } from './osm.ts';
 import {
 	DEFAULT_FRAMING,
@@ -96,11 +97,21 @@ export interface IsobathStyle {
 	 * interval by hand turns this off.
 	 */
 	readonly autoInterval: boolean;
-	/** Depths drawn heavier. These are the ones a recreational dive plan turns on. */
+	/**
+	 * The depths a diver has picked out, the ones a recreational dive plan turns
+	 * on. Each is drawn heavy and carries the colour of the band it governs, until
+	 * `paint` says otherwise.
+	 */
 	readonly emphasised: readonly number[];
 	/** Stop drawing below this. Nobody on this boat is going deeper. */
 	readonly maxDepthM: number;
 	readonly labels: boolean;
+	/**
+	 * What each marked depth is painted in and which way the paint runs. See
+	 * `isobaths.ts`. Absent in anything saved before the depth ruler existed, and
+	 * absent is the map's original behaviour rather than a colour nobody picked.
+	 */
+	readonly paint?: IsobathPaint;
 }
 
 export const DEFAULT_ISOBATHS: IsobathStyle = {

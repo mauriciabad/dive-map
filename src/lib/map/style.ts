@@ -25,6 +25,13 @@ import {
 	type PaintLevel,
 	markerLayerId
 } from '$lib/domain/card';
+import {
+	AUTO_INTERVAL,
+	DEPTH_BANDS,
+	type PaintedBand,
+	depthMarks,
+	paintedBands
+} from '$lib/domain/isobaths';
 import type { DiveFeatureKind } from '$lib/domain/osm';
 import type { Locale } from '$lib/i18n/locale';
 import {
@@ -141,40 +148,22 @@ const patternFor = (
  * Lines a dive plan turns on, drawn heavier. `to-number` is not decoration:
  * match type-checks its input, so a depth that arrives as a string falls
  * silently through to the thin branch.
+ *
+ * Not every marked depth is one of them. A mark a diver has unticked keeps its
+ * colour and loses its weight, which is the whole of what unticking it means.
  */
-const heavyIf = (
-	emphasised: readonly number[],
-	heavy: number,
-	light: number
-): ExpressionSpecification => [
+const heavyIf = (heavy: readonly number[], wide: number, thin: number): ExpressionSpecification => [
 	'match',
 	['to-number', ['get', 'depth']],
-	[...emphasised],
-	heavy,
-	light
+	[...heavy],
+	wide,
+	thin
 ];
 
-/**
- * Depth bands, keyed to what a recreational dive plan actually turns on. Each
- * band ramps from light to dark across its own range and then jumps at the
- * boundary, so a diver reads the band at a glance and the exact metre on the
- * heavy line. Depths are whole metres, so the 0.99 stops make the jump hard
- * rather than a one-metre fade.
- */
-export const DEPTH_BANDS: readonly {
-	readonly from: number;
-	readonly to: number;
-	readonly light: string;
-	readonly dark: string;
-}[] = [
-	{ from: 0, to: 4, light: '#ffe9b0', dark: '#f5c96a' },
-	{ from: 5, to: 17, light: '#93e9c0', dark: '#35c48e' },
-	{ from: 18, to: 29, light: '#7ad2ff', dark: '#2b9fe4' },
-	{ from: 30, to: 39, light: '#9aabff', dark: '#4b63d8' },
-	{ from: 40, to: 49, light: '#c9a0ff', dark: '#8c4fd8' },
-	{ from: 50, to: 79, light: '#ff9fb6', dark: '#e04a6c' },
-	{ from: 80, to: 140, light: '#ff7a6b', dark: '#9b2418' }
-];
+const heavyDepths = (style: IsobathStyle): readonly number[] =>
+	depthMarks(style)
+		.filter((mark) => mark.emphasised)
+		.map((mark) => mark.depthM);
 
 /**
  * The wash over water the DEM never reached. It is the void colour, so the open
@@ -250,29 +239,50 @@ const ICGC_SATELLITE_BOUNDS: [number, number, number, number] = [
 	0.024303, 40.061468, 3.360594, 43.400669
 ];
 
-const isobathColour = (): DataDrivenPropertyValueSpecification<string> => {
-	const stops = DEPTH_BANDS.flatMap((b) => [b.from, b.light, b.to + 0.99, b.dark]);
-	return [
+/** The depth ramp, which is what water no marked depth governs is still drawn in. */
+const rampColour = (): ExpressionSpecification =>
+	[
 		'interpolate',
 		['linear'],
 		['to-number', ['get', 'depth']],
-		...stops
+		...DEPTH_BANDS.flatMap((b) => [b.from, b.light, b.to + 0.99, b.dark])
+	] as ExpressionSpecification;
+
+/**
+ * Every contour in the colour of the band it belongs to, as one step over depth.
+ *
+ * The bands come from the domain rather than being worked out again here, so the
+ * ruler in the side panel and the ink on the map cannot drift apart: they are the
+ * same list of runs, drawn twice.
+ */
+const isobathColour = (style: IsobathStyle): DataDrivenPropertyValueSpecification<string> => {
+	const bands = paintedBands(style);
+	const paintOf = (band: PaintedBand): string | ExpressionSpecification =>
+		band.colour ?? rampColour();
+	const first = bands[0];
+	if (first === undefined) return rampColour();
+	if (bands.length === 1) return paintOf(first);
+	return [
+		'step',
+		['to-number', ['get', 'depth']],
+		paintOf(first),
+		...bands.slice(1).flatMap((band) => [band.fromM, paintOf(band)])
 	] as DataDrivenPropertyValueSpecification<string>;
 };
 
 const isobathWidth = (
-	emphasised: readonly number[],
+	heavy: readonly number[],
 	extra = 0
 ): DataDrivenPropertyValueSpecification<number> => [
 	'interpolate',
 	['linear'],
 	['zoom'],
 	10,
-	heavyIf(emphasised, 0.9 + extra, 0.3 + extra),
+	heavyIf(heavy, 0.9 + extra, 0.3 + extra),
 	14,
-	heavyIf(emphasised, 2.0 + extra, 0.7 + extra),
+	heavyIf(heavy, 2.0 + extra, 0.7 + extra),
 	18,
-	heavyIf(emphasised, 4.4 + extra, 1.4 + extra)
+	heavyIf(heavy, 4.4 + extra, 1.4 + extra)
 ];
 
 /**
@@ -309,7 +319,7 @@ const isobathCasing = (options: StyleOptions): NonNullable<LineLayerSpecificatio
 		'line-blur': overPhoto ? 0.6 : 2.2,
 		'line-translate': overPhoto ? [0, 0] : [0, 1.6],
 		'line-width': isobathWidth(
-			options.isobaths.emphasised,
+			heavyDepths(options.isobaths),
 			overPhoto ? CASING_WIDENING_OVER_PHOTO : 0
 		)
 	};
@@ -326,7 +336,12 @@ const isobathCasing = (options: StyleOptions): NonNullable<LineLayerSpecificatio
  * contour. So it is excluded only until a diver asks for it, and asking puts it
  * in the contour ink as well as under the coastline switch.
  */
-const AUTO_INTERVAL: ExpressionSpecification = ['step', ['zoom'], 20, 12, 10, 14, 5, 15, 2, 16, 1];
+const AUTO_STEP: ExpressionSpecification = [
+	'step',
+	['zoom'],
+	AUTO_INTERVAL[0]?.intervalM ?? 20,
+	...AUTO_INTERVAL.slice(1).flatMap((step) => [step.fromZoom, step.intervalM])
+] as ExpressionSpecification;
 
 const isobathFilter = ({
 	intervalM,
@@ -349,7 +364,7 @@ const isobathFilter = ({
 		['in', ['to-number', ['get', 'depth']], ['literal', [...emphasised]]],
 		[
 			'==',
-			['%', ['to-number', ['get', 'depth']], autoInterval ? AUTO_INTERVAL : Math.max(1, intervalM)],
+			['%', ['to-number', ['get', 'depth']], autoInterval ? AUTO_STEP : Math.max(1, intervalM)],
 			0
 		]
 	]
@@ -1133,17 +1148,17 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			filter: isobathFilter(options.isobaths),
 			layout: { visibility: vis(options, 'isobaths'), 'line-join': 'round' },
 			paint: {
-				'line-color': isobathColour(),
+				'line-color': isobathColour(options.isobaths),
 				// The heavy lines carry their band's full strength; the metre lines
 				// between them stay quiet enough not to become a mat.
 				'line-opacity': [
 					'match',
 					['to-number', ['get', 'depth']],
-					[...options.isobaths.emphasised],
+					[...heavyDepths(options.isobaths)],
 					0.95,
 					0.45
 				],
-				'line-width': isobathWidth(options.isobaths.emphasised)
+				'line-width': isobathWidth(heavyDepths(options.isobaths))
 			}
 		},
 		{
@@ -1155,7 +1170,7 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			filter: [
 				'all',
 				isobathFilter(options.isobaths),
-				['in', ['to-number', ['get', 'depth']], ['literal', [...options.isobaths.emphasised]]]
+				['in', ['to-number', ['get', 'depth']], ['literal', [...heavyDepths(options.isobaths)]]]
 			],
 			layout: {
 				visibility: options.isobaths.labels ? vis(options, 'isobaths') : 'none',
