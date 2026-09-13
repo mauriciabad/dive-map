@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import live from './fixtures/live-codes.json' with { type: 'json' };
+import built from '../../../static/textures/index.json' with { type: 'json' };
 import {
+	CATALOGUE_TEXTURES,
 	HABITATS,
 	SEABED_TEXTURES,
+	UNSURVEYED_TEXTURE,
 	SUBSTRATES,
 	type SeabedClass,
 	type SeabedKey,
@@ -127,10 +130,18 @@ describe('texture choices', () => {
 		expect(legendFor(new Set(['70108']), 10).map(seabedKey)).toContain('habitats-30');
 	});
 
-	it('offers exactly the textures the catalogues already paint with', () => {
-		expect(SEABED_TEXTURES).toHaveLength(21);
-		const catalogued = new Set([...HABITATS, ...SUBSTRATES].map((c) => c.texture));
-		expect([...catalogued].filter((name) => !isSeabedTexture(name))).toEqual([]);
-		expect(isSeabedTexture('unsurveyed')).toBe(false);
+	// A name here the build never emitted is a class painted with nothing: MapLibre
+	// treats a fill-pattern naming an unregistered image as no error at all, the
+	// fill does not draw, and the hole reads as deep water. Reading the build's own
+	// index is what keeps widening one of the two from being a silent hole.
+	it('offers exactly the textures the build emitted, and never the hatch', () => {
+		const emitted = Object.keys(built.textures).filter((name) => name !== UNSURVEYED_TEXTURE);
+		expect([...SEABED_TEXTURES].sort()).toEqual(emitted.sort());
+		expect(isSeabedTexture(UNSURVEYED_TEXTURE)).toBe(false);
+	});
+
+	it('can paint every class the catalogues name', () => {
+		expect(CATALOGUE_TEXTURES).toHaveLength(21);
+		expect(CATALOGUE_TEXTURES.filter((name) => !isSeabedTexture(name))).toEqual([]);
 	});
 });

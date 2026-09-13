@@ -1,7 +1,7 @@
 """Turn the Crosshead 2048px terrain PNGs into the habitat pattern set.
 
-Emits every texture at four sizes so the app can trade grain for memory: 512 by
-default, 2048 when the machine can take it or a card is being printed.
+Emits every texture at three sizes so the app can trade grain for memory: 256 for
+the picker grid, 512 for the map and the printed sheet, 1024 above 2x.
 
 Two formats. Only Safari decodes JPEG XL without a flag today, so WebP ships
 alongside it and the app picks at runtime. The two quality scales are not
@@ -11,6 +11,12 @@ on the noisy ones.
 
 Textures whose opposite edges do not match get an edge blend first. A seam that
 is invisible on a phone is obvious on a laminated A3 sheet.
+
+Which of the pack's six folders can be a seabed is decided by TILEABLE_DIRS and by
+one measurement, `square`. A fill-pattern repeats forever in both directions, so a
+source that is not square repeats as a stretched smear. That leaves out 88 path
+strips (1024x12 up to 2048x214), 60 wall runs and their 8px end caps, 22 door and
+window sprites, and 1376 props. None of them is ground.
 """
 
 import argparse, json, math, pathlib, re, sys
@@ -18,7 +24,21 @@ import numpy as np
 import pillow_jxl  # noqa: F401 - registers the JXL encoder with Pillow
 from PIL import Image
 
-SIZES = (2048, 1024, 512, 256)
+SIZES = (1024, 512, 256)
+
+# The two folders holding whole square tiles meant to be laid as ground. Anything
+# the habitat registry names is built from wherever it sits, which is what keeps
+# `metal` (a wall run the catalogue already paints with) in the set.
+TILEABLE_DIRS = ("terrain", "patterns")
+
+# Why the other four are out. Squareness is the measurement; this is the reason
+# behind it, and for objects it is the reason on its own.
+NOT_GROUND = {
+    "objects": "single props drawn on alpha, and the square ones are a barrel and a rug",
+    "paths": "strips laid along a line, 1024x12 up to 2048x214",
+    "portals": "door and window sprites cut to the opening",
+    "walls": "wall runs and their 8px end caps",
+}
 SOURCE_SIZE = 2048
 WEBP_QUALITY = 88
 JXL_QUALITY = 82
@@ -78,6 +98,45 @@ def unsurveyed(rng: np.random.Generator) -> Image.Image:
 SYNTHETIC = {"unsurveyed": unsurveyed}
 
 
+def square(path: pathlib.Path) -> bool:
+    with Image.open(path) as im:
+        return im.size[0] == im.size[1]
+
+
+def source_of(src: pathlib.Path, root: pathlib.Path) -> str:
+    """Where in the pack it came from. Two stems appear twice, so the folder is the answer."""
+    try:
+        return str(src.relative_to(root))
+    except ValueError:
+        return src.name
+
+
+def tileable(src: pathlib.Path) -> tuple[dict[str, pathlib.Path], list[str]]:
+    """Every pack file that can be laid as ground, and a line per folder left out.
+
+    A stem that appears in two folders keeps the bare name in the first one listed
+    and takes its folder as a suffix in the rest. `ch_stone` is a dark grey gravel
+    in terrain and a pale flagstone in patterns; one id could only ever be one of
+    them, and the catalogue already paints with the terrain one.
+    """
+    ground: dict[str, pathlib.Path] = {}
+    rejected: list[str] = []
+    for folder in TILEABLE_DIRS:
+        skipped = 0
+        for path in sorted((src / folder).rglob("*.png")):
+            if not square(path):
+                skipped += 1
+                continue
+            name = path.stem if path.stem not in ground else f"{path.stem}_{folder.rstrip('s')}"
+            ground[name] = path
+        if skipped:
+            rejected.append(f"{skipped} of {folder}, not square")
+    for folder, reason in NOT_GROUND.items():
+        count = len(list((src / folder).rglob("*.png")))
+        rejected.append(f"all {count} of {folder}: {reason}")
+    return ground, rejected
+
+
 def emitted(out: pathlib.Path, name: str) -> bool:
     files = [out / str(size) / f"{name}.{fmt}" for size in SIZES for fmt in ("webp", "jxl")]
     return all(f.exists() for f in files) and (out / "swatch" / f"{name}.jpg").exists()
@@ -93,8 +152,17 @@ def main() -> int:
     ap.add_argument("--threshold", type=float, default=1.5)
     args = ap.parse_args()
 
-    wanted = sorted(set(re.findall(r"texture: '([\w.]+)'", args.registry.read_text())) | set(SYNTHETIC))
-    print(f"{len(wanted)} textures referenced by the habitat registry")
+    catalogued = set(re.findall(r"texture: '([\w.]+)'", args.registry.read_text()))
+    ground, rejected = tileable(args.src)
+    for name in sorted(catalogued - set(ground)):
+        hits = list(args.src.rglob(f"{name}.png"))
+        if hits:
+            ground[name] = hits[0]
+    wanted = sorted(set(ground) | catalogued | set(SYNTHETIC))
+    print(f"{len(catalogued)} textures the habitat registry names, "
+          f"{len(ground)} the pack can tile as ground, {len(wanted)} to build")
+    for line in rejected:
+        print(f"  rejected {line}")
 
     # Rerunning re-encodes nothing: a texture whose eight files and swatch are all
     # on disk keeps the entry the previous run recorded. Without this the step
@@ -117,11 +185,11 @@ def main() -> int:
             src = pathlib.Path(f"<generated {name}>")
             a = np.asarray(SYNTHETIC[name](rng), dtype=np.float32)
         else:
-            hits = list(args.src.rglob(f"{name}.png"))
-            if not hits:
+            found = ground.get(name)
+            if found is None:
                 missing.append(name)
                 continue
-            src = hits[0]
+            src = found
             a = np.asarray(Image.open(src).convert("RGB"), dtype=np.float32)
         before = seam_ratios(a)
         fixed = []
@@ -152,7 +220,7 @@ def main() -> int:
         img.resize((160, 160), Image.LANCZOS).save(swatch / f"{name}.jpg", quality=86, optimize=True)
 
         index[name] = {
-            "source": src.name,
+            "source": source_of(src, args.src),
             "seamBefore": [round(v, 2) for v in before],
             "seamAfter": [round(v, 2) for v in after],
             "blended": fixed,

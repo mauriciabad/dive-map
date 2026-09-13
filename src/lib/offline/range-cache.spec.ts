@@ -155,7 +155,16 @@ describe('asset policy', () => {
 		expect(assetPolicy('/textures/256/ch_sand.webp')).toBe('precache');
 		expect(assetPolicy('/textures/512/ch_sand.webp')).toBe('precache');
 		expect(assetPolicy('/textures/1024/ch_sand.webp')).toBe('runtime');
-		expect(assetPolicy('/textures/2048/ch_sand.webp')).toBe('runtime');
+	});
+
+	// ch_sand is a catalogue texture and ch_marble is only ever reached by choosing
+	// it in the picker. Precaching both put two hundred files into the install and
+	// delayed the first repaint after a choice; a boat only needs the seabed the
+	// catalogues actually paint.
+	it('leaves a texture only the picker offers to first use', () => {
+		expect(assetPolicy('/textures/512/ch_marble.webp')).toBe('runtime');
+		expect(assetPolicy('/textures/256/ch_marble.jxl')).toBe('runtime');
+		expect(assetPolicy('/textures/512/unsurveyed.webp')).toBe('precache');
 	});
 
 	it('never precaches a pmtiles archive and always precaches the small data files', () => {
@@ -163,7 +172,7 @@ describe('asset policy', () => {
 		expect(assetPolicy('/tiles/dem.pmtiles')).toBe('range');
 		expect(assetPolicy('/data/osm.geojson')).toBe('precache');
 		expect(
-			precachePaths(['/tiles/a.pmtiles', '/data/osm.geojson', '/textures/2048/x.webp'])
+			precachePaths(['/tiles/a.pmtiles', '/data/osm.geojson', '/textures/1024/x.webp'])
 		).toEqual(['/data/osm.geojson']);
 	});
 });
@@ -173,7 +182,7 @@ describe('service worker routing', () => {
 	const manifest = {
 		version: '1700000000000',
 		build: ['/_app/immutable/entry/app.js'],
-		files: ['/textures/256/ch_sand.webp', '/textures/2048/ch_sand.webp', '/tiles/bathy.pmtiles'],
+		files: ['/textures/256/ch_sand.webp', '/textures/1024/ch_sand.webp', '/tiles/bathy.pmtiles'],
 		prerendered: ['/']
 	};
 	const precached = new Set(precacheList(manifest));
@@ -189,7 +198,7 @@ describe('service worker routing', () => {
 			routeRequest({ method, url }, origin, precached);
 
 		expect(route(`${origin}/tiles/bathy.pmtiles`)).toBe('range');
-		expect(route(`${origin}/textures/2048/ch_sand.webp`)).toBe('runtime');
+		expect(route(`${origin}/textures/1024/ch_sand.webp`)).toBe('runtime');
 		expect(route(`${origin}/textures/256/ch_sand.webp`)).toBe('shell');
 		expect(route(`${origin}/`)).toBe('shell');
 		expect(route(`${origin}/data/osm.geojson`)).toBe('network-first');

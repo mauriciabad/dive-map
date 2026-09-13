@@ -20,8 +20,10 @@
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import { installMarkerImages } from './marker-images';
 	import { PALETTE, SATELLITE_SOURCE_ID, buildStyle } from './style';
+	import { WORLD_SOURCE_ID } from './land';
 	import { failedTileSource } from './tile-errors';
 	import {
+		FLOURISH_TEXTURE,
 		type LoadedTexture,
 		loadFlourish,
 		loadTextures,
@@ -54,13 +56,14 @@
 			groundLayer: view.groundLayer,
 			smoothed: view.smoothed,
 			textures: view.textures,
-			photoStrength: view.photoStrength
+			photoStrength: view.photoStrength,
+			worldPainted: view.worldPainted
 		})
 	);
 
 	/**
 	 * Patterns live in the image registry rather than a sprite sheet, so the print
-	 * path can swap the 2048px set in under the same ids.
+	 * path can swap its own size in under the same ids.
 	 *
 	 * They are decoded once and kept. Every setStyle empties the registry, and the
 	 * old one-shot latch meant the second time anyone touched a setting the
@@ -68,6 +71,15 @@
 	 * is missing is cheap, cannot loop, and survives any number of style rebuilds.
 	 */
 	let patterns: readonly LoadedTexture[] = [];
+
+	/**
+	 * Names already fetched or being fetched. Claimed before the await so two quick
+	 * choices cannot both decode the same texture, and released on failure so a
+	 * texture lost to a dropped connection can be asked for again. Deliberately not
+	 * reactive: it is a ledger the loader keeps, and an effect that read it would
+	 * rerun itself on every texture it caused to load.
+	 */
+	const claimed: string[] = [];
 
 	const restorePatterns = (m: MapLibre): void => {
 		for (const { name, bitmap, pixelRatio } of patterns) {
@@ -82,16 +94,36 @@
 		installMarkerImages(m);
 	};
 
-	const loadPatterns = async (m: MapLibre): Promise<void> => {
-		if (patterns.length > 0) return;
-		const seabed = await loadTextures(
-			texturePalette(),
-			sizeForScreen(window.devicePixelRatio, window.matchMedia('(pointer: coarse)').matches)
-		);
+	/**
+	 * Fetch and register the textures the style names that are not held yet.
+	 *
+	 * The picker offers every texture the build emits, which is more than a phone
+	 * should decode and hold at once, so what arrives here is the palette the style
+	 * actually paints with. A first call brings the catalogue's own set; choosing
+	 * brings one more, and only the one.
+	 */
+	const loadPatterns = async (m: MapLibre, wanted: readonly string[]): Promise<void> => {
+		const missing = wanted.filter((name) => !claimed.includes(name));
+		if (missing.length === 0) return;
+		claimed.push(...missing);
+		try {
+			const seabed = await loadTextures(
+				missing,
+				sizeForScreen(window.devicePixelRatio, window.matchMedia('(pointer: coarse)').matches)
+			);
+			patterns = [...patterns, ...seabed];
+		} catch (failure) {
+			for (const name of missing) claimed.splice(claimed.indexOf(name), 1);
+			throw failure;
+		}
 		// A crest that will not load costs a decoration. It must never cost the seabed,
 		// so it is appended rather than awaited alongside.
-		const flourish = await loadFlourish(PALETTE.seaFlourish);
-		patterns = flourish === undefined ? seabed : [...seabed, flourish];
+		if (!claimed.includes(FLOURISH_TEXTURE)) {
+			claimed.push(FLOURISH_TEXTURE);
+			const flourish = await loadFlourish(PALETTE.seaFlourish);
+			if (flourish === undefined) claimed.splice(claimed.indexOf(FLOURISH_TEXTURE), 1);
+			else patterns = [...patterns, flourish];
+		}
 		restorePatterns(m);
 		m.triggerRepaint();
 	};
@@ -146,7 +178,24 @@
 		m.on('styledata', () => {
 			restorePatterns(m);
 		});
-		void loadPatterns(m);
+		void loadPatterns(m, texturePalette(untrack(() => view.textures)));
+		/**
+		 * The one thing that covers the DEM's lit nodata plane is the land, and on a
+		 * cold load a 487 KB archive loses the race to a 33 MB one. So the hillshade
+		 * waits here rather than in the DEM. See the layer's own comment in style.ts.
+		 *
+		 * `idle` is the release valve, not a second signal: a `world` source that
+		 * errors or is missing would otherwise hold the hillshade back forever, and
+		 * by the time the map is idle the flash window is over either way.
+		 */
+		const paintHillshade = () => {
+			view.worldPainted = true;
+		};
+		m.on('sourcedata', (e) => {
+			if (e.sourceId === WORLD_SOURCE_ID && e.isSourceLoaded) paintHillshade();
+		});
+		m.once('idle', paintHillshade);
+
 		m.on('load', () => {
 			view.ready = true;
 			onready?.(m);
@@ -172,6 +221,18 @@
 			map = undefined;
 		};
 	};
+
+	/**
+	 * A texture a diver has just chosen was never fetched at startup, so it has to
+	 * arrive before the style that names it can paint anything. Until it does the
+	 * fill draws nothing and the class keeps whatever the last frame had, which
+	 * reads as the choice having been ignored.
+	 */
+	$effect(() => {
+		const wanted = texturePalette(view.textures);
+		const m = map;
+		if (m !== undefined) void loadPatterns(m, wanted);
+	});
 
 	/**
 	 * The point the card is describing, marked on the map.

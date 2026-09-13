@@ -23,7 +23,7 @@
  * Usage: node pipeline/scripts/verify-textures.mjs <url> [--shot dir]
  */
 import { chromium } from 'playwright';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 
 const url = process.argv[2] ?? 'http://localhost:5211/';
 const shotAt = process.argv.indexOf('--shot');
@@ -52,6 +52,15 @@ const RECENT_KEY = 'dive-map:recent';
 
 /** Near black. Nothing in the habitat catalogue paints open seabed with it. */
 const DARK_TEXTURE = 'ch_dungeonvoid';
+
+/**
+ * Every texture the build emitted, read from its own index rather than counted
+ * here. A number written down in this file is a check that fails the next time
+ * somebody widens the pack, which is not what it is for.
+ */
+const PICKABLE = Object.keys(
+	JSON.parse(readFileSync('static/textures/index.json', 'utf8')).textures
+).filter((name) => name !== 'unsurveyed');
 
 const failures = [];
 const notes = {};
@@ -490,9 +499,10 @@ try {
 	const palette = await paletteOffered(base);
 	check(
 		'the picker offers every built texture and not the hatch',
-		palette.length === 21 && !palette.includes('unsurveyed'),
+		palette.length === PICKABLE.length && !palette.includes('unsurveyed'),
 		{
-			offered: palette.length
+			offered: palette.length,
+			built: PICKABLE.length
 		}
 	);
 	await backToLegend(base);
@@ -606,11 +616,21 @@ try {
 		manySignature.spread > 8 && (await unregistered(many)).length === 0,
 		{ spread: manySignature.spread }
 	);
+	// Choosing used to cost nothing because every texture on offer was already in
+	// the registry. With forty-nine on offer that is not a thing to ask of a phone,
+	// so the registry follows what the style paints instead: one texture per class,
+	// never the whole built set. The worst case a diver can make is therefore the
+	// number of classes in frame, whatever the pack grows to.
 	check(
-		'choosing costs no more memory than the map already spends',
-		manyCost.registryMB <= plainCost.registryMB + 0.1 &&
-			manyCost.atlasEntries === plainCost.atlasEntries,
-		{ noChoice: plainCost, everyClassDifferent: manyCost }
+		'choosing costs a texture a class, not the whole built set',
+		manyCost.atlasEntries === plainCost.atlasEntries &&
+			manyCost.registryImages - plainCost.registryImages <= inFrame.length,
+		{
+			noChoice: plainCost,
+			everyClassDifferent: manyCost,
+			classesInFrame: inFrame.length,
+			built: PICKABLE.length
+		}
 	);
 	notes.cost = {
 		noChoice: plainCost,
@@ -621,7 +641,7 @@ try {
 	await many.close();
 
 	// The print path. It builds a second map from the same StyleOptions and swaps
-	// the 2048 set in under the same ids, so a choice that reached the screen can
+	// its own size in under the same ids, so a choice that reached the screen can
 	// still miss the sheet. The sheet is the artefact this whole project is for.
 	//
 	// Two sheets from the same camera, one with no choice and one with every class
@@ -722,7 +742,10 @@ try {
 	});
 	check(
 		'every texture is reachable with a thumb on a phone',
-		reach.tiles === 21 && reach.narrowest >= 44 && reach.shortest >= 44 && !reach.overflows,
+		reach.tiles === PICKABLE.length &&
+			reach.narrowest >= 44 &&
+			reach.shortest >= 44 &&
+			!reach.overflows,
 		reach
 	);
 	await shoot(phone, 'phone-picker');

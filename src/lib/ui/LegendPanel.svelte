@@ -17,6 +17,7 @@
 	import { markerLayerId } from '$lib/domain/card';
 	import { whenMapReady } from '$lib/map/controls';
 	import {
+		THUMBNAIL_SIZE,
 		type TextureFormat,
 		UNSURVEYED_TEXTURE,
 		sizeForScreen,
@@ -61,6 +62,12 @@
 	const sampleOf = (texture: string): TextureSample | undefined =>
 		format === undefined ? undefined : sampleFor(texture, size, format);
 
+	// The grid opens forty-nine bands at once, against one per legend row. The
+	// repeat is 256 CSS pixels either way, so the smallest file in the pyramid is
+	// the same pattern at the same density for a fifth of the bytes.
+	const thumbnailOf = (texture: string): TextureSample | undefined =>
+		format === undefined ? undefined : sampleFor(texture, THUMBNAIL_SIZE, format);
+
 	const changed = $derived(Object.keys(view.textures).length);
 
 	const grounds = $derived<readonly Choice<Ground>[]>([
@@ -84,7 +91,7 @@
 			{seabed}
 			chosen={view.textures}
 			locale={view.locale}
-			{sampleOf}
+			sampleOf={thumbnailOf}
 			missing={t(view.locale, 'legendNoSwatch')}
 			onpick={(texture: string) => {
 				view.setTexture(seabed, texture);

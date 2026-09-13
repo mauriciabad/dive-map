@@ -172,7 +172,10 @@ export const renderCard = async (
 	}
 
 	addProtocol('pmtiles', new Protocol().tile);
-	const seabed = await loadTextures(texturePalette(), printTextureSize(pixelRatio));
+	const seabed = await loadTextures(
+		texturePalette(style.textures ?? NO_TEXTURE_CHOICES),
+		printTextureSize(pixelRatio)
+	);
 	// The sheet gets the same crests the screen showed, or none, and either way the
 	// seabed is already loaded before this can fail.
 	const flourish = await loadFlourish(PALETTE.seaFlourish);

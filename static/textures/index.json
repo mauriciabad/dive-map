@@ -1,6 +1,5 @@
 {
   "sizes": [
-    2048,
     1024,
     512,
     256
@@ -10,8 +9,24 @@
     "webp"
   ],
   "textures": {
+    "ch_bluerock": {
+      "source": "patterns/normal/ch_bluerock.png",
+      "seamBefore": [
+        1.08,
+        1.11
+      ],
+      "seamAfter": [
+        1.08,
+        1.11
+      ],
+      "blended": [],
+      "bytes": {
+        "webp": 40728,
+        "jxl": 54737
+      }
+    },
     "ch_bluestones": {
-      "source": "ch_bluestones.png",
+      "source": "patterns/normal/ch_bluestones.png",
       "seamBefore": [
         1.13,
         1.12
@@ -22,12 +37,44 @@
       ],
       "blended": [],
       "bytes": {
-        "webp": 242958,
-        "jxl": 311986
+        "webp": 89392,
+        "jxl": 113682
+      }
+    },
+    "ch_carpet": {
+      "source": "patterns/colorable/ch_carpet.png",
+      "seamBefore": [
+        0.68,
+        1.0
+      ],
+      "seamAfter": [
+        0.68,
+        1.0
+      ],
+      "blended": [],
+      "bytes": {
+        "webp": 17514,
+        "jxl": 30042
+      }
+    },
+    "ch_cobbles": {
+      "source": "patterns/normal/ch_cobbles.png",
+      "seamBefore": [
+        1.39,
+        1.38
+      ],
+      "seamAfter": [
+        1.39,
+        1.38
+      ],
+      "blended": [],
+      "bytes": {
+        "webp": 98150,
+        "jxl": 117550
       }
     },
     "ch_cobblestone": {
-      "source": "ch_cobblestone.png",
+      "source": "terrain/ch_cobblestone.png",
       "seamBefore": [
         1.56,
         1.98
@@ -41,12 +88,12 @@
         "y"
       ],
       "bytes": {
-        "webp": 719754,
-        "jxl": 736502
+        "webp": 272906,
+        "jxl": 244821
       }
     },
     "ch_dirt": {
-      "source": "ch_dirt.png",
+      "source": "terrain/ch_dirt.png",
       "seamBefore": [
         1.03,
         1.03
@@ -57,12 +104,12 @@
       ],
       "blended": [],
       "bytes": {
-        "webp": 85362,
-        "jxl": 110353
+        "webp": 21592,
+        "jxl": 28282
       }
     },
     "ch_dirt_dark": {
-      "source": "ch_dirt_dark.png",
+      "source": "terrain/ch_dirt_dark.png",
       "seamBefore": [
         1.23,
         1.31
@@ -73,12 +120,12 @@
       ],
       "blended": [],
       "bytes": {
-        "webp": 142588,
-        "jxl": 181958
+        "webp": 41676,
+        "jxl": 54453
       }
     },
     "ch_dirt_lines_02": {
-      "source": "ch_dirt_lines_02.png",
+      "source": "terrain/ch_dirt_lines_02.png",
       "seamBefore": [
         1.16,
         1.25
@@ -89,12 +136,12 @@
       ],
       "blended": [],
       "bytes": {
-        "webp": 150102,
-        "jxl": 186658
+        "webp": 49902,
+        "jxl": 61103
       }
     },
     "ch_dirt_mud": {
-      "source": "ch_dirt_mud.png",
+      "source": "terrain/ch_dirt_mud.png",
       "seamBefore": [
         1.42,
         1.38
@@ -105,12 +152,12 @@
       ],
       "blended": [],
       "bytes": {
-        "webp": 323912,
-        "jxl": 329577
+        "webp": 115910,
+        "jxl": 111100
       }
     },
     "ch_dungeonvoid": {
-      "source": "ch_dungeonvoid.png",
+      "source": "terrain/ch_dungeonvoid.png",
       "seamBefore": [
         1.88,
         1.41
@@ -123,12 +170,46 @@
         "x"
       ],
       "bytes": {
-        "webp": 22554,
-        "jxl": 33009
+        "webp": 6142,
+        "jxl": 9193
+      }
+    },
+    "ch_dungeonvoid_pattern": {
+      "source": "patterns/normal/ch_dungeonvoid.png",
+      "seamBefore": [
+        2.43,
+        0.94
+      ],
+      "seamAfter": [
+        0.0,
+        0.94
+      ],
+      "blended": [
+        "x"
+      ],
+      "bytes": {
+        "webp": 11172,
+        "jxl": 13685
+      }
+    },
+    "ch_forest": {
+      "source": "patterns/normal/ch_forest.png",
+      "seamBefore": [
+        1.3,
+        1.13
+      ],
+      "seamAfter": [
+        1.3,
+        1.13
+      ],
+      "blended": [],
+      "bytes": {
+        "webp": 45670,
+        "jxl": 55016
       }
     },
     "ch_grass": {
-      "source": "ch_grass.png",
+      "source": "terrain/ch_grass.png",
       "seamBefore": [
         1.01,
         1.0
@@ -139,12 +220,12 @@
       ],
       "blended": [],
       "bytes": {
-        "webp": 208914,
-        "jxl": 206418
+        "webp": 70494,
+        "jxl": 67943
       }
     },
     "ch_grass_2": {
-      "source": "ch_grass_2.png",
+      "source": "terrain/ch_grass_2.png",
       "seamBefore": [
         0.99,
         1.2
@@ -155,12 +236,12 @@
       ],
       "blended": [],
       "bytes": {
-        "webp": 164760,
-        "jxl": 157879
+        "webp": 46414,
+        "jxl": 43334
       }
     },
     "ch_grass_2_lines": {
-      "source": "ch_grass_2_lines.png",
+      "source": "terrain/ch_grass_2_lines.png",
       "seamBefore": [
         1.73,
         1.57
@@ -174,12 +255,12 @@
         "y"
       ],
       "bytes": {
-        "webp": 249106,
-        "jxl": 251937
+        "webp": 87828,
+        "jxl": 82877
       }
     },
     "ch_grass_3": {
-      "source": "ch_grass_3.png",
+      "source": "terrain/ch_grass_3.png",
       "seamBefore": [
         1.43,
         0.89
@@ -190,12 +271,12 @@
       ],
       "blended": [],
       "bytes": {
-        "webp": 135780,
-        "jxl": 146947
+        "webp": 36964,
+        "jxl": 39300
       }
     },
     "ch_grass_weeds": {
-      "source": "ch_grass_weeds.png",
+      "source": "terrain/ch_grass_weeds.png",
       "seamBefore": [
         1.15,
         0.94
@@ -206,12 +287,46 @@
       ],
       "blended": [],
       "bytes": {
-        "webp": 1160812,
-        "jxl": 846121
+        "webp": 439252,
+        "jxl": 268386
+      }
+    },
+    "ch_grayrock": {
+      "source": "patterns/normal/ch_grayrock.png",
+      "seamBefore": [
+        1.16,
+        1.15
+      ],
+      "seamAfter": [
+        1.16,
+        1.15
+      ],
+      "blended": [],
+      "bytes": {
+        "webp": 34234,
+        "jxl": 42437
+      }
+    },
+    "ch_marble": {
+      "source": "patterns/normal/ch_marble.png",
+      "seamBefore": [
+        1.53,
+        0.98
+      ],
+      "seamAfter": [
+        0.0,
+        0.97
+      ],
+      "blended": [
+        "x"
+      ],
+      "bytes": {
+        "webp": 71096,
+        "jxl": 60111
       }
     },
     "ch_rock": {
-      "source": "ch_rock.png",
+      "source": "terrain/ch_rock.png",
       "seamBefore": [
         0.87,
         0.87
@@ -222,12 +337,12 @@
       ],
       "blended": [],
       "bytes": {
-        "webp": 136646,
-        "jxl": 153598
+        "webp": 46892,
+        "jxl": 53169
       }
     },
     "ch_rocks": {
-      "source": "ch_rocks.png",
+      "source": "terrain/ch_rocks.png",
       "seamBefore": [
         0.91,
         1.72
@@ -240,12 +355,12 @@
         "y"
       ],
       "bytes": {
-        "webp": 432424,
-        "jxl": 470282
+        "webp": 162660,
+        "jxl": 168941
       }
     },
     "ch_sand": {
-      "source": "ch_sand.png",
+      "source": "terrain/ch_sand.png",
       "seamBefore": [
         0.84,
         1.59
@@ -258,12 +373,30 @@
         "y"
       ],
       "bytes": {
-        "webp": 129024,
-        "jxl": 126964
+        "webp": 42000,
+        "jxl": 41328
+      }
+    },
+    "ch_sandstone": {
+      "source": "patterns/normal/ch_sandstone.png",
+      "seamBefore": [
+        1.45,
+        1.76
+      ],
+      "seamAfter": [
+        1.44,
+        0.0
+      ],
+      "blended": [
+        "y"
+      ],
+      "bytes": {
+        "webp": 125758,
+        "jxl": 99717
       }
     },
     "ch_sandy": {
-      "source": "ch_sandy.png",
+      "source": "terrain/ch_sandy.png",
       "seamBefore": [
         0.98,
         1.09
@@ -274,12 +407,12 @@
       ],
       "blended": [],
       "bytes": {
-        "webp": 88628,
-        "jxl": 104498
+        "webp": 27724,
+        "jxl": 32304
       }
     },
     "ch_sandy_lines_02": {
-      "source": "ch_sandy_lines_02.png",
+      "source": "terrain/ch_sandy_lines_02.png",
       "seamBefore": [
         1.14,
         1.36
@@ -290,12 +423,31 @@
       ],
       "blended": [],
       "bytes": {
-        "webp": 131922,
-        "jxl": 164874
+        "webp": 45914,
+        "jxl": 55746
+      }
+    },
+    "ch_sewers": {
+      "source": "patterns/normal/ch_sewers.png",
+      "seamBefore": [
+        3.12,
+        2.57
+      ],
+      "seamAfter": [
+        0.0,
+        0.0
+      ],
+      "blended": [
+        "x",
+        "y"
+      ],
+      "bytes": {
+        "webp": 74472,
+        "jxl": 69653
       }
     },
     "ch_shipwood": {
-      "source": "ch_shipwood.png",
+      "source": "patterns/normal/ch_shipwood.png",
       "seamBefore": [
         2.84,
         0.97
@@ -308,12 +460,12 @@
         "x"
       ],
       "bytes": {
-        "webp": 218514,
-        "jxl": 248731
+        "webp": 82330,
+        "jxl": 85008
       }
     },
     "ch_stone": {
-      "source": "ch_stone.png",
+      "source": "terrain/ch_stone.png",
       "seamBefore": [
         1.3,
         0.08
@@ -324,12 +476,28 @@
       ],
       "blended": [],
       "bytes": {
-        "webp": 407916,
-        "jxl": 455802
+        "webp": 152608,
+        "jxl": 163859
+      }
+    },
+    "ch_stone_pattern": {
+      "source": "patterns/normal/ch_stone.png",
+      "seamBefore": [
+        1.11,
+        0.38
+      ],
+      "seamAfter": [
+        1.11,
+        0.38
+      ],
+      "blended": [],
+      "bytes": {
+        "webp": 60064,
+        "jxl": 72393
       }
     },
     "ch_stones": {
-      "source": "ch_stones.png",
+      "source": "patterns/normal/ch_stones.png",
       "seamBefore": [
         0.91,
         1.09
@@ -340,12 +508,346 @@
       ],
       "blended": [],
       "bytes": {
-        "webp": 422090,
-        "jxl": 419137
+        "webp": 167078,
+        "jxl": 158856
+      }
+    },
+    "ch_swamp": {
+      "source": "terrain/ch_swamp.png",
+      "seamBefore": [
+        5.87,
+        1.64
+      ],
+      "seamAfter": [
+        0.0,
+        0.0
+      ],
+      "blended": [
+        "x",
+        "y"
+      ],
+      "bytes": {
+        "webp": 43598,
+        "jxl": 42654
+      }
+    },
+    "ch_tiled": {
+      "source": "patterns/normal/ch_tiled.png",
+      "seamBefore": [
+        7.41,
+        2.75
+      ],
+      "seamAfter": [
+        0.0,
+        0.0
+      ],
+      "blended": [
+        "x",
+        "y"
+      ],
+      "bytes": {
+        "webp": 91002,
+        "jxl": 99351
+      }
+    },
+    "ch_tiles": {
+      "source": "patterns/normal/ch_tiles.png",
+      "seamBefore": [
+        2.7,
+        2.32
+      ],
+      "seamAfter": [
+        0.0,
+        0.0
+      ],
+      "blended": [
+        "x",
+        "y"
+      ],
+      "bytes": {
+        "webp": 92332,
+        "jxl": 94729
+      }
+    },
+    "ch_tiles_big": {
+      "source": "patterns/normal/ch_tiles_big.png",
+      "seamBefore": [
+        3.77,
+        3.54
+      ],
+      "seamAfter": [
+        0.0,
+        0.0
+      ],
+      "blended": [
+        "x",
+        "y"
+      ],
+      "bytes": {
+        "webp": 77406,
+        "jxl": 88410
+      }
+    },
+    "ch_water": {
+      "source": "terrain/ch_water.png",
+      "seamBefore": [
+        2.97,
+        5.23
+      ],
+      "seamAfter": [
+        0.0,
+        0.0
+      ],
+      "blended": [
+        "x",
+        "y"
+      ],
+      "bytes": {
+        "webp": 54330,
+        "jxl": 47630
+      }
+    },
+    "ch_waterblue": {
+      "source": "terrain/ch_waterblue.png",
+      "seamBefore": [
+        2.35,
+        2.03
+      ],
+      "seamAfter": [
+        0.0,
+        0.0
+      ],
+      "blended": [
+        "x",
+        "y"
+      ],
+      "bytes": {
+        "webp": 91544,
+        "jxl": 74092
+      }
+    },
+    "ch_waterbluedark": {
+      "source": "terrain/ch_waterbluedark.png",
+      "seamBefore": [
+        1.35,
+        1.82
+      ],
+      "seamAfter": [
+        1.3,
+        0.0
+      ],
+      "blended": [
+        "y"
+      ],
+      "bytes": {
+        "webp": 119204,
+        "jxl": 85949
+      }
+    },
+    "ch_waterbluelight": {
+      "source": "terrain/ch_waterbluelight.png",
+      "seamBefore": [
+        2.46,
+        2.15
+      ],
+      "seamAfter": [
+        0.0,
+        0.0
+      ],
+      "blended": [
+        "x",
+        "y"
+      ],
+      "bytes": {
+        "webp": 81078,
+        "jxl": 74721
+      }
+    },
+    "ch_waterdark": {
+      "source": "terrain/ch_waterdark.png",
+      "seamBefore": [
+        6.2,
+        3.9
+      ],
+      "seamAfter": [
+        0.0,
+        0.0
+      ],
+      "blended": [
+        "x",
+        "y"
+      ],
+      "bytes": {
+        "webp": 37628,
+        "jxl": 45591
+      }
+    },
+    "ch_waterdeep": {
+      "source": "terrain/ch_waterdeep.png",
+      "seamBefore": [
+        1.22,
+        0.88
+      ],
+      "seamAfter": [
+        1.22,
+        0.88
+      ],
+      "blended": [],
+      "bytes": {
+        "webp": 49466,
+        "jxl": 55420
+      }
+    },
+    "ch_watergreen": {
+      "source": "terrain/ch_watergreen.png",
+      "seamBefore": [
+        3.02,
+        2.7
+      ],
+      "seamAfter": [
+        0.0,
+        0.0
+      ],
+      "blended": [
+        "x",
+        "y"
+      ],
+      "bytes": {
+        "webp": 44950,
+        "jxl": 41934
+      }
+    },
+    "ch_watergreendark": {
+      "source": "terrain/ch_watergreendark.png",
+      "seamBefore": [
+        2.4,
+        3.23
+      ],
+      "seamAfter": [
+        0.0,
+        0.0
+      ],
+      "blended": [
+        "x",
+        "y"
+      ],
+      "bytes": {
+        "webp": 52064,
+        "jxl": 47190
+      }
+    },
+    "ch_watergreenlight": {
+      "source": "terrain/ch_watergreenlight.png",
+      "seamBefore": [
+        2.43,
+        2.88
+      ],
+      "seamAfter": [
+        0.0,
+        0.0
+      ],
+      "blended": [
+        "x",
+        "y"
+      ],
+      "bytes": {
+        "webp": 45524,
+        "jxl": 44040
+      }
+    },
+    "ch_weeds": {
+      "source": "terrain/ch_weeds.png",
+      "seamBefore": [
+        2.07,
+        1.45
+      ],
+      "seamAfter": [
+        0.0,
+        1.45
+      ],
+      "blended": [
+        "x"
+      ],
+      "bytes": {
+        "webp": 201646,
+        "jxl": 144289
+      }
+    },
+    "ch_wood": {
+      "source": "patterns/normal/ch_wood.png",
+      "seamBefore": [
+        0.92,
+        2.68
+      ],
+      "seamAfter": [
+        0.92,
+        0.0
+      ],
+      "blended": [
+        "y"
+      ],
+      "bytes": {
+        "webp": 70118,
+        "jxl": 74276
+      }
+    },
+    "ch_wood_interlaced": {
+      "source": "patterns/normal/ch_wood_interlaced.png",
+      "seamBefore": [
+        0.89,
+        2.91
+      ],
+      "seamAfter": [
+        0.9,
+        0.0
+      ],
+      "blended": [
+        "y"
+      ],
+      "bytes": {
+        "webp": 125448,
+        "jxl": 128726
+      }
+    },
+    "ch_wood_pattern": {
+      "source": "patterns/normal/ch_wood_pattern.png",
+      "seamBefore": [
+        2.37,
+        1.35
+      ],
+      "seamAfter": [
+        0.0,
+        1.3
+      ],
+      "blended": [
+        "x"
+      ],
+      "bytes": {
+        "webp": 107076,
+        "jxl": 120156
+      }
+    },
+    "ch_wood_short": {
+      "source": "patterns/normal/ch_wood_short.png",
+      "seamBefore": [
+        1.73,
+        1.91
+      ],
+      "seamAfter": [
+        0.0,
+        0.0
+      ],
+      "blended": [
+        "x",
+        "y"
+      ],
+      "bytes": {
+        "webp": 57698,
+        "jxl": 66996
       }
     },
     "metal": {
-      "source": "metal.png",
+      "source": "walls/metal.png",
       "seamBefore": [
         0.41,
         0.99
@@ -356,8 +858,8 @@
       ],
       "blended": [],
       "bytes": {
-        "webp": 155484,
-        "jxl": 152760
+        "webp": 63258,
+        "jxl": 64482
       }
     },
     "unsurveyed": {
@@ -372,8 +874,8 @@
       ],
       "blended": [],
       "bytes": {
-        "webp": 901076,
-        "jxl": 398843
+        "webp": 79448,
+        "jxl": 82679
       }
     }
   }
