@@ -179,4 +179,22 @@
 		{/if}
 		<Note>{t(view.locale, 'haloHint')}</Note>
 	</Field>
+
+	<!--
+		Here rather than among the layer switches, because what it turns on is a way
+		of reading depth and everything that decides how depth is drawn is on this
+		panel. It is still a layer underneath, so a printed card carries whichever
+		way the diver left it.
+	-->
+	<Field label={t(view.locale, 'spotDepths')}>
+		<Toggle
+			label={t(view.locale, 'spotDepths')}
+			icon="spotHigh"
+			pressed={view.shows('spot-depths')}
+			onchange={() => {
+				view.toggle('spot-depths');
+			}}
+		/>
+		<Note>{t(view.locale, 'spotDepthsHint')}</Note>
+	</Field>
 </Panel>

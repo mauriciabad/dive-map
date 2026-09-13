@@ -24,7 +24,7 @@
 	{#each icon.fill ?? [] as d (d)}
 		<path {d} fill="currentColor" />
 	{/each}
-	{#each icon.d as d (d)}
+	{#each icon.d ?? [] as d (d)}
 		<path {d} />
 	{/each}
 	{#each icon.dots ?? [] as [cx, cy, r] (`${cx},${cy}`)}

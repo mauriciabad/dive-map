@@ -3,6 +3,7 @@ import { ICONS, type Icon, type IconName } from '$lib/ui/icons';
 import { HABITAT_POINT_IMAGES } from './habitat-points';
 import { MARKER_IMAGES } from './markers';
 import { distanceField } from './sdf';
+import { SPOT_IMAGES } from './spot-depths';
 
 /**
  * The authored icons, rasterised once and handed to MapLibre as distance fields
@@ -55,7 +56,7 @@ const draw = (context: CanvasRenderingContext2D, icon: Icon): void => {
 		context.fill(path);
 		context.stroke(path);
 	}
-	for (const d of icon.d) context.stroke(new Path2D(d));
+	for (const d of icon.d ?? []) context.stroke(new Path2D(d));
 	for (const [cx, cy, r] of icon.dots ?? []) {
 		context.beginPath();
 		context.arc(cx, cy, r, 0, Math.PI * 2);
@@ -86,7 +87,7 @@ const fieldFor = (name: IconName): StyleImageInterface => {
 let built: readonly MarkerImage[] | undefined;
 
 export const markerImages = (): readonly MarkerImage[] => {
-	built ??= [...MARKER_IMAGES, ...HABITAT_POINT_IMAGES].map(({ id, icon }) => ({
+	built ??= [...MARKER_IMAGES, ...HABITAT_POINT_IMAGES, ...SPOT_IMAGES].map(({ id, icon }) => ({
 		id,
 		image: fieldFor(icon)
 	}));

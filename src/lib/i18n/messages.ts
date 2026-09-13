@@ -62,6 +62,9 @@ const ca = {
 	markEmphasis: 'Línia gruixuda i etiqueta a {depth} m',
 	maxDepth: 'Fondària màxima',
 	showLabels: 'Etiquetes de fondària',
+	spotDepths: 'Fondàries puntuals',
+	spotDepthsHint:
+		'Un número als punts alts i baixos del fons. El triangle diu cap on va el terreny.',
 	print: 'Imprimir',
 	framing: 'Enquadrar full',
 	framingHint: 'Arrossega el mapa. El requadre és el que s’imprimirà.',
@@ -398,6 +401,9 @@ const es: Catalogue = {
 	markEmphasis: 'Línea gruesa y etiqueta en {depth} m',
 	maxDepth: 'Profundidad máxima',
 	showLabels: 'Etiquetas de profundidad',
+	spotDepths: 'Profundidades puntuales',
+	spotDepthsHint:
+		'Un número en los puntos altos y bajos del fondo. El triángulo dice hacia dónde va el terreno.',
 	print: 'Imprimir',
 	framing: 'Encuadrar hoja',
 	framingHint: 'Arrastra el mapa. El recuadro es lo que se imprimirá.',
@@ -733,6 +739,9 @@ const en: Catalogue = {
 	markEmphasis: 'Heavy line and label at {depth} m',
 	maxDepth: 'Maximum depth',
 	showLabels: 'Depth labels',
+	spotDepths: 'Spot depths',
+	spotDepthsHint:
+		'A number on the high and low points of the bottom. The triangle says which way the ground goes.',
 	print: 'Print',
 	framing: 'Frame a sheet',
 	framingHint: 'Drag the map. The box is what gets printed.',

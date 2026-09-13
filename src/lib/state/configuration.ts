@@ -236,6 +236,7 @@ const FIXED_LAYERS: Record<Exclude<LayerId, MarkerLayerId>, true> = {
 	hillshade: true,
 	'depth-tint': true,
 	isobaths: true,
+	'spot-depths': true,
 	habitats: true,
 	substrate: true,
 	'habitat-points': true,
