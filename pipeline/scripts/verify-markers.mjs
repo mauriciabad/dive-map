@@ -65,12 +65,28 @@ page.on('pageerror', (e) => errors.push(`pageerror: ${e.message.slice(0, 160)}`)
 await page.goto(url, { waitUntil: 'domcontentloaded' });
 await page.waitForFunction(() => window.diveMap !== undefined, { timeout: 60_000 });
 
+/**
+ * Jump, settle, jump again, then check. A resize or a panel opening can move the
+ * map under the first jump, and a shot of the wrong headland that nothing
+ * complains about is worse than no shot.
+ */
 const flyTo = async ([lng, lat, zoom], ms = 5000) => {
-	await page.evaluate(
-		([lng, lat, zoom]) => window.diveMap.jumpTo({ center: [lng, lat], zoom }),
-		[lng, lat, zoom]
-	);
+	const jump = () =>
+		page.evaluate(
+			([lng, lat, zoom]) => window.diveMap.jumpTo({ center: [lng, lat], zoom }),
+			[lng, lat, zoom]
+		);
+	await jump();
+	await page.waitForTimeout(Math.min(ms, 1500));
+	await jump();
 	await page.waitForTimeout(ms);
+	const at = await page.evaluate(() => ({
+		lng: Number(window.diveMap.getCenter().lng.toFixed(4)),
+		zoom: Number(window.diveMap.getZoom().toFixed(2))
+	}));
+	if (at.lng !== Number(lng.toFixed(4)) || at.zoom !== zoom) {
+		throw new Error(`camera drifted to ${at.lng} z${at.zoom}, wanted ${lng} z${zoom}`);
+	}
 };
 
 const openPanel = async (name) => {
@@ -218,6 +234,7 @@ if (shotDir) {
 	await flyTo(MEDES, 3500);
 	await page.screenshot({ path: `${shotDir}/markers-desktop-1440x900.png` });
 	await page.setViewportSize({ width: 390, height: 844 });
+	await page.waitForTimeout(1500);
 	await flyTo(MEDES, 3500);
 	await page.screenshot({ path: `${shotDir}/markers-phone-390x844.png` });
 	await openPanel(/^Legend$/);
