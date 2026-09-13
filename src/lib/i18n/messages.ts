@@ -65,6 +65,8 @@ const ca = {
 	spotDepths: 'Fondàries puntuals',
 	spotDepthsHint:
 		'Un número als punts alts i baixos del fons. El triangle diu cap on va el terreny.',
+	rockEdge: 'Vora de la roca',
+	rockEdgeHint: 'On la roca dona pas a la sorra, segons el mapa de tipus de fons.',
 	print: 'Imprimir',
 	framing: 'Enquadrar full',
 	framingHint: 'Arrossega el mapa. El requadre és el que s’imprimirà.',
@@ -404,6 +406,8 @@ const es: Catalogue = {
 	spotDepths: 'Profundidades puntuales',
 	spotDepthsHint:
 		'Un número en los puntos altos y bajos del fondo. El triángulo dice hacia dónde va el terreno.',
+	rockEdge: 'Borde de la roca',
+	rockEdgeHint: 'Donde la roca da paso a la arena, según el mapa de tipos de fondo.',
 	print: 'Imprimir',
 	framing: 'Encuadrar hoja',
 	framingHint: 'Arrastra el mapa. El recuadro es lo que se imprimirá.',
@@ -742,6 +746,8 @@ const en: Catalogue = {
 	spotDepths: 'Spot depths',
 	spotDepthsHint:
 		'A number on the high and low points of the bottom. The triangle says which way the ground goes.',
+	rockEdge: 'Rock edge',
+	rockEdgeHint: 'Where rock gives way to sand, as the seafloor type survey has it.',
 	print: 'Print',
 	framing: 'Frame a sheet',
 	framingHint: 'Drag the map. The box is what gets printed.',

@@ -26,6 +26,7 @@ import {
 } from '$lib/domain/isobaths';
 import { DANGER_TAG_PREFIX, DIVE_NUMBER_KEYS, DIVE_TAG_KEYS } from '$lib/domain/osm';
 import { MARKER_CLOSE } from './markers.ts';
+import { ROCK_EDGE_LAYER_ID } from './rock-edge.ts';
 import { SPOT_IMAGES, SPOT_LAYER_ID } from './spot-depths.ts';
 import { glyphsFromArchive, graftStyle } from './basemap-style.ts';
 import { TILE_SERVICES } from '$lib/domain/basemaps';
@@ -776,5 +777,43 @@ describe('the spot depths', () => {
 		const ids = buildStyle(options()).layers.map((l) => l.id);
 		expect(ids.indexOf(SPOT_LAYER_ID)).toBeGreaterThan(ids.indexOf('habitat-point'));
 		expect(ids.indexOf(SPOT_LAYER_ID)).toBeLessThan(ids.indexOf('osm-marker-plate'));
+	});
+});
+
+describe('the rock and sand boundary', () => {
+	const ids = (style: StyleOptions): readonly string[] => buildStyle(style).layers.map((l) => l.id);
+	const on = options({ visible: [...DEFAULT_LAYERS, 'rock-edge'] });
+	const seen = (style: StyleOptions, id: string): unknown =>
+		buildStyle(style).layers.find((l) => l.id === id)?.layout?.visibility;
+
+	it('ships switched off, because the owner asked to see it before deciding', () => {
+		expect(DEFAULT_LAYERS).not.toContain('rock-edge');
+		expect(seen(options(), ROCK_EDGE_LAYER_ID)).toBe('none');
+		expect(seen(on, ROCK_EDGE_LAYER_ID)).toBe('visible');
+	});
+
+	it('carries its casing with it, so the line never draws bare', () => {
+		expect(seen(options(), 'rock-edge-casing')).toBe('none');
+		expect(seen(on, 'rock-edge-casing')).toBe('visible');
+	});
+
+	it('sits over the contours, where it can be judged', () => {
+		expect(ids(on).indexOf(ROCK_EDGE_LAYER_ID)).toBeGreaterThan(ids(on).indexOf('isobath-label'));
+		expect(ids(on).indexOf('rock-edge-casing')).toBeLessThan(ids(on).indexOf(ROCK_EDGE_LAYER_ID));
+	});
+
+	it('draws hard ground and nothing a chart mark already names', () => {
+		const layer = buildStyle(on).layers.find((l) => l.id === ROCK_EDGE_LAYER_ID);
+		if (layer?.type !== 'line' || layer.filter === undefined) throw new Error('no rock edge');
+		const spec = layer.filter;
+		const drawn = (code: string): boolean =>
+			featureFilter(spec, 'layers[0].filter').filter(
+				{ zoom: 15 },
+				{ type: 3, properties: { code } }
+			);
+		expect(drawn('301')).toBe(true);
+		expect(drawn('30202')).toBe(true);
+		expect(drawn('30402')).toBe(false);
+		expect(drawn('70104')).toBe(false);
 	});
 });

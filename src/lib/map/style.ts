@@ -62,6 +62,7 @@ import {
 	markerHalo,
 	markerImageId
 } from './markers.ts';
+import { rockEdgeLayers } from './rock-edge.ts';
 import { SPOT_LAYER_ID, SPOT_SOURCE_ID, spotDepthLayers } from './spot-depths.ts';
 import {
 	LAND_SOURCE,
@@ -1513,6 +1514,10 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 		// they somehow overlap, the better one is the one on top.
 		...deepIsobathLayers(options),
 		...isobathLayers(options),
+
+		// Over the contours. Under them it was buried in a metre-interval set and
+		// could not be judged, which is the one thing this layer exists to be.
+		...rockEdgeLayers(options.visible.includes('rock-edge')),
 
 		// Before the surveyed land, so that where the two datasets disagree by a few
 		// metres along the Catalan shore the ICGC polygon is the one that wins.
