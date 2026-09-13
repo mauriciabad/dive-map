@@ -3,6 +3,7 @@ import type { IControl, Map as MapLibre } from 'maplibre-gl';
 import { constrainToData } from './camera.ts';
 import { pointerOverMarks } from './cursor.ts';
 import { showDepthUnderCursor } from './depth.ts';
+import { trackpadGestures } from './gestures.ts';
 import { liveOsmFeatures } from './live-osm.ts';
 
 /**
@@ -95,3 +96,4 @@ whenMapReady(constrainToData);
 whenMapReady(showDepthUnderCursor);
 whenMapReady(pointerOverMarks);
 whenMapReady(liveOsmFeatures);
+whenMapReady(trackpadGestures);
