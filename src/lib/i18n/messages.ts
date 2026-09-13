@@ -75,7 +75,6 @@ const ca = {
 	retry: 'Tornar-ho a provar',
 	noSiteHere: 'Cap punt d’immersió en aquest enquadrament',
 	editInOsm: 'Edita a OpenStreetMap',
-	disclaimer: 'Per a orientació en immersió. No és una carta de navegació.',
 	accuracyNote:
 		'Els límits d’hàbitat són estimacions. La cartografia admet un 40 % d’encert per classe.',
 	legend: 'Llegenda',
@@ -180,10 +179,8 @@ const ca = {
 	printLegendRow: 'Llegenda',
 	printScaleBarRow: 'Escala gràfica',
 	printNorthRow: 'Nord',
-	printDisclaimerRow: 'Avís de no navegació',
 	printAttributionRow: 'Atribució',
-	printLegalNote:
-		'La llicència de les dades demana l’atribució, i l’ICGC diu que la seva batimetria no serveix per navegar. Treure-les és cosa teva.',
+	printLegalNote: 'La llicència de les dades demana l’atribució. Treure-la és cosa teva.',
 	printExportPng: 'Exportar PNG',
 	printTooLarge:
 		'Aquesta mida supera el que el navegador pot dibuixar. Abaixa la densitat o la mida.',
@@ -361,7 +358,6 @@ const es: Catalogue = {
 	retry: 'Reintentar',
 	noSiteHere: 'Ningún punto de inmersión en este encuadre',
 	editInOsm: 'Editar en OpenStreetMap',
-	disclaimer: 'Para orientación en inmersión. No es una carta de navegación.',
 	accuracyNote:
 		'Los límites de hábitat son estimaciones. La cartografía admite un 40 % de acierto por clase.',
 	legend: 'Leyenda',
@@ -467,10 +463,8 @@ const es: Catalogue = {
 	printLegendRow: 'Leyenda',
 	printScaleBarRow: 'Escala gráfica',
 	printNorthRow: 'Norte',
-	printDisclaimerRow: 'Aviso de no navegación',
 	printAttributionRow: 'Atribución',
-	printLegalNote:
-		'La licencia de los datos pide la atribución, y el ICGC dice que su batimetría no sirve para navegar. Quitarlas es cosa tuya.',
+	printLegalNote: 'La licencia de los datos pide la atribución. Quitarla es cosa tuya.',
 	printExportPng: 'Exportar PNG',
 	printTooLarge:
 		'Este tamaño supera lo que el navegador puede dibujar. Baja la densidad o el tamaño.',
@@ -646,7 +640,6 @@ const en: Catalogue = {
 	retry: 'Try again',
 	noSiteHere: 'No dive site in this frame',
 	editInOsm: 'Edit in OpenStreetMap',
-	disclaimer: 'For dive orientation. Not a navigation chart.',
 	accuracyNote: 'Habitat boundaries are estimates. The survey accepts 40% accuracy per class.',
 	legend: 'Legend',
 	legendInFrame: 'In this frame',
@@ -751,10 +744,8 @@ const en: Catalogue = {
 	printLegendRow: 'Legend',
 	printScaleBarRow: 'Scale bar',
 	printNorthRow: 'North',
-	printDisclaimerRow: 'Not-for-navigation line',
 	printAttributionRow: 'Attribution',
-	printLegalNote:
-		'The data licence asks for the attribution, and ICGC says its bathymetry is not for navigation. Taking them off is your call.',
+	printLegalNote: 'The data licence asks for the attribution. Taking it off is your call.',
 	printExportPng: 'Export PNG',
 	printTooLarge: 'This size is past what the browser will draw. Lower the density or the size.',
 	printPdfNeedsPaper: 'A PDF needs a size on paper. In pixels, export a PNG.',

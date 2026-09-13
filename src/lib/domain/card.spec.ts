@@ -104,10 +104,9 @@ describe('the scale bar measures what was drawn', () => {
 });
 
 describe('furniture', () => {
-	it('starts with everything on, the two legal lines included', () => {
+	it('starts with everything on, the attribution the licence asks for included', () => {
 		const card = newCard(HERE, 'Illa Roja');
 		expect(shows(card, 'attribution')).toBe(true);
-		expect(shows(card, 'disclaimer')).toBe(true);
 		expect(shows(card, 'northArrow')).toBe(true);
 	});
 

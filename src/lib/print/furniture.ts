@@ -110,7 +110,6 @@ const SIZE = {
 	barLabel: 2.5,
 	ratio: 2.9,
 	ruler: 2.1,
-	disclaimer: 2.4,
 	attribution: 1.8,
 	north: 3
 } as const;
@@ -717,29 +716,6 @@ export const layoutFurniture = (input: {
 					size: SIZE.attribution * unit,
 					font: 'body' as const,
 					colour: DIM,
-					gapBefore: 0
-				})),
-				bottomWidth,
-				unit,
-				measure
-			)
-		);
-	}
-	if (shows(card, 'disclaimer')) {
-		stackUp(
-			textPiece(
-				wrap(
-					t(locale, 'disclaimer'),
-					SIZE.disclaimer * unit,
-					'body',
-					bottomWidth - 2 * PAD * unit,
-					3,
-					measure
-				).map((text) => ({
-					text,
-					size: SIZE.disclaimer * unit,
-					font: 'body' as const,
-					colour: PAPER_INK,
 					gapBefore: 0
 				})),
 				bottomWidth,

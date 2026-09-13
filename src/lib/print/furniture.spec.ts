@@ -3,7 +3,6 @@ import { type DiveCard, newCard, planFor } from '$lib/domain/card';
 import { NO_TEXTURE_CHOICES, habitatByCode } from '$lib/domain/habitat';
 import { FURNITURE_IDS, type FurnitureId, type Sheet } from '$lib/domain/print';
 import { scale } from '$lib/domain/units';
-import { t } from '$lib/i18n/messages';
 import { type Drawing, type Measure, layoutFurniture } from './furniture.ts';
 import type { RenderedCard } from './render.ts';
 
@@ -172,7 +171,6 @@ const SIGNATURE: Record<FurnitureId, (drawings: readonly Drawing[]) => boolean> 
 	scaleBar: (d) => texts(d).includes('0'),
 	// A half of the needle, which a two-point trim mark can never be mistaken for.
 	northArrow: (d) => d.some((one) => one.kind === 'path' && one.points.length === 3),
-	disclaimer: (d) => texts(d).some((text) => text.startsWith('Per a orientació')),
 	attribution: (d) => texts(d).some((text) => text.startsWith('Batimetria'))
 };
 
@@ -264,9 +262,8 @@ describe('what the sheet is allowed to claim', () => {
 		);
 	});
 
-	it('carries the disclaimer and the attribution verbatim', () => {
+	it('carries the attribution verbatim, which is what the licence asks for', () => {
 		const card = cardOn(SHEETS['A3 portrait']);
-		expect(texts(lay(card)).join(' ')).toContain(t('ca', 'disclaimer'));
 		expect(texts(lay(card)).join(' ')).toContain('© ICGC CC BY 4.0');
 	});
 });

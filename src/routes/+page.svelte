@@ -248,7 +248,7 @@
 
 <svelte:head>
 	<title>{t(view.locale, 'appName')}</title>
-	<meta name="description" content={t(view.locale, 'disclaimer')} />
+	<meta name="description" content={t(view.locale, 'appDescription')} />
 	<meta name="theme-color" content="#14100c" />
 </svelte:head>
 

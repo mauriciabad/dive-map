@@ -240,8 +240,6 @@
 	{#if footer !== undefined}
 		<div class="foot">{@render footer()}</div>
 	{/if}
-
-	<p class="disclaimer">{t(locale, 'disclaimer')}</p>
 </section>
 
 <style>
@@ -420,15 +418,5 @@
 		gap: 0.45rem;
 		flex: none;
 		padding-top: 0.55rem;
-	}
-
-	.disclaimer {
-		flex: none;
-		margin: 0;
-		padding-top: 0.5rem;
-		border-top: 1px solid rgb(184 137 63 / 0.18);
-		font-size: 0.7rem;
-		line-height: 1.4;
-		color: var(--control-ink-dim);
 	}
 </style>

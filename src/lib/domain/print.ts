@@ -176,8 +176,8 @@ export const unitPixels = (sheet: Sheet): number => {
 /**
  * Keep-out inside the trim, in units. The map runs past the paper edge now, so
  * this exists only to hold the furniture off the cut: a guillotine and a
- * laminating pouch each eat a few millimetres, and a disclaimer inside the weld is
- * a disclaimer nobody can read.
+ * laminating pouch each eat a few millimetres, and an attribution inside the weld
+ * is an attribution nobody can read.
  */
 const SAFE_UNITS = 9;
 
@@ -226,8 +226,7 @@ export const zoomForScale = (
 export const scaleForResolution = (metresPerPixel: number, dpi: number): ScaleDenominator =>
 	scale((metresPerPixel * 1000) / (MM_PER_INCH / dpi));
 
-export type FurnitureId =
-	'title' | 'depth' | 'legend' | 'scaleBar' | 'northArrow' | 'disclaimer' | 'attribution';
+export type FurnitureId = 'title' | 'depth' | 'legend' | 'scaleBar' | 'northArrow' | 'attribution';
 
 export const FURNITURE_IDS = [
 	'title',
@@ -235,16 +234,15 @@ export const FURNITURE_IDS = [
 	'legend',
 	'scaleBar',
 	'northArrow',
-	'disclaimer',
 	'attribution'
 ] as const satisfies readonly FurnitureId[];
 
 /**
- * The ICGC licence asks for the attribution and the bathymetry metadata forbids
- * navigation use, so a sheet without those two lines is a sheet a dive centre
- * should think twice about handing out. They default on and the panel says so.
+ * The ICGC licence asks for the attribution, so a sheet without that line is a
+ * sheet a dive centre should think twice about handing out. It defaults on and
+ * the panel says so.
  */
-export const LEGAL_FURNITURE: readonly FurnitureId[] = ['disclaimer', 'attribution'];
+export const LEGAL_FURNITURE: readonly FurnitureId[] = ['attribution'];
 
 export const DEFAULT_FURNITURE: readonly FurnitureId[] = FURNITURE_IDS;
 

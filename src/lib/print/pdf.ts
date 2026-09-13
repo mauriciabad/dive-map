@@ -182,7 +182,7 @@ export const composeCardPdf = async (
 	for (const drawing of drawings) paint(page, drawing, scale, pageHeight, fonts, images);
 
 	doc.setTitle(card.title);
-	doc.setSubject(t(locale, 'disclaimer'));
+	doc.setSubject(t(locale, 'appDescription'));
 	doc.setCreator('divemap.mauri.app');
 	return doc.save();
 };

@@ -58,7 +58,6 @@
 		{ id: 'legend', key: 'printLegendRow' },
 		{ id: 'scaleBar', key: 'printScaleBarRow' },
 		{ id: 'northArrow', key: 'printNorthRow' },
-		{ id: 'disclaimer', key: 'printDisclaimerRow' },
 		{ id: 'attribution', key: 'printAttributionRow' }
 	];
 
