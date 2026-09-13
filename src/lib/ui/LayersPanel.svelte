@@ -29,7 +29,7 @@
 
 	const LAYER_ROWS: readonly LayerRow[] = [
 		{ id: 'hillshade', icon: 'relief', key: 'relief' },
-		{ id: 'depth-tint', icon: 'depth', key: 'depthTint' },
+		{ id: 'depth-tint', icon: 'depthVeil', key: 'depthTint' },
 		{ id: 'coastline', icon: 'frame', key: 'coastline' },
 		{ id: 'flourishes', icon: 'flourish', key: 'flourishes' },
 		{ id: 'osm', icon: 'markerMooring', key: 'osmFeatures' },
@@ -40,7 +40,6 @@
 		{ value: 'habitats', label: t(view.locale, 'habitats'), icon: 'habitat' },
 		{ value: 'substrate', label: t(view.locale, 'substrate'), icon: 'substrate' }
 	]);
-
 </script>
 
 <Panel
@@ -94,9 +93,9 @@
 		{#if view.shows('satellite')}
 			<!--
 				The photograph is always at full strength. What a diver dials is how much
-				of the map's own paint is left over it, and the two sides of the shore
-				want different answers: the survey stays authoritative over the water,
-				the shore is the half a photograph says anything about.
+				of the map's own paint goes back over it, one slider per side of the
+				shore. Both start at nothing, because a switch that says photograph
+				should produce one.
 			-->
 			<div class="under">
 				<Field label={t(view.locale, 'seabedPaint')}>
