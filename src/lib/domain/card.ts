@@ -43,6 +43,7 @@ export type LayerId =
 	| 'isobaths'
 	| 'habitats'
 	| 'substrate'
+	| 'habitat-points'
 	| 'flourishes'
 	| 'coastline'
 	| 'osm'
@@ -159,6 +160,7 @@ export const DEFAULT_LAYERS: readonly LayerId[] = [
 	'depth-tint',
 	'isobaths',
 	'habitats',
+	'habitat-points',
 	'flourishes',
 	'coastline',
 	'osm',

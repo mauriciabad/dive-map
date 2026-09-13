@@ -346,6 +346,82 @@ export const ICONS = {
 	markerDiveCentre: {
 		d: ['M8.4 5.4h7.2'],
 		fill: ['M8.4 11a3.6 3.6 0 0 1 7.2 0v6a3.6 3.6 0 0 1-7.2 0z', 'M10.2 6.2h3.6v4.2h-3.6z']
+	},
+
+	/*
+	 * The habitat survey's point records, from here down. Same box and weight as
+	 * the map marks above, and every one of them stands on a line of bottom,
+	 * because that is what these are: something growing off the seabed at one
+	 * spot, rather than a chart object floating in water.
+	 *
+	 * They are told apart by how the thing branches, which is the one difference a
+	 * diver can see underwater and the one that survives at 20 px. Colour says
+	 * gorgonian or alga; see habitat-points.ts.
+	 */
+
+	/**
+	 * One dense fan off a single trunk: Paramuricea clavata, which is 1,259 of the
+	 * 1,392 records and the thing most of this layer is.
+	 *
+	 * Four tips, not six. Every pair of strokes is a whisker over twice the halo
+	 * apart, which over a 24 unit box is what four buys and five does not, and a
+	 * fan whose branches have closed up is a blob.
+	 */
+	pointGorgonianFan: {
+		d: [
+			'M3.6 21.4h16.8',
+			'M12 21.4V15',
+			'M12 15Q11.2 11.2 8 9.6',
+			'M8 9.6Q5.8 7.4 4.8 4.6',
+			'M8 9.6Q8.4 6.6 9.4 4',
+			'M12 15Q12.8 11.2 16 9.6',
+			'M16 9.6Q18.2 7.4 19.2 4.6',
+			'M16 9.6Q15.6 6.6 14.6 4'
+		]
+	},
+
+	/**
+	 * Two short forked stalks, apart and of unequal height. The class is
+	 * non-concretioned rock with animals scattered over it rather than a
+	 * coralligenous build-up, so the drawing is sparse where the fan is dense:
+	 * separate plants, not one.
+	 */
+	pointGorgonianSparse: {
+		d: [
+			'M3.6 21.4h16.8',
+			'M8 21.4V13',
+			'M8 13 5 8.4',
+			'M8 13 10.6 8.2',
+			'M16 21.4V15.6',
+			'M16 15.6 13.4 11.4',
+			'M16 15.6 19 11.2'
+		]
+	},
+
+	/**
+	 * Three long arms rising from one node and never forking again: the candelabrum
+	 * Eunicella singularis grows as. The fan's tell is the fork halfway up, so this
+	 * one has none.
+	 */
+	pointGorgonianWhip: {
+		d: [
+			'M3.6 21.4h16.8',
+			'M12 21.4V16.4',
+			'M12 16.4Q9 12 7.2 4.6',
+			'M12 16.4V4.2',
+			'M12 16.4Q15 12 16.8 4.6'
+		]
+	},
+
+	/**
+	 * Two club fronds off a runner lying along the bottom: Caulerpa cylindracea,
+	 * which spreads by that runner and is the reason the class is worth a mark at
+	 * all. Solid, because a club drawn as an outline at 20 px is a gorgonian with
+	 * two branches.
+	 */
+	pointCaulerpa: {
+		d: ['M3 20.8h18'],
+		fill: ['M5 20.8q0-6.4 1.8-8.8 1.8 2.4 1.8 8.8z', 'M14.4 20.8q0-8 1.8-10.6 1.8 2.6 1.8 10.6z']
 	}
 } as const satisfies Record<string, Icon>;
 

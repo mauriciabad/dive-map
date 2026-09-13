@@ -30,6 +30,10 @@
 	}
 
 	const LAYER_ROWS: readonly LayerRow[] = [
+		// First, and directly under the ground picker above, because it is the other
+		// half of the same survey: the polygons paint the seabed and these mark the
+		// places on it the survey singled out.
+		{ id: 'habitat-points', icon: 'pointGorgonianFan', key: 'habitatPoints' },
 		{ id: 'hillshade', icon: 'relief', key: 'relief' },
 		{ id: 'depth-tint', icon: 'depthVeil', key: 'depthTint' },
 		{ id: 'coastline', icon: 'land', key: 'land' },

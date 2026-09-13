@@ -239,6 +239,7 @@ const FIXED_LAYERS: Record<Exclude<LayerId, MarkerLayerId>, true> = {
 	isobaths: true,
 	habitats: true,
 	substrate: true,
+	'habitat-points': true,
 	flourishes: true,
 	coastline: true,
 	osm: true,

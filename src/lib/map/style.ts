@@ -19,6 +19,12 @@ import {
 	textureOf
 } from '$lib/domain/habitat';
 import { POSITION_SOURCES, positionLayers } from '$lib/geo/style-layers';
+import {
+	HABITAT_POINTS,
+	HABITAT_POINT_FROM,
+	HABITAT_POINT_SORT,
+	habitatPointImageId
+} from './habitat-points.ts';
 import type { GraftedBaseMap } from './basemap-style.ts';
 export { PALETTE } from './palette.ts';
 import { PALETTE } from './palette.ts';
@@ -30,12 +36,7 @@ import {
 	type PaintLevel,
 	markerLayerId
 } from '$lib/domain/card';
-import {
-	type BaseMapId,
-	NO_BASE_MAP,
-	TILE_SERVICES,
-	serviceDraws
-} from '$lib/domain/basemaps';
+import { type BaseMapId, NO_BASE_MAP, TILE_SERVICES, serviceDraws } from '$lib/domain/basemaps';
 import {
 	AUTO_INTERVAL,
 	DEPTH_BANDS,
@@ -399,7 +400,6 @@ export const ISOBATH_LAYER_IDS: readonly string[] = [
  * them is the shallow set's expression, unchanged.
  */
 const DEEP_WIDENING = 0.3;
-
 
 /**
  * The national shelf survey's contours, drawn in the water the ICGC one never
@@ -968,6 +968,58 @@ const markerLayer = (
 });
 
 /**
+ * The habitat survey's point records, one mark each.
+ *
+ * A layer of its own rather than a variant of the ground fill, because these are
+ * not a finer cut of the polygons: the survey publishes them as points because
+ * what it found there is too small to hold a polygon at its own scale, and
+ * drawing one as a patch of seabed would claim an extent nobody measured. They
+ * ride their own switch for the same reason, so the layer answers to the diver
+ * and not to whichever catalogue the ground happens to be painted from.
+ *
+ * `icon-allow-overlap` stays off at every zoom. There are 1,259 coralligenous
+ * records on this coast and no zoom at which painting all of them says anything;
+ * what a diver wants out of this layer is where the gorgonian grounds are, which
+ * is what the spread left after collision shows.
+ */
+const habitatPointLayers = (options: StyleOptions): LayerSpecification[] => {
+	const image: Record<string, string> = {};
+	const colour: Record<string, string> = {};
+	for (const { code, colour: ink } of HABITAT_POINTS) {
+		image[code] = habitatPointImageId(code);
+		colour[code] = ink;
+	}
+	return [
+		{
+			id: 'habitat-point',
+			type: 'symbol',
+			source: 'habitat-points',
+			minzoom: HABITAT_POINT_FROM,
+			layout: {
+				visibility: vis(options, 'habitat-points'),
+				'icon-image': ['coalesce', ['get', ['get', 'code'], ['literal', image]], ''],
+				// Smaller than a chart mark at every zoom. A dive site is somewhere you
+				// are going and this is what is growing there, so it must not win the
+				// eye against one.
+				'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.6, 14, 0.85, 18, 1.05],
+				'icon-allow-overlap': false,
+				'icon-ignore-placement': false,
+				'symbol-sort-key': [
+					'coalesce',
+					['get', ['get', 'code'], ['literal', HABITAT_POINT_SORT]],
+					HABITAT_POINTS.length + 1
+				]
+			},
+			paint: {
+				'icon-color': ['coalesce', ['get', ['get', 'code'], ['literal', colour]], PALETTE.paper],
+				'icon-halo-color': MARKER_INK,
+				'icon-halo-width': MARKER_HALO
+			}
+		}
+	];
+};
+
+/**
  * OSM features, drawn as the objects they are rather than as pins. What makes a
  * mark survive a busy texture underneath is the dark halo the distance field
  * gives every glyph, not a plate: see markers.ts for which kind earns which.
@@ -1299,6 +1351,7 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 		[LAND_SOURCE_ID]: LAND_SOURCE,
 		[WORLD_SOURCE_ID]: WORLD_SOURCE,
 		osm: { type: 'geojson', data: asset('/data/osm.geojson') },
+		'habitat-points': { type: 'geojson', data: asset('/data/habitat-points.geojson') },
 		...POSITION_SOURCES,
 		annotations: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } }
 	},
@@ -1554,6 +1607,11 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 				'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 14, 2, 18, 4]
 			}
 		},
+
+		// Under the chart marks, so a dive site always wins the pixels a gorgonian
+		// record wants. MapLibre places the later layer first and a placed symbol
+		// keeps its ground.
+		...habitatPointLayers(options),
 
 		...osmLayers(options),
 

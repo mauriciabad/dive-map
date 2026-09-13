@@ -1,5 +1,6 @@
 import type { Map as MapLibre, StyleImageInterface } from 'maplibre-gl';
 import { ICONS, type Icon, type IconName } from '$lib/ui/icons';
+import { HABITAT_POINT_IMAGES } from './habitat-points';
 import { MARKER_IMAGES } from './markers';
 import { distanceField } from './sdf';
 
@@ -85,7 +86,10 @@ const fieldFor = (name: IconName): StyleImageInterface => {
 let built: readonly MarkerImage[] | undefined;
 
 export const markerImages = (): readonly MarkerImage[] => {
-	built ??= MARKER_IMAGES.map(({ id, icon }) => ({ id, image: fieldFor(icon) }));
+	built ??= [...MARKER_IMAGES, ...HABITAT_POINT_IMAGES].map(({ id, icon }) => ({
+		id,
+		image: fieldFor(icon)
+	}));
 	return built;
 };
 
