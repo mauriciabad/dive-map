@@ -22,7 +22,7 @@
 	type Interval = number | 'auto';
 
 	const INTERVALS = [1, 2, 5, 10, 20] as const;
-	const EMPHASIS_CHOICES = [5, 10, 18, 20, 30, 40, 50, 60] as const;
+	const EMPHASIS_CHOICES = [0, 5, 10, 18, 20, 30, 40, 50, 60] as const;
 	const MAX_DEPTHS = [30, 40, 50, 60, 80] as const;
 
 	/** Written as an escape so no invisible character lands in the source. */
@@ -76,6 +76,7 @@
 				/>
 			{/each}
 		</ChipGroup>
+		<Note>{t(view.locale, 'zeroIsobathHint')}</Note>
 	</Field>
 
 	<Field label={t(view.locale, 'maxDepth')}>
