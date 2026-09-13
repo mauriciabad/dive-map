@@ -43,7 +43,6 @@ export type LayerId =
 	| 'isobaths'
 	| 'habitats'
 	| 'substrate'
-	| 'satellite'
 	| 'flourishes'
 	| 'coastline'
 	| 'osm'

@@ -19,6 +19,7 @@ import {
 	textureOf
 } from '$lib/domain/habitat';
 import { POSITION_SOURCES, positionLayers } from '$lib/geo/style-layers';
+import type { GraftedBaseMap } from './basemap-style.ts';
 export { PALETTE } from './palette.ts';
 import { PALETTE } from './palette.ts';
 import {
@@ -29,6 +30,12 @@ import {
 	type PaintLevel,
 	markerLayerId
 } from '$lib/domain/card';
+import {
+	type BaseMapId,
+	NO_BASE_MAP,
+	TILE_SERVICES,
+	serviceDraws
+} from '$lib/domain/basemaps';
 import {
 	AUTO_INTERVAL,
 	DEPTH_BANDS,
@@ -233,218 +240,6 @@ const BEYOND_WASH = 'rgba(3, 41, 59, 0.8)';
  */
 const MAPA_CREDIT =
 	'<a href="https://www.mapa.gob.es/" target="_blank" rel="noopener">Ministerio de Agricultura, Pesca y Alimentación</a> Cartografiado Marino, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>';
-
-export const SATELLITE_SOURCE_ID = 'satellite';
-export const ICGC_TERRITORIAL_SOURCE_ID = 'satellite-icgc-territorial';
-export const ICGC_SATELLITE_SOURCE_ID = 'satellite-icgc';
-export const ICGC_BATHYMETRY_SOURCE_ID = 'satellite-icgc-bathymetry';
-
-/**
- * PNOA Máxima Actualidad, the national ortophoto. It covers the whole Spanish
- * coast down to 25 cm and serves to z20 at Tamariu. It is the backing
- * photograph, not the one this map is about.
- *
- * The INSPIRE WMS rather than the WMTS at the same host, and that is the whole
- * point of it. PNOA is flown over land, so it has nothing over the sea, and the
- * WMTS answers for the sea anyway: a 256 px opaque JPEG of flat near-black, a
- * different shade per tile. Measured off Begur at z14, three sea tiles came back
- * at luminance 7.8, 7.6 and 28.1, which is what put a black rectangle with a
- * visible tile grid over the water the moment a diver switched the photograph
- * on, in the half of the map they are here for.
- *
- * The WMS with `transparent=true` answers the same three tiles with a 334-byte
- * fully transparent PNG, and `image/vnd.jpeg-png` keeps the JPEG where there is
- * something to send: 15.6 KB over Begur against the WMTS's 17.9 KB. Which is the
- * same arrangement the ICGC layer above already runs on, for the same reason.
- * Over twelve land tiles it is also the faster of the two, at a median 455 ms
- * against 581 ms, so the tile cache was not buying anything either.
- *
- * Neither source here is ours. Neither is precached: the service worker ignores
- * every cross-origin request, so an area saved for the boat holds the survey and
- * not somebody else's photograph.
- */
-const SATELLITE_TILES =
-	'https://www.ign.es/wms-inspire/pnoa-ma?service=WMS&request=GetMap&version=1.1.1' +
-	'&layers=OI.OrthoimageCoverage&styles=&srs=EPSG:3857' +
-	'&format=image/vnd.jpeg-png&transparent=true' +
-	'&width=256&height=256&bbox={bbox-epsg-3857}';
-
-/**
- * ICGC's Ortofoto de Catalunya, the whole territory at 25 cm.
- *
- * `orto-costa` above is a ribbon along the shore and nothing else, which is what
- * put an IGN photograph on screen every time the map was not pointed at the
- * water. Measured at the camera this map had last been left on, a field outside
- * Palafrugell about 4 km inland, all 35 `orto-costa` tiles the screen asked for
- * came back as the 334-byte transparent no-data PNG, and the whole view was
- * PNOA while the credit line still read ICGC. The same tile from this service is
- * a 16.9 KB JPEG. Off Tamariu it is 19.0 KB and over the Medes 20.8 KB, so it
- * carries the coast as well and only loses to `orto-costa` on resolution.
- *
- * Same `image/vnd.jpeg-png` contract as its two neighbours, and that is what lets
- * three photographs stack: measured at 334 bytes fully transparent over open sea
- * and over France, so it covers Catalonia and hands the rest back to PNOA.
- *
- * `maxzoom` is 19 against the other two at 20 because 25 cm is the grain. At this
- * latitude z19 is 0.22 m a pixel and z20 is 0.11, so a z20 request is the server
- * resampling its own 25 cm source. MapLibre stretching its z19 tile gets there
- * from the same pixels without the round trip, and on the coast `orto-costa` is
- * the layer answering at those zooms anyway.
- */
-const ICGC_TERRITORIAL_TILES =
-	'https://geoserveis.icgc.cat/servei/catalunya/orto-territorial/wms?service=WMS' +
-	'&request=GetMap&version=1.1.1&layers=ortofoto_color_vigent&styles=&srs=EPSG:3857' +
-	'&format=image/vnd.jpeg-png&transparent=true' +
-	'&width=256&height=256&bbox={bbox-epsg-3857}';
-
-/**
- * ICGC's Ortofoto de costa, the finest photograph this map has and the one it
- * wants wherever the coast is on screen.
- *
- * It is flown by the body that made the bathymetry underneath it, on the same
- * campaigns, so the shoreline in the picture and the 0 m isobath are the same
- * survey rather than two that disagree by a few metres. 10 cm over most of the
- * coast and 5 cm over the 2022 bathymetry strip, against PNOA's 25 cm.
- *
- * WMS and not WMTS. The WMTS service at the same host answers GetCapabilities
- * with a 500 and its RESTful templates return HTML, which is what sent an earlier
- * attempt to IGN instead. `orto-costa` is the aggregate layer over the whole
- * dated series, so it resolves to the most recent flight that covers a given
- * pixel without this style naming a year that will go stale.
- *
- * `image/vnd.jpeg-png` is what makes it an overlay rather than a replacement.
- * MapServer returns JPEG where the strip is opaque, about 20 KB a tile, and a
- * 334-byte fully transparent PNG everywhere it has no coverage. So along the
- * coast this is the picture, and away from it the territorial ICGC photograph
- * below shows through untouched. Measured at Tamariu z16 through z20.
- *
- * What that transparency does not do is reach inland, and it is not meant to.
- * PNOA underneath carries the land. This layer carries the water, which is the
- * half of the map a diver came for.
- */
-const ICGC_SATELLITE_TILES =
-	'https://geoserveis.icgc.cat/servei/catalunya/orto-costa/wms?service=WMS' +
-	'&request=GetMap&version=1.1.1&layers=orto-costa&styles=&srs=EPSG:3857' +
-	'&format=image/vnd.jpeg-png&transparent=true' +
-	'&width=256&height=256&bbox={bbox-epsg-3857}';
-
-/**
- * The 2022 bathymetry flight out of the same coastal series, at 5 cm, and the
- * finest photograph on this map by a factor of two.
- *
- * `orto-costa` above is the aggregate over every dated flight, so it answers
- * anywhere on the coast but at whatever grain that stretch was last flown at,
- * usually 10 cm. This is the single campaign that was flown alongside the
- * bathymetry the seabed is drawn from, so the picture and the depth model are
- * one survey rather than two that disagree.
- *
- * It covers less than the aggregate and that is the trade the owner asked for.
- * Measured at z16 it answers 90 KB at Tamariu, 166 KB over the Medes, 127 KB at
- * Llafranc, 112 KB at Palamós and 70 KB at Cap de Creus, and the 334-byte
- * transparent no-data PNG at Sitges and anywhere inland. So it carries the dive
- * coast and hands everything else to PNOA below.
- *
- * `maxzoom` is 21 rather than the 20 its neighbours stop at because 5 cm is the
- * grain: at this latitude z21 is 0.055 m a pixel, which is the source's own
- * resolution and not a resample. Checked at Tamariu, z21 comes back a 13.9 KB
- * JPEG rather than an empty tile.
- */
-const ICGC_BATHYMETRY_TILES =
-	'https://geoserveis.icgc.cat/servei/catalunya/orto-costa/wms?service=WMS' +
-	'&request=GetMap&version=1.1.1&layers=orto-costa-rgb-5cm-202206-202207-batimetria' +
-	'&styles=&srs=EPSG:3857&format=image/vnd.jpeg-png&transparent=true' +
-	'&width=256&height=256&bbox={bbox-epsg-3857}';
-
-/**
- * The extent both ICGC services declare, and the same rectangle for each. Outside
- * Catalonia neither has anything to answer with, so there is nothing to ask for.
- */
-const ICGC_BOUNDS: [number, number, number, number] = [
-	0.024303, 40.061468, 3.360594, 43.400669
-];
-
-/**
- * A photograph is identified by the one string that is its source id, its layer
- * id and the key a picker stores, so the three cannot drift apart.
- */
-export type PhotographId =
-	| typeof SATELLITE_SOURCE_ID
-	| typeof ICGC_TERRITORIAL_SOURCE_ID
-	| typeof ICGC_SATELLITE_SOURCE_ID
-	| typeof ICGC_BATHYMETRY_SOURCE_ID;
-
-export interface Photograph {
-	readonly id: PhotographId;
-	readonly tiles: string;
-	readonly maxzoom: number;
-	/** Absent means the service answers anywhere on earth, which only PNOA does. */
-	readonly bounds?: [number, number, number, number];
-	readonly attribution: string;
-	/** Ground resolution. A picker has to be able to say what the trade is. */
-	readonly grain: string;
-}
-
-/**
- * Every photograph this map can draw, coarsest first, because a later entry
- * paints over an earlier one and that ordering is the whole feature.
- *
- * All four answer a tile they have nothing for with a 334-byte fully transparent
- * PNG rather than a blank rectangle, which is what `image/vnd.jpeg-png` buys and
- * what lets any subset of them stack: the screen resolves per pixel to the finest
- * photograph in the chosen set that actually has one.
- */
-export const PHOTOGRAPHS: readonly Photograph[] = [
-	{
-		id: SATELLITE_SOURCE_ID,
-		tiles: SATELLITE_TILES,
-		maxzoom: 20,
-		attribution:
-			'<a href="https://pnoa.ign.es/" target="_blank" rel="noopener">PNOA</a> cedido por © Instituto Geográfico Nacional de España',
-		grain: '25 cm'
-	},
-	{
-		id: ICGC_TERRITORIAL_SOURCE_ID,
-		tiles: ICGC_TERRITORIAL_TILES,
-		maxzoom: 19,
-		bounds: ICGC_BOUNDS,
-		attribution:
-			'<a href="https://www.icgc.cat/" target="_blank" rel="noopener">ICGC</a> ortofoto de Catalunya, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>',
-		grain: '25 cm'
-	},
-	{
-		id: ICGC_SATELLITE_SOURCE_ID,
-		tiles: ICGC_SATELLITE_TILES,
-		maxzoom: 20,
-		bounds: ICGC_BOUNDS,
-		attribution:
-			'<a href="https://www.icgc.cat/" target="_blank" rel="noopener">ICGC</a> ortofoto de costa, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>',
-		grain: '10 cm'
-	},
-	{
-		id: ICGC_BATHYMETRY_SOURCE_ID,
-		tiles: ICGC_BATHYMETRY_TILES,
-		maxzoom: 21,
-		bounds: ICGC_BOUNDS,
-		attribution:
-			'<a href="https://www.icgc.cat/" target="_blank" rel="noopener">ICGC</a> ortofoto de costa 5 cm, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>',
-		grain: '5 cm'
-	}
-];
-
-/**
- * Two photographs, and the split between them is the point: PNOA carries the
- * land because it is the only one of the four that has any, and the 5 cm coastal
- * flight carries the water because it is the finest thing flown over it and it
- * shares a survey with the bathymetry underneath.
- *
- * The two 25 cm Catalan layers are left out on purpose. Either one would sit
- * between these and win the land off PNOA at the same grain, for nothing. They
- * stay in `PHOTOGRAPHS` so a diver who wants them can turn them on.
- */
-export const DEFAULT_PHOTOGRAPHS: readonly PhotographId[] = [
-	SATELLITE_SOURCE_ID,
-	ICGC_BATHYMETRY_SOURCE_ID
-];
 
 /** The depth ramp, which is what water no marked depth governs is still drawn in. */
 const rampColour = (): ExpressionSpecification =>
@@ -832,12 +627,17 @@ export interface StyleOptions {
 	/** How much land paint is left over the photograph. Absent is none of it. */
 	readonly landPaint?: PaintLevel;
 	/**
-	 * Which of `PHOTOGRAPHS` the one `satellite` switch turns on. Absent is
-	 * `DEFAULT_PHOTOGRAPHS`. Order here is ignored: the stack always paints in
-	 * catalogue order, coarsest under finest, so a picker cannot put a 25 cm
-	 * photograph over a 5 cm one by listing it second.
+	 * Which borrowed map is under the chart. One id, never a set, so nothing a
+	 * diver can press decides which photograph is on top of which: the catalogue
+	 * in `$lib/domain/basemaps` owns that order and this only names a choice.
 	 */
-	readonly photographs?: readonly PhotographId[];
+	readonly baseMap: BaseMapId;
+	/**
+	 * An archive's own MapLibre style, fetched and made safe to splice in, for the
+	 * one base map that publishes one. Drawn instead of that base map's raster
+	 * while it is here; see `$lib/map/basemap-style.ts`.
+	 */
+	readonly graft?: GraftedBaseMap;
 	/**
 	 * Whether the `world` source has painted yet. Only the hillshade reads it, and
 	 * only because until the land is down that layer lights the DEM's nodata plane
@@ -861,63 +661,68 @@ export interface StyleOptions {
  * `sea-beyond-dem` takes the land level rather than the seabed one for that
  * reason. Its polygon is mostly land, and land is the only place it does harm.
  */
+/** Whether a borrowed map is under the chart, which is what both paint levels answer to. */
+const onBaseMap = (options: StyleOptions): boolean => options.baseMap !== NO_BASE_MAP;
+
 const photoFade = (options: StyleOptions): number =>
-	options.visible.includes('satellite') ? (options.landPaint ?? DEFAULT_LAND_PAINT) : 1;
+	onBaseMap(options) ? (options.landPaint ?? DEFAULT_LAND_PAINT) : 1;
 
 const groundOpacity = (options: StyleOptions): DataDrivenPropertyValueSpecification<number> => {
-	const paint = options.visible.includes('satellite')
-		? (options.seabedPaint ?? DEFAULT_SEABED_PAINT)
-		: 1;
+	const paint = onBaseMap(options) ? (options.seabedPaint ?? DEFAULT_SEABED_PAINT) : 1;
 	return ['interpolate', ['linear'], ['zoom'], 9, 0.55 * paint, 13, 0.92 * paint];
 };
 
 const vis = (options: StyleOptions, id: LayerId): 'visible' | 'none' =>
 	options.visible.includes(id) ? 'visible' : 'none';
 
-/**
- * A photograph draws when the one switch is on and the picker kept it, so asking
- * for the photograph still puts every layer up and down together.
- */
-const photographVis = (options: StyleOptions, id: PhotographId): 'visible' | 'none' =>
-	vis(options, 'satellite') === 'visible' &&
-	(options.photographs ?? DEFAULT_PHOTOGRAPHS).includes(id)
-		? 'visible'
-		: 'none';
+/** Whether the grafted vector style is the thing drawing the chosen base map. */
+const graftDraws = (options: StyleOptions): boolean => options.graft?.id === options.baseMap;
 
-const photographSources = (): Record<string, RasterSourceSpecification> =>
+/**
+ * A tile service draws when the chosen base map lists it, and the catalogue's
+ * order decides which of two sits on top. Nothing here can reorder them.
+ *
+ * The one exception is a base map whose own vector style has arrived: the raster
+ * is the same product, so drawing both would be the same map twice.
+ */
+const serviceVis = (options: StyleOptions, service: string): 'visible' | 'none' =>
+	!graftDraws(options) && serviceDraws(options.baseMap, service) ? 'visible' : 'none';
+
+const baseMapSources = (): Record<string, RasterSourceSpecification> =>
 	Object.fromEntries(
-		PHOTOGRAPHS.map((photo) => [
-			photo.id,
+		TILE_SERVICES.map((service) => [
+			service.id,
 			{
 				type: 'raster',
-				tiles: [photo.tiles],
+				tiles: [service.tiles],
 				tileSize: 256,
-				maxzoom: photo.maxzoom,
-				...(photo.bounds === undefined ? {} : { bounds: photo.bounds }),
-				attribution: photo.attribution
+				maxzoom: service.maxzoom,
+				...(service.bounds === undefined ? {} : { bounds: [...service.bounds] }),
+				attribution: service.attribution
 			} satisfies RasterSourceSpecification
 		])
 	);
 
 /**
- * Every photograph is in the style and the unpicked ones are merely hidden.
+ * Every tile service is in the style and the unchosen ones are merely hidden.
  *
- * Building only the picked layers would be smaller and is the wrong shape:
+ * Building only the chosen layers would be smaller and is the wrong shape:
  * MapLibre's style diff handles a visibility change and cannot express a layer
- * appearing in the middle of the stack, so a picker that adds one back would
- * rebuild the style and drop every warm tile on the screen.
+ * appearing in the middle of the stack, so a picker that switched base maps
+ * would rebuild the style and drop every warm tile on the screen.
  *
  * Hidden also means unattributed. MapLibre credits a source only while a visible
  * layer uses it, which is what stops the credit line naming ICGC over a picture
- * that is entirely PNOA. That mismatch is what the owner reported.
+ * that is entirely PNOA. That mismatch is what the owner reported, and it is the
+ * whole reason the credit rides on the source rather than on a list somewhere.
  */
-const photographLayers = (options: StyleOptions): LayerSpecification[] =>
-	PHOTOGRAPHS.map((photo) => ({
-		id: photo.id,
+const baseMapLayers = (options: StyleOptions): LayerSpecification[] =>
+	TILE_SERVICES.map((service) => ({
+		id: service.id,
 		type: 'raster',
-		source: photo.id,
-		layout: { visibility: photographVis(options, photo.id) },
-		// Never dimmed. What decides whether a photograph can be seen is how much
+		source: service.id,
+		layout: { visibility: serviceVis(options, service.id) },
+		// Never dimmed. What decides whether a base map can be seen is how much
 		// paint is left over it, and that is what the two paint levels are for.
 		// Dimming the picture as well only muddied both.
 		paint: { 'raster-opacity': 1 }
@@ -1427,6 +1232,12 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 	version: 8,
 	name: 'Seabed',
 	glyphs: asset('/fonts/{fontstack}/{range}.pbf'),
+	// The archive's sprite sheet while its style is grafted in, and no sheet
+	// otherwise: this map draws its own markers and textures through the image
+	// registry, so the slot is free for whoever is borrowing it.
+	...(graftDraws(options) && options.graft?.sprite !== undefined
+		? { sprite: options.graft.sprite }
+		: {}),
 	// Every source declares its real maxzoom. Without it MapLibre keeps asking for
 	// tiles above what the archive holds, gets nothing back, and reports no error,
 	// so the map simply empties out as you zoom in. A printed card at 1:2000 sits
@@ -1474,7 +1285,8 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			url: `pmtiles://${asset('/tiles/substrate-raw.pmtiles')}`,
 			maxzoom: 15
 		},
-		...photographSources(),
+		...baseMapSources(),
+		...(graftDraws(options) ? (options.graft?.sources ?? {}) : {}),
 		'dem-edge': { type: 'geojson', data: asset('/data/dem-edge.geojson') },
 		// Land only, and the land is the inside of the 0 m isobath. The line that
 		// bounds it is not in here: it is the 0 m contour in `isobaths`, which is the
@@ -1499,7 +1311,12 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 		// with both on the photograph reads as what is under the paint; a diver who
 		// wants the photograph itself turns the ground layer off, which is the switch
 		// that was already there.
-		...photographLayers(options),
+		...baseMapLayers(options),
+
+		// The archive's own vector style, for the one base map that publishes one.
+		// In the same slot as the rasters and under everything this map draws
+		// itself, because what it replaces is the picture under the chart.
+		...(graftDraws(options) ? (options.graft?.layers ?? []) : []),
 
 		{
 			// Where the bathymetry reached but the habitat survey did not. Left bare it

@@ -30,6 +30,7 @@
 		buildStyle,
 		isobathLayersOf
 	} from './style';
+	import { type GraftedBaseMap, loadBaseMapStyle } from './basemap-style';
 	import { WORLD_SOURCE_ID } from './land';
 	import { failedSource } from './tile-errors';
 	import {
@@ -43,6 +44,7 @@
 	import type { Locale } from '$lib/i18n/locale';
 	import { t } from '$lib/i18n/messages';
 	import type { MapState } from '$lib/state/map-view.svelte';
+	import { baseMapOf } from '$lib/domain/basemaps';
 	import type { LngLat } from '$lib/domain/card';
 
 	interface Props {
@@ -139,6 +141,31 @@
 			layers: built.layers.filter((layer) => !ISOBATH_LAYER_IDS.includes(layer.id))
 		});
 
+	/**
+	 * The archive's own vector style for the chosen base map, once it has arrived.
+	 *
+	 * One base map publishes one and the rest are raster, so this is usually
+	 * undefined and the style builds without it. The raster of the same product is
+	 * in the catalogue beside it, which is what draws while this is in flight and
+	 * what keeps drawing if the fetch never lands.
+	 */
+	let grafted = $state<GraftedBaseMap | undefined>(undefined);
+
+	$effect(() => {
+		const chosen = view.baseMap;
+		const borrowed = baseMapOf(chosen);
+		if (borrowed?.style === undefined) {
+			grafted = undefined;
+			return;
+		}
+		void loadBaseMapStyle(borrowed).then((loaded) => {
+			// The choice may have moved on while the style was in flight, and a graft
+			// that draws over a base map nobody asked for is the credit-line bug one
+			// layer out.
+			if (untrack(() => view.baseMap) === chosen) grafted = loaded;
+		});
+	});
+
 	const style = $derived(
 		buildStyle({
 			locale: view.locale,
@@ -149,6 +176,8 @@
 			textures: view.textures,
 			seabedPaint: view.seabedPaint,
 			landPaint: view.landPaint,
+			baseMap: view.baseMap,
+			...(grafted === undefined ? {} : { graft: grafted }),
 			worldPainted: view.worldPainted
 		})
 	);

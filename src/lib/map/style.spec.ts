@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { featureFilter } from '@maplibre/maplibre-gl-style-spec';
 import {
 	GROUND_BY_LAYER,
-	PHOTOGRAPHS,
 	type LayerWriter,
 	type StyleOptions,
 	applyIsobathLayers,
 	buildStyle,
 	isobathLayersOf
 } from './style.ts';
+import { NO_BASE_MAP } from '$lib/domain/basemaps';
 import {
 	DEFAULT_ISOBATHS,
 	DEFAULT_LAYERS,
@@ -25,6 +25,8 @@ import {
 } from '$lib/domain/isobaths';
 import { DANGER_TAG_PREFIX, DIVE_NUMBER_KEYS, DIVE_TAG_KEYS } from '$lib/domain/osm';
 import { MARKER_CLOSE } from './markers.ts';
+import { graftStyle } from './basemap-style.ts';
+import { TILE_SERVICES } from '$lib/domain/basemaps';
 
 const options = (extra: Partial<StyleOptions> = {}): StyleOptions => ({
 	locale: 'ca',
@@ -32,11 +34,10 @@ const options = (extra: Partial<StyleOptions> = {}): StyleOptions => ({
 	visible: DEFAULT_LAYERS,
 	groundLayer: 'habitats',
 	smoothed: true,
+	baseMap: NO_BASE_MAP,
 	worldPainted: true,
 	...extra
 });
-
-const withPhoto = (visible: readonly LayerId[]): readonly LayerId[] => [...visible, 'satellite'];
 
 const withHalo = (halo: Partial<IsobathHalo>): IsobathStyle => ({
 	...DEFAULT_ISOBATHS,
@@ -56,11 +57,11 @@ const groundStops = (style: StyleOptions): readonly number[] => {
 	return [opacity[4], opacity[6]] as number[];
 };
 
-describe('the ortophoto and the paint over it', () => {
+describe('the base map and the paint over it', () => {
 	const withSatellite = (extra: Partial<StyleOptions> = {}): StyleOptions =>
-		options({ visible: withPhoto(DEFAULT_LAYERS), ...extra });
+		options({ baseMap: 'satellite-costa', ...extra });
 
-	it('leaves the seabed at full paint when the photograph is off', () => {
+	it('leaves the seabed at full paint when no base map is chosen', () => {
 		expect(groundStops(options())).toEqual([0.55, 0.92]);
 	});
 
@@ -82,7 +83,7 @@ describe('the ortophoto and the paint over it', () => {
 		expect(at(0)).toBe(0);
 	});
 
-	it('never dims the photograph itself, whatever the paint says', () => {
+	it('never dims the base map itself, whatever the paint says', () => {
 		for (const seabedPaint of [0, 0.5, 1] as const) {
 			expect(paintOf(withSatellite({ seabedPaint }), 'satellite')['raster-opacity']).toBe(1);
 		}
@@ -99,56 +100,87 @@ describe('the ortophoto and the paint over it', () => {
 	 * because it is the only one of the four with any, and the 5 cm coastal flight
 	 * carries the water. So this ordering is the feature, not an accident.
 	 */
-	it('draws the 5 cm coastal photograph over the national one by default', () => {
+	it('draws the 5 cm coastal photograph over the national one for Costa', () => {
 		const ids = buildStyle(withSatellite()).layers.map((l) => l.id);
 		expect(ids.indexOf('satellite-icgc-bathymetry')).toBeGreaterThan(ids.indexOf('satellite'));
 	});
 
-	it('puts up those two and leaves the other photographs down', () => {
+	it('puts up the two Costa draws from and leaves every other service down', () => {
 		const up = (id: string) =>
 			buildStyle(withSatellite()).layers.find((l) => l.id === id)?.layout?.visibility;
 		expect(up('satellite')).toBe('visible');
 		expect(up('satellite-icgc-bathymetry')).toBe('visible');
 		expect(up('satellite-icgc-territorial')).toBe('none');
-		expect(up('satellite-icgc')).toBe('none');
+		expect(up('standard-osm')).toBe('none');
 	});
 
 	/**
-	 * A picker stores a set, never an order. Listing a 25 cm photograph after the
-	 * 5 cm one must not put it on top, so the stack is always drawn in catalogue
-	 * order and the option is read as membership.
+	 * Two base maps share PNOA, and the one that is not chosen must not credit it.
+	 * MapLibre credits a source only while a visible layer uses it, which is the
+	 * whole mechanism behind the credit line naming what is actually drawn.
 	 */
-	it('paints picked photographs coarsest first whatever order they were asked for', () => {
-		const ids = buildStyle(
-			withSatellite({ photographs: ['satellite-icgc-bathymetry', 'satellite-icgc-territorial'] })
-		).layers.map((l) => l.id);
-		expect(ids.indexOf('satellite-icgc-bathymetry')).toBeGreaterThan(
-			ids.indexOf('satellite-icgc-territorial')
-		);
+	it('draws one service under a base map that names one', () => {
+		const up = (id: string) =>
+			buildStyle(options({ baseMap: 'classic-icgc' })).layers.find((l) => l.id === id)?.layout
+				?.visibility;
+		expect(up('classic-icgc')).toBe('visible');
+		expect(up('satellite')).toBe('none');
+		expect(up('standard-icgc')).toBe('none');
 	});
 
-	it('lets a diver ask for a photograph the default leaves out', () => {
-		const layer = buildStyle(
-			withSatellite({ photographs: ['satellite-icgc'] })
-		).layers.find((l) => l.id === 'satellite-icgc');
-		expect(layer?.layout?.visibility).toBe('visible');
+	it('hangs the credit for every service on the source it is owed for', () => {
+		const sources = buildStyle(options()).sources;
+		for (const service of TILE_SERVICES) {
+			const source = sources[service.id];
+			expect(source, service.id).toBeDefined();
+			expect(source && 'attribution' in source && source.attribution).toBe(service.attribution);
+		}
 	});
 
 	/**
-	 * Every photograph stays in the style and the unpicked ones are merely hidden,
-	 * so turning one back on is a visibility diff rather than a style rebuild that
+	 * Every service stays in the style and the unchosen ones are merely hidden, so
+	 * switching base maps is a visibility diff rather than a style rebuild that
 	 * would drop every warm tile on screen.
 	 */
-	it('keeps every photograph in the style whatever the picker says', () => {
-		const ids = buildStyle(withSatellite({ photographs: [] })).layers.map((l) => l.id);
-		for (const photo of PHOTOGRAPHS) expect(ids).toContain(photo.id);
+	it('keeps every tile service in the style whatever the picker says', () => {
+		const ids = buildStyle(options()).layers.map((l) => l.id);
+		for (const service of TILE_SERVICES) expect(ids).toContain(service.id);
 	});
 
-	it('puts every photograph away together', () => {
-		for (const photo of PHOTOGRAPHS) {
-			const layer = buildStyle(options()).layers.find((l) => l.id === photo.id);
+	it('puts every base map away together for none', () => {
+		for (const service of TILE_SERVICES) {
+			const layer = buildStyle(options()).layers.find((l) => l.id === service.id);
 			expect(layer?.layout?.visibility).toBe('none');
 		}
+	});
+
+	/**
+	 * The archive's own vector style and its own raster are the same product, so
+	 * drawing both would be the map twice and would credit it twice.
+	 */
+	it('stands the raster down once the vector style has arrived', () => {
+		const graft = graftStyle('standard-icgc', {
+			version: 8,
+			sources: { vt: { type: 'vector', tiles: ['https://example.test/{z}/{x}/{y}.pbf'] } },
+			layers: [{ id: 'roads', type: 'line', source: 'vt', 'source-layer': 'road' }]
+		});
+		const built = buildStyle(options({ baseMap: 'standard-icgc', graft }));
+		const up = (id: string) => built.layers.find((l) => l.id === id)?.layout?.visibility;
+		expect(up('standard-icgc')).toBe('none');
+		expect(built.layers.some((l) => l.id === 'basemap-roads')).toBe(true);
+		expect(built.sources['basemap-vt']).toBeDefined();
+	});
+
+	/** A style fetched for one base map must never draw under another. */
+	it('ignores a graft fetched for a base map nobody is on', () => {
+		const graft = graftStyle('standard-icgc', {
+			version: 8,
+			sources: { vt: { type: 'vector', tiles: ['https://example.test/{z}/{x}/{y}.pbf'] } },
+			layers: [{ id: 'roads', type: 'line', source: 'vt', 'source-layer': 'road' }]
+		});
+		const built = buildStyle(options({ baseMap: 'classic-ign', graft }));
+		expect(built.layers.some((l) => l.id === 'basemap-roads')).toBe(false);
+		expect(built.layers.find((l) => l.id === 'classic-ign')?.layout?.visibility).toBe('visible');
 	});
 
 	/**
@@ -200,9 +232,7 @@ describe('the ortophoto and the paint over it', () => {
 	it('leaves the veil and the wash reading one switch, with no clause of their own', () => {
 		for (const id of ['depth-veil', 'sea-beyond-dem']) {
 			const on = buildStyle(withSatellite()).layers.find((l) => l.id === id);
-			const off = buildStyle(withSatellite({ visible: ['satellite'] })).layers.find(
-				(l) => l.id === id
-			);
+			const off = buildStyle(withSatellite({ visible: [] })).layers.find((l) => l.id === id);
 			expect([on?.layout?.visibility, off?.layout?.visibility]).toEqual(['visible', 'none']);
 		}
 	});
@@ -234,7 +264,7 @@ describe('isobath contrast', () => {
 	});
 
 	it('turns the shadow into a centred casing wider than the line when the outline is on', () => {
-		const drawn = options({ visible: withPhoto(DEFAULT_LAYERS), isobaths: withHalo({ on: true }) });
+		const drawn = options({ baseMap: 'satellite-costa', isobaths: withHalo({ on: true }) });
 		const casing = paintOf(drawn, 'isobath-glow');
 		expect(casing['line-translate']).toEqual([0, 0]);
 
@@ -348,7 +378,7 @@ describe('every flat wash on the land side of the shore', () => {
 	];
 
 	const withSatellite = (landPaint: 0 | 1): StyleOptions =>
-		options({ visible: withPhoto(DEFAULT_LAYERS), landPaint });
+		options({ baseMap: 'satellite-costa', landPaint });
 
 	it('clears for the photograph when the land is handed over', () => {
 		for (const id of FLAT_WASHES) {

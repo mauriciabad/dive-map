@@ -239,7 +239,6 @@ const FIXED_LAYERS: Record<Exclude<LayerId, MarkerLayerId>, true> = {
 	isobaths: true,
 	habitats: true,
 	substrate: true,
-	satellite: true,
 	flourishes: true,
 	coastline: true,
 	osm: true,
@@ -329,13 +328,17 @@ const parseTextures = (value: unknown): TextureChoices => {
  *
  * A blob carrying no `baseMap` at all was written before the picker existed,
  * when the whole question was one `satellite` switch that meant the 5 cm coastal
- * flight over PNOA. That pair is `satellite-costa` now, so a diver who saved a
- * setup with the photograph on gets the same photograph back.
+ * flight over PNOA. That switch is gone and that pair is `satellite-costa` now,
+ * so a diver who saved a setup with the photograph on gets the same photograph
+ * back.
  */
-const parseBaseMap = (value: unknown, layers: readonly LayerId[]): BaseMapId => {
+const parseBaseMap = (value: unknown, layers: unknown): BaseMapId => {
 	if (isBaseMapId(value)) return value;
 	if (value !== undefined) return NO_BASE_MAP;
-	return layers.includes('satellite') ? 'satellite-costa' : NO_BASE_MAP;
+	// The raw stored array rather than the parsed one. `satellite` is not a layer
+	// id any more, so `parseLayers` drops it, and the flag this migration reads
+	// would be gone before it got here.
+	return Array.isArray(layers) && layers.includes('satellite') ? 'satellite-costa' : NO_BASE_MAP;
 };
 
 /**
@@ -376,7 +379,7 @@ export const parseConfiguration = (value: unknown, locale: Locale): Configuratio
 		// something a control can show as chosen.
 		seabedPaint: isPaintLevel(value['seabedPaint']) ? value['seabedPaint'] : DEFAULT_SEABED_PAINT,
 		landPaint: isPaintLevel(value['landPaint']) ? value['landPaint'] : DEFAULT_LAND_PAINT,
-		baseMap: parseBaseMap(value['baseMap'], layers),
+		baseMap: parseBaseMap(value['baseMap'], value['layers']),
 		quickToggle: parseQuickPair(value['quickToggle']),
 		...(print === undefined ? {} : { print })
 	};

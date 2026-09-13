@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { NO_BASE_MAP } from '$lib/domain/basemaps';
 import { DEFAULT_ISOBATHS, DEFAULT_LAYERS } from '$lib/domain/card';
 import { type Ground, HABITATS, SUBSTRATES, substrateByCode } from '$lib/domain/habitat';
 import { buildStyle } from '$lib/map/style';
@@ -282,6 +283,7 @@ describe('the layers a tap is allowed to hit', () => {
 			locale: 'ca',
 			smoothed: true,
 			worldPainted: true,
+			baseMap: NO_BASE_MAP,
 			isobaths: DEFAULT_ISOBATHS,
 			visible: [...DEFAULT_LAYERS],
 			groundLayer

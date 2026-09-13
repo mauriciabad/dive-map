@@ -153,6 +153,11 @@
 					textures: view.textures,
 					seabedPaint: view.seabedPaint,
 					landPaint: view.landPaint,
+					// The raster of whichever base map is under the chart. A sheet never
+					// carries the grafted vector style: it is fetched, and an export that
+					// waited on a third party's JSON would fail on a boat. The raster is
+					// the same product from the same archive.
+					baseMap: view.baseMap,
 					// The sheet is rendered on its own offscreen map and captured only
 					// once that map has settled, so there is no race for the hillshade to
 					// lose here and nothing to hold it back for.

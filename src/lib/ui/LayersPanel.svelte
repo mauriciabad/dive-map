@@ -1,4 +1,5 @@
 <script lang="ts">
+	import BaseMapPicker from './BaseMapPicker.svelte';
 	import Panel from './Panel.svelte';
 	import Action from './controls/Action.svelte';
 	import Field from './controls/Field.svelte';
@@ -9,6 +10,7 @@
 	import type { Choice } from './controls/types';
 	import type { IconName } from './icons';
 	import { PANEL_ID } from './panel';
+	import { type BaseMapId, NO_BASE_MAP } from '$lib/domain/basemaps';
 	import type { LayerId } from '$lib/domain/card';
 	import type { Ground } from '$lib/domain/habitat';
 	import { type MessageKey, t } from '$lib/i18n/messages';
@@ -74,20 +76,19 @@
 		<Note>{t(view.locale, 'accuracyNote')}</Note>
 	</Field>
 
-	<div class="rows">
-		<Toggle
-			label={t(view.locale, 'satellite')}
-			icon="satellite"
-			pressed={view.shows('satellite')}
-			onchange={() => {
-				view.toggle('satellite');
+	<Field label={t(view.locale, 'baseMap')}>
+		<BaseMapPicker
+			locale={view.locale}
+			chosen={[view.baseMap]}
+			onpick={(id: BaseMapId) => {
+				view.setBaseMap(id);
 			}}
 		/>
-		{#if view.shows('satellite')}
+		{#if view.baseMap !== NO_BASE_MAP}
 			<!--
-				The photograph is always at full strength. What a diver dials is how much
+				The base map is always at full strength. What a diver dials is how much
 				of the map's own paint goes back over it, one slider per side of the
-				shore. Both start at nothing, because a switch that says photograph
+				shore. Both start at nothing, because asking for a map under the chart
 				should produce one.
 			-->
 			<div class="under">
@@ -111,6 +112,26 @@
 				</Field>
 			</div>
 		{/if}
+	</Field>
+
+	<!--
+		Which two the corner button flicks between, chosen the same way and from the
+		same ten. Picking one pushes the resting map into the other slot, so any pair
+		is two taps, no tap can leave a slot empty and no tap can put the same map in
+		both. That rule is `withQuickChoice` in the catalogue.
+	-->
+	<Field label={t(view.locale, 'quickToggle')}>
+		<BaseMapPicker
+			locale={view.locale}
+			chosen={view.quickToggle}
+			onpick={(id: BaseMapId) => {
+				view.chooseQuick(id);
+			}}
+		/>
+		<Note>{t(view.locale, 'quickToggleNote')}</Note>
+	</Field>
+
+	<div class="rows">
 		<!--
 			The depth veil row stays on screen while the photograph holds it off. It used
 			to be dropped from the list, which left a diver who had just turned the
@@ -156,9 +177,12 @@
 		gap: 0.2rem;
 	}
 
-	/* Indented so the strength reads as belonging to the switch above it rather
-	   than as a seventh layer. */
+	/* Indented so the two paint levels read as belonging to the base map above
+	   them rather than as layers of their own. */
 	.under {
-		padding: 0.15rem 0 0.35rem 1.9rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+		padding: 0.15rem 0 0.1rem 0.9rem;
 	}
 </style>

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { NO_BASE_MAP } from '$lib/domain/basemaps';
 import { DEFAULT_ISOBATHS, DEFAULT_LAYERS } from '$lib/domain/card';
 import { HABITATS, NO_TEXTURE_CHOICES, SUBSTRATES, catalogueOf } from '$lib/domain/habitat';
 import { buildStyle } from '$lib/map/style';
@@ -109,6 +110,7 @@ describe('the hatch the panel explains by name', () => {
 			locale: 'ca',
 			smoothed: true,
 			worldPainted: true,
+			baseMap: NO_BASE_MAP,
 			isobaths: DEFAULT_ISOBATHS,
 			visible: [...DEFAULT_LAYERS],
 			groundLayer

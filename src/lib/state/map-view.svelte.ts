@@ -91,10 +91,9 @@ export class MapState {
 	 * Which borrowed map is under the chart. One choice, never a set, so nothing
 	 * here can reorder a photograph stack; see `$lib/domain/basemaps`.
 	 *
-	 * Written only through `setBaseMap`, which also mirrors it onto the `satellite`
-	 * layer flag. That mirror is temporary. The style still asks `visible` whether
-	 * to draw a photograph, and it goes the moment the style reads this field
-	 * instead, which is the same wave that takes `satellite` out of `LayerId`.
+	 * The style reads this field directly. Everything that used to ask the
+	 * `satellite` layer flag whether a photograph was on asks `#onBaseMap` now,
+	 * and that flag is gone from `LayerId` entirely.
 	 */
 	baseMap = $state<BaseMapId>(DEFAULT_BASE_MAP);
 
@@ -214,7 +213,6 @@ export class MapState {
 		this.landPaint = configuration.landPaint;
 		this.baseMap = configuration.baseMap;
 		this.quickToggle = configuration.quickToggle;
-		this.#mirrorBaseMap();
 		// Through the print state's own transitions rather than over its fields, so a
 		// stored pixel sheet carrying a scale ratio comes back framed by zoom. The
 		// latitude is the live one because that is where the ratio has to hold.
@@ -246,23 +244,18 @@ export class MapState {
 		return this.visible.has(id);
 	}
 
-	/** Whether the photograph is holding this layer's switch down, so the panel can say why. */
+	/** Whether any borrowed map is under the chart. */
+	get #onBaseMap(): boolean {
+		return this.baseMap !== NO_BASE_MAP;
+	}
+
+	/** Whether the base map is holding this layer's switch down, so the panel can say why. */
 	lockedByPhoto(id: LayerId): boolean {
-		return this.visible.has('satellite') && SUSPENDED_BY_PHOTO.some((l) => l.id === id && l.locked);
+		return this.#onBaseMap && SUSPENDED_BY_PHOTO.some((l) => l.id === id && l.locked);
 	}
 
 	toggle(id: LayerId): void {
 		if (this.lockedByPhoto(id)) return;
-		/*
-		 * The old photograph switch is the base map picker with one option in it, and
-		 * routing it through `setBaseMap` is what keeps the two from disagreeing.
-		 * `satellite-costa` is the pair this switch has always meant. The whole branch
-		 * goes when the picker replaces the switch and `satellite` leaves `LayerId`.
-		 */
-		if (id === 'satellite') {
-			this.setBaseMap(this.baseMap === NO_BASE_MAP ? 'satellite-costa' : NO_BASE_MAP);
-			return;
-		}
 		if (!this.visible.delete(id)) this.visible.add(id);
 		// Flipping a suspended layer by hand is the diver taking it back, so there is
 		// no longer anything of theirs to restore when the photograph goes away.
@@ -296,7 +289,7 @@ export class MapState {
 	}
 
 	#settleHalo(): void {
-		if (this.visible.has('satellite')) {
+		if (this.#onBaseMap) {
 			if (haloOf(this.isobaths).on) return;
 			this.#haloRaised = true;
 			this.#drawHalo(true);
@@ -323,7 +316,7 @@ export class MapState {
 	 */
 	#settlePhoto(): void {
 		this.#settleHalo();
-		if (this.visible.has('satellite')) {
+		if (this.#onBaseMap) {
 			this.#suspended.clear();
 			for (const { id } of SUSPENDED_BY_PHOTO) {
 				if (this.visible.delete(id)) this.#suspended.add(id);
@@ -343,7 +336,6 @@ export class MapState {
 	 */
 	setBaseMap(id: BaseMapId): void {
 		this.baseMap = id;
-		this.#mirrorBaseMap();
 		this.#settlePhoto();
 	}
 
@@ -364,19 +356,6 @@ export class MapState {
 	 */
 	chooseQuick(id: BaseMapId): void {
 		this.quickToggle = withQuickChoice(this.quickToggle, id);
-	}
-
-	/**
-	 * The `satellite` flag, brought in line with the chosen base map.
-	 *
-	 * Apart from `#settlePhoto` because `apply` runs that once at the end of a
-	 * whole configuration, and running it twice against a base map that is on
-	 * would clear the suspended set and then find nothing left in `visible` to put
-	 * in it, which loses what the diver had on before.
-	 */
-	#mirrorBaseMap(): void {
-		if (this.baseMap === NO_BASE_MAP) this.visible.delete('satellite');
-		else this.visible.add('satellite');
 	}
 
 	toggleLabels(): void {
