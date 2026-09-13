@@ -81,23 +81,12 @@ export interface IsobathPaint {
 	readonly marks: Readonly<Record<number, MarkPaint>>;
 	/** What the contours carry under them. */
 	readonly halo: IsobathHalo;
-	/**
-	 * Whether a marked line that no band reaches keeps a colour of its own.
-	 *
-	 * A line can end up with nothing to paint: the 0 m contour painting upwards has
-	 * no water above it, and a mark on the maximum depth painting downwards has none
-	 * below. 0 m is always marked, so painting upwards always lands on this. Off
-	 * makes the line follow the band beside it, so the band and its edge read as
-	 * one colour.
-	 */
-	readonly edgeOwnColour: boolean;
 }
 
 export const DEFAULT_PAINT: IsobathPaint = {
 	method: 'upwards',
 	marks: {},
-	halo: DEFAULT_HALO,
-	edgeOwnColour: true
+	halo: DEFAULT_HALO
 };
 
 /**
@@ -261,8 +250,11 @@ export const paintedBands = (style: IsobathStyle): readonly PaintedBand[] => {
 	const beside = (index: number): string | undefined =>
 		marks[paintOf(style).method === 'upwards' ? index + 1 : index - 1]?.colour;
 
+	// A line no band reaches follows the band beside it. The 0 m contour painting
+	// upwards is the case that matters: it is the coastline, and a colour of its
+	// own there is the special line the owner asked twice to be rid of.
 	const colourOf = (mark: DepthMark, index: number): string | undefined =>
-		mark.noBand && !paintOf(style).edgeOwnColour ? beside(index) : mark.colour;
+		mark.noBand ? beside(index) : mark.colour;
 
 	const bands: PaintedBand[] = [];
 	if (paintOf(style).method === 'upwards') {
@@ -405,9 +397,6 @@ export const withMethod = (style: IsobathStyle, method: PaintMethod): IsobathSty
 	return { ...style, emphasised: depths, paint: { ...current, method, marks } };
 };
 
-export const withEdgeOwnColour = (style: IsobathStyle, edgeOwnColour: boolean): IsobathStyle =>
-	withPaint(style, { ...paintOf(style), edgeOwnColour });
-
 const withMarkPaint = (style: IsobathStyle, depthM: number, paint: MarkPaint): IsobathStyle => {
 	const current = paintOf(style);
 	return withPaint(style, { ...current, marks: { ...current.marks, [depthM]: paint } });
@@ -500,8 +489,7 @@ export const parseIsobathPaint = (value: unknown): Pick<IsobathStyle, 'paint'> =
 		paint: {
 			method: method === 'upwards' ? 'upwards' : 'downwards',
 			marks,
-			halo: parseHalo(value['halo']),
-			edgeOwnColour: value['edgeOwnColour'] !== false
+			halo: parseHalo(value['halo'])
 		}
 	};
 };

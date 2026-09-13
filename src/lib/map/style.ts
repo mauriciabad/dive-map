@@ -1521,8 +1521,8 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 				// they are the cuts at the two borders and the synthetic inland closure.
 				// Over the world land outside them that pixel reads 53 against 74 and
 				// comes and goes with the tile simplification, which is what drew a dotted
-				// rectangle across Aragon. The coast itself is drawn by `shoreline`, so
-				// nothing here needs an outline.
+				// rectangle across Aragon. The coast is the 0 m contour the isobath layer
+				// draws, so nothing here needs an outline.
 				'fill-antialias': false
 			}
 		},
@@ -1556,57 +1556,6 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			visible: options.visible.includes('coastline'),
 			photoFade: photoFade(options)
 		}),
-
-		{
-			// The shoreline, drawn from the 0 m isobath rather than from the land
-			// polygon under it. Two reasons, and both have been paid for. Stroking the
-			// polygon draws the synthetic inland closure and the straight cuts at the
-			// French and Valencian borders as if they were coast. And the polygon is a
-			// stitched, simplified reading of this contour, where this is the contour
-			// itself, including the harbour walls and river channels the stitch walks
-			// past and the island rings that used to need a second layer to get drawn.
-			id: 'shoreline',
-			type: 'line',
-			source: 'isobaths',
-			'source-layer': 'isobaths',
-			filter: ['==', ['to-number', ['get', 'depth']], 0],
-			layout: { visibility: vis(options, 'coastline'), 'line-join': 'round' },
-			paint: {
-				'line-color': PALETTE.landEdge,
-				'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 18, 3.5]
-			}
-		},
-
-		{
-			// The coastline, as the survey itself drew it. The habitat and substrate
-			// polygons were cut against the 0 m isobath, so this is the one line the
-			// painted ground is guaranteed to meet, and it is the line the land fill
-			// is the inside of. Its own switch, on by default, because a diver reading
-			// a shore entry wants to see exactly where the water starts.
-			id: 'zero-isobath-glow',
-			type: 'line',
-			source: 'isobaths',
-			'source-layer': 'isobaths',
-			filter: ['==', ['to-number', ['get', 'depth']], 0],
-			layout: { visibility: vis(options, 'zero-isobath'), 'line-join': 'round' },
-			paint: {
-				'line-color': 'rgba(8, 20, 28, 0.75)',
-				'line-blur': 2,
-				'line-width': ['interpolate', ['linear'], ['zoom'], 10, 2.4, 14, 4.5, 18, 8]
-			}
-		},
-		{
-			id: 'zero-isobath',
-			type: 'line',
-			source: 'isobaths',
-			'source-layer': 'isobaths',
-			filter: ['==', ['to-number', ['get', 'depth']], 0],
-			layout: { visibility: vis(options, 'zero-isobath'), 'line-join': 'round' },
-			paint: {
-				'line-color': '#ffe9b0',
-				'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 14, 2, 18, 4]
-			}
-		},
 
 		// Under the chart marks, so a dive site always wins the pixels a gorgonian
 		// record wants. MapLibre places the later layer first and a placed symbol

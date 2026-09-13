@@ -1,17 +1,14 @@
 <script lang="ts">
 	import Icon from '../Icon.svelte';
-	import Toggle from './Toggle.svelte';
 	import type { IsobathStyle } from '$lib/domain/card';
 	import {
 		contourColour,
 		contourDepths,
 		depthMarks,
 		metresLabel,
-		paintOf,
 		paintedBands,
 		readableInk,
 		withColour,
-		withEdgeOwnColour,
 		withEmphasis,
 		withMark,
 		withMarkAt,
@@ -66,16 +63,13 @@
 	const marks = $derived(new Map(depthMarks(style).map((mark) => [mark.depthM, mark])));
 	/**
 	 * The surface is always on the ruler, whether or not it is marked, because it
-	 * is the top of the thing. The map draws the shoreline there under its own
-	 * switch, and pressing this line is the only way 0 m ever becomes a mark.
+	 * is the top of the thing. Pressing this line is the only way 0 m ever becomes
+	 * a mark, and marking it is what puts the coastline in the contour ink.
 	 */
 	const contours = $derived.by(() => {
 		const drawn = contourDepths(style, zoom);
 		return drawn.includes(0) ? drawn : [0, ...drawn];
 	});
-	const edge = $derived(depthMarks(style).find((mark) => mark.noBand));
-	const ownEdge = $derived(paintOf(style).edgeOwnColour);
-
 	const height = $derived(
 		Math.min(TALLEST_REM, Math.max(SHORTEST_REM, style.maxDepthM * PER_METRE_REM))
 	);
@@ -199,23 +193,27 @@
 
 				<span class="stroke"></span>
 
-				<label class={['swatch', { hollow: mark.noBand && !ownEdge }]}>
-					<input
-						type="color"
-						value={mark.colour}
-						aria-label={t(locale, 'markColour', { depth })}
-						oninput={(event) => {
-							const picked = event.currentTarget.value;
-							raised = depth;
-							onchange(
-								mark.noBand && !ownEdge
-									? withEdgeOwnColour(withColour(style, depth, picked), true)
-									: withColour(style, depth, picked)
-							);
-						}}
-					/>
-					<Icon name={mark.noBand && !ownEdge ? 'close' : 'annotate'} size={13} />
-				</label>
+				{#if mark.noBand}
+					<!--
+						A line no band reaches follows the band beside it, so there is no
+						colour of its own to pick. Hollow and unpressable rather than absent,
+						so the row keeps the shape every other row has.
+					-->
+					<span class="swatch hollow"><Icon name="close" size={13} /></span>
+				{:else}
+					<label class="swatch">
+						<input
+							type="color"
+							value={mark.colour}
+							aria-label={t(locale, 'markColour', { depth })}
+							oninput={(event) => {
+								raised = depth;
+								onchange(withColour(style, depth, event.currentTarget.value));
+							}}
+						/>
+						<Icon name="annotate" size={13} />
+					</label>
+				{/if}
 
 				<button
 					type="button"
@@ -255,16 +253,6 @@
 		{/if}
 	{/each}
 </div>
-
-{#if edge !== undefined}
-	<Toggle
-		label={t(locale, 'edgeOwnColour', { depth: edge.depthM })}
-		pressed={ownEdge}
-		onchange={() => {
-			onchange(withEdgeOwnColour(style, !ownEdge));
-		}}
-	/>
-{/if}
 
 <style>
 	.ruler {
@@ -426,6 +414,7 @@
 		background: transparent;
 		border: 1px solid var(--control-rim);
 		color: var(--control-ink-off);
+		cursor: default;
 	}
 
 	.swatch input {

@@ -37,7 +37,6 @@ export type MarkerLayerId = `marker-${DiveFeatureKind}`;
 export const markerLayerId = (kind: DiveFeatureKind): MarkerLayerId => `marker-${kind}`;
 
 export type LayerId =
-	| 'zero-isobath'
 	| 'hillshade'
 	| 'depth-tint'
 	| 'isobaths'
@@ -155,7 +154,6 @@ export interface DiveCard {
 }
 
 export const DEFAULT_LAYERS: readonly LayerId[] = [
-	'zero-isobath',
 	'hillshade',
 	'depth-tint',
 	'isobaths',

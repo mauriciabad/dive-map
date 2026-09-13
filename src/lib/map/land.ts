@@ -268,8 +268,8 @@ export const landSandLayers = (options: LandOptions): LayerSpecification[] => {
  * and a lagoon behind a beach is why the entry silts. Everything else on land is
  * context; this is cause.
  *
- * Slots between the land fill and the shoreline, so the drawn coast stays the
- * sharpest edge on the map and nothing here can spill past it.
+ * Slots above the land fill, inside the polygon it is drawn on, so a river mouth
+ * stops where the land does and nothing here can spill into the sea.
  */
 export const landWaterLayers = (options: LandOptions): LayerSpecification[] => {
 	const layout = { visibility: visibility(options) } as const;

@@ -12,7 +12,6 @@ import {
 	paintedBands,
 	parseIsobathPaint,
 	withColour,
-	withEdgeOwnColour,
 	withEmphasis,
 	withMark,
 	withMarkAt,
@@ -100,15 +99,17 @@ describe('the line no band reaches', () => {
 		expect(colourAt(style, 85)).toBe(colourAt(style, 80));
 	});
 
-	it('keeps its own colour, or follows the band beside it', () => {
-		const own = wireframe('downwards');
-		expect(colourAt(own, 80)).not.toBe(colourAt(own, 79));
-		const shared = withEdgeOwnColour(own, false);
-		expect(colourAt(shared, 80)).toBe(colourAt(shared, 79));
+	/**
+	 * It used to keep a colour of its own, under a switch in the panel. The owner
+	 * asked twice for the 0 m contour to be the coastline and nothing else, so the
+	 * switch and the colour are gone and the line follows its neighbour.
+	 */
+	it('follows the band beside it', () => {
+		const down = wireframe('downwards');
+		expect(colourAt(down, 80)).toBe(colourAt(down, 79));
 
 		const up = wireframe('upwards');
-		expect(colourAt(up, 0)).not.toBe(colourAt(up, 1));
-		expect(colourAt(withEdgeOwnColour(up, false), 0)).toBe(colourAt(up, 1));
+		expect(colourAt(up, 0)).toBe(colourAt(up, 1));
 	});
 });
 
@@ -279,12 +280,10 @@ describe('reading back what the ruler wrote', () => {
 				5: { colour: 'red' },
 				18: { colour: '#00ff00', plain: true },
 				'-2': { colour: '#fff000' }
-			},
-			edgeOwnColour: false
+			}
 		});
 		expect(read.paint?.marks).toEqual({ 18: { colour: '#00ff00', plain: true } });
 		expect(read.paint?.method).toBe('upwards');
-		expect(read.paint?.edgeOwnColour).toBe(false);
 	});
 
 	it('reads a method it does not know as the one the map has always used', () => {

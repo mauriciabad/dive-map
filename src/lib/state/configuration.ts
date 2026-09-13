@@ -233,7 +233,6 @@ const booleanOr = (value: unknown, fallback: boolean): boolean =>
  * OSM kinds for the same reason.
  */
 const FIXED_LAYERS: Record<Exclude<LayerId, MarkerLayerId>, true> = {
-	'zero-isobath': true,
 	hillshade: true,
 	'depth-tint': true,
 	isobaths: true,
