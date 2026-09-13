@@ -42,17 +42,48 @@ inject a repo-name base path.
 
 ## The app icon
 
-`pipeline/scripts/build_icons.mjs` draws the icon and writes every raster into `static/`.
-It is the source; the PNGs and the `.ico` are outputs, so edit the script and rerun it
-rather than touching a file in `static/icons/`.
+The artwork is three hand-drawn SVGs in `pipeline/icons/`, kept exactly as they were
+exported. `pipeline/scripts/build_favicons.mjs` is the only thing that reads them, and it
+writes all seven served assets into `static/`. Redraw a source and rerun the script. Do
+not edit a file in `static/icons/`, and nothing ever writes back into `pipeline/icons/`.
 
-One coastline is authored. The seabed bands are offsets of it, damped toward the mean
-shore as they go deeper, so moving the coast moves the whole seabed with it. The drawing
-is laid out in a 160-unit world and cropped twice: `any` takes a tight crop, `maskable`
-takes a wider one so land and open water run off all four edges. A maskable icon that is
-the `any` icon with padding is the usual mistake, and a launcher's circular crop then eats
-a border instead of paint. `docs/shots/pwa-maskable-safezone.png` shows both crops against
-the safe circle.
+```sh
+node pipeline/scripts/build_favicons.mjs
+node pipeline/scripts/build_favicons.mjs --contact docs/shots/icon-contact.png
+```
+
+The three files are separate compositions rather than one drawing at three paddings, and
+keeping them that way is the whole point. `--contact` renders all three against a circle,
+a squircle, the safe zone and a dark tab strip at 16, 32 and 48, which is how the choices
+below were made rather than assumed.
+
+| source                 | feeds                                                                                                          | why                                                                                                                                                                                                                              |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `favicon-full.svg`     | `apple-touch-icon.png` at 180                                                                                  | Bleeds to all four edges. Apple rounds this icon itself, so handing it the pre-rounded drawing rounds it twice and bites a crescent out of each corner.                                                                          |
+| `favicon-rounded.svg`  | `favicon.svg`, `favicon.ico` at 16, 32 and 48, `icons/icon-192.png` and `icons/icon-512.png` at `purpose: any` | Carries its own corner radius. A browser tab, a desktop shortcut and a crawler all composite an icon unshaped, so it has to bring its own silhouette.                                                                            |
+| `favicon-maskable.svg` | `icons/icon-maskable-192.png` and `icons/icon-maskable-512.png` at `purpose: maskable`                         | The same scene pulled back, so the compass, the diver and all three pins sit inside the centre circle of 80% that the spec guarantees and paint runs off every edge. A launcher's crop then lands on sea instead of on a border. |
+
+A maskable icon that is the `any` icon with padding is the usual mistake, and
+`docs/shots/pwa-maskable-safezone.png` is where to check it, because it shows the circular
+and squircle crops against the safe circle.
+
+svgo is held to renders rather than to bytes. The script rasterises every drawing before
+and after optimising, at all six sizes it ships, and compares them pixel by pixel. It
+fails before writing anything if the two disagree, so a plugin that quietly moves a path
+breaks the build instead of shipping. Three plugins were caught doing exactly that and are
+configured off or exact. `mergePaths` shifted about 240 pixels per drawing to save 57
+bytes. `cleanupNumericValues` moved an edge for 37 bytes. `convertPathData` moved another
+through the transforms that only approximate a curve, so it keeps just its exact ones and
+still saves 4.5 KB, which is most of the 22% the three sources lose. What survives is
+pixel-identical at 16, 32, 48 and 180, and moves a handful of antialiased pixels along one
+diagonal at 192 and 512. If you redraw the icons and the gate starts failing, the drawing
+changed in a way svgo now handles differently; read the numbers it prints before widening
+the threshold.
+
+One thing the pipeline cannot fix. The drawing does not survive 16 px. At 48 and above it
+is clear, at 32 it still reads, and at 16 the diver and the compass collapse into a white
+smear with only the blue, white and red left as a colour signature. That is the density of
+the artwork rather than anything the build does, so it is worth knowing before redrawing.
 
 ## Installing it
 
