@@ -5,11 +5,16 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 RAW="$ROOT/data/raw"
 BUILD="$ROOT/data/build/tiles"
-OUT="$ROOT/static/tiles"
+# Overridable so a rebuild can be staged elsewhere and copied over the archives, rather
+# than deleting them first to get past the have-it checks below.
+OUT="${VECTOR_OUT:-$ROOT/static/tiles}"
 LAYERS=(isobaths habitats substrate habitats-raw substrate-raw coverage)
 MAX_BYTES=104857600
 SMOOTH="$ROOT/pipeline/scripts/smooth_polygons.py"
 PARTITION="$ROOT/pipeline/scripts/repartition_polygons.py"
+CLIP="$ROOT/pipeline/scripts/clip_to_sea.py"
+LAND_0M="$RAW/coastline/land-4326.fgb"
+LAND_GRID="$BUILD/land-grid.wkb"
 
 for tool in ogr2ogr tippecanoe python3; do
   command -v "$tool" >/dev/null || { printf 'missing %s on PATH\n' "$tool" >&2; exit 1; }
@@ -102,7 +107,7 @@ tile_coverage() {
     -Z5 -z15 -P --no-simplification-of-shared-nodes --tiny-polygon-size=0 \
     --coalesce --coalesce-densest-as-needed --drop-densest-as-needed \
     -x code -x dmin -x dmax \
-    -L "coverage:$BUILD/habitats-smooth.geojsonseq" -L "limit:$BUILD/limit.geojsonseq"
+    -L "coverage:$BUILD/habitats-smooth-sea.geojsonseq" -L "limit:$BUILD/limit.geojsonseq"
 }
 
 extract_coastline() {
@@ -131,6 +136,19 @@ smooth_substrate() {
   python3 "$SMOOTH" --in "$BUILD/substrate-clean.geojsonseq" --out "$1"
 }
 
+# The survey carries the port structures it mapped and, at the Ebre delta, sand and mud a
+# long way under ground the 0 m isobath closes over, so its polygons paint past the line
+# this map calls the shore. Issue #49. The cut runs here, after the smoothing, because
+# repartition_polygons.py would round a fresh coastal edge straight back off the contour
+# onto the survey's own 1e-4 degree grid. Homebrew GDAL leaks an Anaconda site-packages
+# onto PYTHONPATH, which shadows the isolated interpreter's numpy and breaks pyogrio.
+clip_to_sea() {
+  [ -f "$LAND_0M" ] || { printf 'missing %s, run fetch_coastline.sh first\n' "$LAND_0M" >&2; exit 1; }
+  env -u PYTHONPATH -u PYTHONHOME uv run --quiet --isolated --no-project -p 3.12 \
+    --with 'shapely>=2.1' --with pyogrio --with geopandas \
+    "$CLIP" --in "$1" --land "$LAND_0M" --grid "$LAND_GRID" --out "$2"
+}
+
 ensure_extract() {
   local name=$1 src=$2 extract=$3
   [ -e "$BUILD/$name.geojsonseq" ] && return 0
@@ -138,14 +156,21 @@ ensure_extract() {
   stage "$BUILD/$name.geojsonseq" "$extract" "$src"
 }
 
+# The contours carry no clip: a depth line is drawn, not painted ground, and the 0 m one is
+# the very line the ground is cut against.
 run_layer() {
-  local name=$1 inter=$2 src=$3 extract=$4 tile=$5
+  local name=$1 inter=$2 src=$3 extract=$4 tile=$5 clip=${6:-}
   local out="$OUT/$name.pmtiles"
+  local input="$BUILD/$inter.geojsonseq"
 
   [ -e "$out" ] && { printf 'have %s\n' "$out"; return 0; }
   printf 'building %s\n' "$name"
   ensure_extract "$inter" "$src" "$extract"
-  stage "$out" "$tile" "$BUILD/$inter.geojsonseq"
+  if [ -n "$clip" ]; then
+    input="$BUILD/$inter-sea.geojsonseq"
+    stage "$input" "$clip" "$BUILD/$inter.geojsonseq"
+  fi
+  stage "$out" "$tile" "$input"
 }
 
 # The staircased originals keep the same layer name as the smoothed archives, so the app
@@ -158,7 +183,8 @@ run_smoothed() {
   printf 'smoothing %s\n' "$name"
   ensure_extract "$name" "$src" "$extract"
   stage "$BUILD/$name-smooth.geojsonseq" "$smooth"
-  stage "$out" "$tile" "$BUILD/$name-smooth.geojsonseq"
+  stage "$BUILD/$name-smooth-sea.geojsonseq" clip_to_sea "$BUILD/$name-smooth.geojsonseq"
+  stage "$out" "$tile" "$BUILD/$name-smooth-sea.geojsonseq"
 }
 
 missing=0
@@ -173,8 +199,8 @@ fi
 mkdir -p "$BUILD" "$OUT"
 
 run_layer isobaths      isobaths  "$RAW/isobaths-shelf.fgb" extract_isobaths  tile_isobaths
-run_layer habitats-raw  habitats  "$RAW/habitats.geojson"   extract_habitats  tile_habitats
-run_layer substrate-raw substrate "$RAW/substrate.geojson"  extract_substrate tile_substrate
+run_layer habitats-raw  habitats  "$RAW/habitats.geojson"   extract_habitats  tile_habitats  clip_to_sea
+run_layer substrate-raw substrate "$RAW/substrate.geojson"  extract_substrate tile_substrate clip_to_sea
 
 run_smoothed habitats  "$RAW/habitats.geojson"  extract_habitats  smooth_habitats  tile_habitats
 run_smoothed substrate "$RAW/substrate.geojson" extract_substrate smooth_substrate tile_substrate
@@ -183,6 +209,7 @@ if [ ! -e "$OUT/coverage.pmtiles" ]; then
   printf 'building coverage\n'
   ensure_extract habitats "$RAW/habitats.geojson" extract_habitats
   [ -e "$BUILD/limit.geojsonseq" ] || smooth_habitats "$BUILD/habitats-smooth.geojsonseq"
+  stage "$BUILD/habitats-smooth-sea.geojsonseq" clip_to_sea "$BUILD/habitats-smooth.geojsonseq"
   stage "$OUT/coverage.pmtiles" tile_coverage
 fi
 
