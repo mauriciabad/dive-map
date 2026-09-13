@@ -2,7 +2,6 @@
 	import Icon from './Icon.svelte';
 	import Chip from './controls/Chip.svelte';
 	import Swatch from './controls/Swatch.svelte';
-	import type { TextureSample } from './controls/types';
 	import type { LegendRow } from './legend';
 	import type { SeabedClass } from '$lib/domain/habitat';
 	import type { Locale } from '$lib/i18n/locale';
@@ -28,7 +27,7 @@
 	interface Props {
 		readonly row: LegendRow;
 		readonly locale: Locale;
-		readonly sample: TextureSample | undefined;
+		readonly sample: string | undefined;
 		readonly missing: string;
 		readonly onpick: (seabed: SeabedClass) => void;
 	}
@@ -44,7 +43,7 @@
 </script>
 
 <li class="row">
-	<Swatch {sample} {missing} shape="column" />
+	<Swatch url={sample} {missing} shape="column" />
 	<div class="names">
 		{#each lines as entry, index (entry.key)}
 			{#if index === shared}

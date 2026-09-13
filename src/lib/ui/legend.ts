@@ -8,13 +8,6 @@ import {
 	seabedKey,
 	textureOf
 } from '$lib/domain/habitat';
-import {
-	PATTERN_CSS_SIZE,
-	type TextureFormat,
-	type TextureSize,
-	textureUrl
-} from '$lib/map/textures';
-import type { TextureSample } from './controls/types';
 
 /**
  * What the legend panel shows, worked out away from the markup.
@@ -125,10 +118,3 @@ export const codesOf = (
 	}
 	return codes;
 };
-
-/** The map's own file at the map's own repeat, which is what makes the band honest. */
-export const sampleFor = (
-	texture: string,
-	size: TextureSize,
-	format: TextureFormat
-): TextureSample => ({ url: textureUrl(texture, size, format), repeatCssPx: PATTERN_CSS_SIZE });

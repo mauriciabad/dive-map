@@ -7,11 +7,11 @@
 	import Note from './controls/Note.svelte';
 	import Segmented from './controls/Segmented.svelte';
 	import Swatch from './controls/Swatch.svelte';
-	import type { Choice, TextureSample } from './controls/types';
+	import type { Choice } from './controls/types';
 	import LegendRow from './LegendRow.svelte';
 	import MarkerRow from './MarkerRow.svelte';
 	import TexturePicker from './TexturePicker.svelte';
-	import { buildLegend, sampleFor } from './legend';
+	import { buildLegend } from './legend';
 	import { InFrameGround } from './legend.svelte';
 	import { PANEL_ID } from './panel';
 	import type { Ground, SeabedClass } from '$lib/domain/habitat';
@@ -24,7 +24,8 @@
 		type TextureFormat,
 		UNSURVEYED_TEXTURE,
 		sizeForScreen,
-		textureFormat
+		textureFormat,
+		textureUrl
 	} from '$lib/map/textures';
 	import { t } from '$lib/i18n/messages';
 	import type { MapState } from '$lib/state/map-view.svelte';
@@ -62,14 +63,14 @@
 		window.matchMedia('(pointer: coarse)').matches
 	);
 
-	const sampleOf = (texture: string): TextureSample | undefined =>
-		format === undefined ? undefined : sampleFor(texture, size, format);
+	const sampleOf = (texture: string): string | undefined =>
+		format === undefined ? undefined : textureUrl(texture, size, format);
 
-	// The grid opens forty-nine bands at once, against one per legend row. The
-	// repeat is 256 CSS pixels either way, so the smallest file in the pyramid is
-	// the same pattern at the same density for a fifth of the bytes.
-	const thumbnailOf = (texture: string): TextureSample | undefined =>
-		format === undefined ? undefined : sampleFor(texture, THUMBNAIL_SIZE, format);
+	// The grid opens forty-nine bands at once, against one per legend row, and a
+	// band is a hundred CSS pixels across at most. The smallest file in the pyramid
+	// is the same tile for a fifth of the bytes.
+	const thumbnailOf = (texture: string): string | undefined =>
+		format === undefined ? undefined : textureUrl(texture, THUMBNAIL_SIZE, format);
 
 	const changed = $derived(Object.keys(view.textures).length);
 
@@ -253,7 +254,7 @@
 			<Field label={t(view.locale, 'legendUnsurveyed')}>
 				<div class="lone">
 					<Swatch
-						sample={sampleOf(UNSURVEYED_TEXTURE)}
+						url={sampleOf(UNSURVEYED_TEXTURE)}
 						missing={t(view.locale, 'legendNoSwatch')}
 						shape="column"
 					/>

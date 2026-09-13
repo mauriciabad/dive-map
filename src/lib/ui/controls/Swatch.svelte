@@ -1,18 +1,18 @@
 <script lang="ts">
-	import type { TextureSample } from './types';
-
 	/**
-	 * A band of the real seabed at the size the map paints it. Not a thumbnail: the
-	 * map's own texture file is tiled at its own repeat, so what you see beside a
-	 * class name is the density you see under the boat. A whole tile shrunk into a
-	 * box is a different pattern from the one on the map, which is why the repeat
-	 * is fixed and the box is what changes shape.
+	 * A band of the real seabed, the map's own texture file tiled whole.
 	 *
-	 * `column` is the legend's shape: a narrow strip that stretches to whatever
-	 * height the names beside it need, so the classes that share a texture sit
-	 * against one continuous run of it. A class on its own comes out a small
-	 * square, six of them come out a tall rectangle, and both are the same pixels
-	 * at the same density.
+	 * One repeat spans the band's width, so the pattern is shown as a pattern and
+	 * the band is several courses of it. Tiling at the map's own 256 px repeat
+	 * instead meant a 44 px strip never held a whole one: what a class name sat
+	 * beside was one arbitrary crop, and the flatter seabeds came out as a smear of
+	 * colour that read as an image stretched to fill the row. These textures are
+	 * drawn to tile, and tiling is what says which one it is.
+	 *
+	 * `column` is the legend's shape: a narrow strip as tall as the names beside
+	 * it need, so the classes that share a texture sit against one continuous run
+	 * of it. A class on its own comes out one tile square, six of them come out a
+	 * column six tiles deep.
 	 *
 	 * CSS reports nothing when a background image fails, and an empty band would
 	 * read as a texture that happens to be blank, which one of them nearly is. The
@@ -20,12 +20,13 @@
 	 */
 
 	interface Props {
-		readonly sample: TextureSample | undefined;
+		/** The texture file to tile, or nothing while the format is still unknown. */
+		readonly url: string | undefined;
 		readonly missing: string;
 		readonly shape?: 'band' | 'column';
 	}
 
-	const { sample, missing, shape = 'band' }: Props = $props();
+	const { url, missing, shape = 'band' }: Props = $props();
 
 	let loaded = $state(false);
 	let failed = $state(false);
@@ -37,15 +38,14 @@
 	{:else}
 		<div
 			class="band"
-			style:--repeat={sample === undefined ? undefined : `${sample.repeatCssPx}px`}
-			style:background-image={loaded && sample !== undefined ? `url("${sample.url}")` : undefined}
+			style:background-image={loaded && url !== undefined ? `url("${url}")` : undefined}
 		></div>
 	{/if}
 
-	{#if sample !== undefined}
+	{#if url !== undefined}
 		<img
 			class="probe"
-			src={sample.url}
+			src={url}
 			alt=""
 			aria-hidden="true"
 			onload={() => {
@@ -71,8 +71,9 @@
 		border-radius: var(--control-radius);
 		background-color: var(--control-well);
 		background-repeat: repeat;
-		background-position: center;
-		background-size: var(--repeat) var(--repeat);
+		background-position: top left;
+		/* The tile is square, so `auto` height is the band's width again. */
+		background-size: 100% auto;
 		box-shadow: var(--sunk);
 	}
 

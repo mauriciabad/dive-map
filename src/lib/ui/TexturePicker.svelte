@@ -1,7 +1,6 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
 	import Swatch from './controls/Swatch.svelte';
-	import type { TextureSample } from './controls/types';
 	import { textureName } from './texture-name';
 	import { SEABED_TEXTURES, type SeabedClass, textureOf } from '$lib/domain/habitat';
 	import type { TextureChoices } from '$lib/domain/habitat';
@@ -25,7 +24,7 @@
 		readonly seabed: SeabedClass;
 		readonly chosen: TextureChoices;
 		readonly locale: Locale;
-		readonly sampleOf: (texture: string) => TextureSample | undefined;
+		readonly sampleOf: (texture: string) => string | undefined;
 		readonly missing: string;
 		readonly onpick: (texture: string) => void;
 		readonly onback: () => void;
@@ -56,7 +55,7 @@
 					onpick(texture);
 				}}
 			>
-				<Swatch sample={sampleOf(texture)} {missing} />
+				<Swatch url={sampleOf(texture)} {missing} />
 				<span class="label">{textureName(texture)}</span>
 				{#if isBuiltIn}
 					<span class="mark">{t(locale, 'legendBuiltIn')}</span>
