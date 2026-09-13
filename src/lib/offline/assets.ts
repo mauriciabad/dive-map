@@ -17,7 +17,7 @@ const RULES: readonly (readonly [RegExp, AssetPolicy])[] = [[/\.pmtiles$/, 'rang
  * two hundred files into the install instead of eighty-eight. That is not only
  * weight at the dock: the install competed with the map's own fetches hard enough
  * to push the first repaint after a choice past the point a diver would call
- * immediate. So the twenty-one the catalogues name precache at 256 and 512, and
+ * immediate. So the thirty-one the catalogues name precache at 256 and 512, and
  * the rest are fetched when somebody picks one and kept in the runtime cache from
  * then on. 1024 is only ever asked for above 2x on a fine pointer, so it waits
  * for first use whatever the texture is.

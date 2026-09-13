@@ -431,6 +431,14 @@ export interface SubstrateClass extends Localised {
 	 * no habitat shares the code, the one carried by its nearest twin.
 	 */
 	readonly prominence: Prominence;
+	/**
+	 * What the bottom is made of, which is a different question from what lives on
+	 * it. So these name a material and no sediment or rock class borrows a habitat
+	 * texture: the two catalogues once agreed on all five codes they publish in
+	 * common, and a diver who switched to seafloor type got the same picture back.
+	 * `metal` and `ch_shipwood` are the exceptions, because a pipe and a wreck are
+	 * made of the same thing in either catalogue.
+	 */
 	readonly texture: string;
 }
 
@@ -443,7 +451,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		es: 'Roca',
 		en: 'Rock',
 		prominence: 'notable',
-		texture: 'ch_rock'
+		texture: 'ch_grayrock'
 	},
 	{
 		raster: 2,
@@ -453,7 +461,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		es: 'Roca parcialmente cubierta por sedimentos',
 		en: 'Rock partly covered by sediment',
 		prominence: 'notable',
-		texture: 'ch_rocks'
+		texture: 'ch_stone_pattern'
 	},
 	{
 		raster: 3,
@@ -463,7 +471,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		es: 'Arcillas terrígenas compactadas infralitorales',
 		en: 'Compacted infralittoral terrigenous clay',
 		prominence: 'background',
-		texture: 'ch_dirt'
+		texture: 'ch_marble'
 	},
 	{
 		raster: 4,
@@ -473,7 +481,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		es: 'Arrecifes biógenos',
 		en: 'Biogenic reefs',
 		prominence: 'signature',
-		texture: 'ch_cobblestone'
+		texture: 'ch_sandstone'
 	},
 	{
 		raster: 5,
@@ -483,7 +491,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		es: 'Sedimentos gruesos (cantos y gravas)',
 		en: 'Coarse sediment (cobbles and gravel)',
 		prominence: 'background',
-		texture: 'ch_cobblestone'
+		texture: 'ch_cobbles'
 	},
 	{
 		raster: 6,
@@ -493,7 +501,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		es: 'Arena y arena fangosa',
 		en: 'Sand and muddy sand',
 		prominence: 'background',
-		texture: 'ch_sand'
+		texture: 'ch_dirt_lines_02'
 	},
 	{
 		raster: 7,
@@ -503,7 +511,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		es: 'Fangos y fangos arenosos',
 		en: 'Mud and sandy mud',
 		prominence: 'background',
-		texture: 'ch_dirt_mud'
+		texture: 'ch_sewers'
 	},
 	{
 		raster: 8,
@@ -513,7 +521,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		es: 'Sedimentos mixtos',
 		en: 'Mixed sediment',
 		prominence: 'background',
-		texture: 'ch_sandy'
+		texture: 'ch_tiled'
 	},
 	{
 		raster: 9,
@@ -523,7 +531,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		es: 'Sustrato duro artificial',
 		en: 'Anthropogenic rock',
 		prominence: 'infrastructure',
-		texture: 'ch_bluestones'
+		texture: 'ch_tiles_big'
 	},
 	{
 		raster: 10,
@@ -553,7 +561,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		es: 'Arrecifes artificiales',
 		en: 'Artificial reefs',
 		prominence: 'signature',
-		texture: 'ch_stones'
+		texture: 'ch_tiles'
 	},
 	{
 		raster: 13,
@@ -613,7 +621,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		es: 'Sustrato sedimentario artificial',
 		en: 'Anthropogenic sedimentary bottoms',
 		prominence: 'background',
-		texture: 'ch_dirt_dark'
+		texture: 'ch_bluerock'
 	},
 	{
 		raster: 19,
@@ -623,7 +631,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		es: 'Sustrato sedimentario artificial (vertidos)',
 		en: 'Anthropogenic sedimentary bottoms (dumping)',
 		prominence: 'background',
-		texture: 'ch_dirt_dark'
+		texture: 'ch_bluerock'
 	},
 	{
 		raster: 20,
@@ -633,7 +641,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		es: 'Sustrato sedimentario artificial (zanjas de dragado)',
 		en: 'Anthropogenic sedimentary bottoms (dredge trenches)',
 		prominence: 'background',
-		texture: 'ch_dirt_lines_02'
+		texture: 'ch_bluerock'
 	}
 ];
 
@@ -791,7 +799,7 @@ export const withoutChoice = (chosen: TextureChoices, key: SeabedKey): TextureCh
 export const UNSURVEYED_TEXTURE = 'unsurveyed';
 
 /**
- * Every texture the two catalogues between them name. Twenty-one of them carry
+ * Every texture the two catalogues between them name. Thirty-one of them carry
  * fifty-three classes.
  *
  * This is what the map paints before anybody chooses anything, so it is what the
@@ -804,7 +812,7 @@ export const CATALOGUE_TEXTURES: readonly string[] = [
 
 /**
  * Every texture a class may be painted with, which is every texture the build
- * emits. Forty-nine of them, against the twenty-one the catalogues name.
+ * emits. Forty-nine of them, against the thirty-one the catalogues name.
  *
  * This list and the built set are the same set, and `habitat.spec.ts` reads
  * `static/textures/index.json` to hold them that way. A name here that the build
@@ -814,8 +822,8 @@ export const CATALOGUE_TEXTURES: readonly string[] = [
  *
  * It is deliberately wider than what MapLibre holds at any moment. `texturePalette`
  * registers the texture each class is actually painted with and nothing else, so
- * the registry stays at roughly the twenty-two it has always been however many
- * are on offer here. The picker's own grid is CSS background images at 256, which
+ * the registry holds the thirty-two the two catalogues name between them,
+ * whatever the pack grows to. The picker's own grid is CSS background images at 256, which
  * the browser fetches on demand and evicts on its own, and never reaches
  * `addImage` at all.
  */

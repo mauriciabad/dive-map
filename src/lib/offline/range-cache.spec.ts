@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { PMTiles } from 'pmtiles';
 import { describe, expect, it } from 'vitest';
+import { CATALOGUE_TEXTURES, SEABED_TEXTURES } from '$lib/domain/habitat';
 import { assetPolicy, precachePaths } from './assets.ts';
 import { isStaleCache } from './cache-names.ts';
 import { cachedRangeSource } from './pmtiles-source.ts';
@@ -319,13 +320,19 @@ describe('asset policy', () => {
 		expect(assetPolicy('/textures/1024/ch_sand.webp')).toBe('runtime');
 	});
 
-	// ch_sand is a catalogue texture and ch_marble is only ever reached by choosing
-	// it in the picker. Precaching both put two hundred files into the install and
+	// A picker-only texture is whatever the build emits over and above the two
+	// catalogues. Precaching all of them put two hundred files into the install and
 	// delayed the first repaint after a choice; a boat only needs the seabed the
-	// catalogues actually paint.
+	// catalogues actually paint. Taken off the catalogues rather than named here,
+	// because a texture promoted into a catalogue starts precaching and a name
+	// written down in this file would then be asserting the opposite of the rule.
 	it('leaves a texture only the picker offers to first use', () => {
-		expect(assetPolicy('/textures/512/ch_marble.webp')).toBe('runtime');
-		expect(assetPolicy('/textures/256/ch_marble.jxl')).toBe('runtime');
+		const pickerOnly = SEABED_TEXTURES.filter((name) => !CATALOGUE_TEXTURES.includes(name));
+		expect(pickerOnly.length).toBeGreaterThan(0);
+		const eager = pickerOnly.filter(
+			(name) => assetPolicy(`/textures/512/${name}.webp`) !== 'runtime'
+		);
+		expect(eager).toEqual([]);
 		expect(assetPolicy('/textures/512/unsurveyed.webp')).toBe('precache');
 	});
 

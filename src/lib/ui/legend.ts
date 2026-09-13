@@ -19,7 +19,7 @@ import type { TextureSample } from './controls/types';
 /**
  * What the legend panel shows, worked out away from the markup.
  *
- * Twenty-one textures carry fifty-three classes, so the legend is keyed by
+ * Thirty-one textures carry fifty-three classes, so the legend is keyed by
  * texture rather than by class: a diver looking at a patch of seabed asks what
  * that pattern means, and six classes share `metal`. Every class of the ground's
  * catalogue is listed either way, because a legend that only names what happens

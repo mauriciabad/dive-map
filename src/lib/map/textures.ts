@@ -50,14 +50,14 @@ export const textureFormat = (): Promise<TextureFormat> => {
  */
 export const PATTERN_CSS_SIZE = 256;
 
-export const patternPixelRatio = (bitmapWidth: number): number =>
-	bitmapWidth / PATTERN_CSS_SIZE;
+export const patternPixelRatio = (bitmapWidth: number): number => bitmapWidth / PATTERN_CSS_SIZE;
 
 /**
  * Which texture size to load. Enough device pixels for the screen it is drawn
- * on, capped on a phone because the whole set is decoded and held: 22 textures
- * at 1024 is 92 MB of bitmap, which is not a thing to ask of the device that
- * also has to hold the tiles offline. Printing always takes the full one.
+ * on, capped on a phone because the whole set is decoded and held: the 32
+ * textures the catalogues name are 134 MB of bitmap at 1024 and 34 MB at 512,
+ * and the phone is the device that also has to hold the tiles offline. Printing
+ * always takes the full one.
  *
  * The floor is what makes this safe to land before every caller passes the
  * ratio above to `addImage`. A caller still registering at a fixed 2 gets
@@ -78,9 +78,9 @@ export { UNSURVEYED_TEXTURE } from '$lib/domain/habitat';
  * Exactly the textures the style names, and nothing else, deduplicated.
  *
  * Following the choices rather than the catalogues is what lets the picker offer
- * forty-nine textures against a registry that still holds about twenty-two. A
- * class repainted away from its catalogue texture takes its old one out of the
- * set unless another class still uses it, so choosing swaps a name in rather than
+ * forty-nine textures against a registry that holds thirty-two. A class
+ * repainted away from its catalogue texture takes its old one out of the set
+ * unless another class still uses it, so choosing swaps a name in rather than
  * adding one. Fifty-three classes is the ceiling however wide the built set gets,
  * and the whole palette in one tile has to pack under GL_MAX_TEXTURE_SIZE at print
  * time, which at 512 it does with room to spare.
@@ -130,7 +130,10 @@ export const loadFlourish = async (
 	ink: string,
 	signal?: AbortSignal
 ): Promise<LoadedTexture | undefined> => {
-	const response = await fetch(asset(`/textures/${FLOURISH_TEXTURE}.png`), signal ? { signal } : {});
+	const response = await fetch(
+		asset(`/textures/${FLOURISH_TEXTURE}.png`),
+		signal ? { signal } : {}
+	);
 	if (!response.ok) return undefined;
 	const stencil = await createImageBitmap(await response.blob());
 	const { width, height } = stencil;

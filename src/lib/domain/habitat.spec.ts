@@ -130,6 +130,19 @@ describe('texture choices', () => {
 		expect(legendFor(new Set(['70108']), 10).map(seabedKey)).toContain('habitats-30');
 	});
 
+	// Habitats is what lives there and seafloor type is what the bottom is made of,
+	// so the two have to paint differently. They once shared a texture on all five
+	// codes they publish in common, which is how switching the ground layer came to
+	// change the legend and not the map. A pipe and a wreck are the exceptions: they
+	// are made of the same thing whichever catalogue names them.
+	it('paints the substrate catalogue with textures of its own', () => {
+		const habitats = new Set(HABITATS.map((h) => h.texture));
+		const borrowed = [...new Set(SUBSTRATES.map((s) => s.texture))]
+			.filter((texture) => habitats.has(texture))
+			.sort();
+		expect(borrowed).toEqual(['ch_shipwood', 'metal']);
+	});
+
 	// A name here the build never emitted is a class painted with nothing: MapLibre
 	// treats a fill-pattern naming an unregistered image as no error at all, the
 	// fill does not draw, and the hole reads as deep water. Reading the build's own
@@ -141,7 +154,7 @@ describe('texture choices', () => {
 	});
 
 	it('can paint every class the catalogues name', () => {
-		expect(CATALOGUE_TEXTURES).toHaveLength(21);
+		expect(CATALOGUE_TEXTURES).toHaveLength(31);
 		expect(CATALOGUE_TEXTURES.filter((name) => !isSeabedTexture(name))).toEqual([]);
 	});
 });
