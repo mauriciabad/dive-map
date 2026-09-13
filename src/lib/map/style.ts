@@ -262,12 +262,11 @@ const isobathCasing = (options: StyleOptions): NonNullable<LineLayerSpecificatio
  * means the side panel can change it with no new data, and an emphasised depth
  * survives an interval that would otherwise drop it.
  *
- * 0 m is in the set like any other depth, so the isobath panel can offer it. It
- * used to be excluded here on the grounds that it was the coastline rather than a
- * contour, which was true of the line the map drew then and is not true now: the
- * shoreline is this same 0 m contour. Drawing it twice is what the map wants,
- * once as the land edge under the coastline switch and once in the contour ink
- * when a diver asks for it.
+ * 0 m is a depth the panel can offer now. It used to be excluded outright on the
+ * grounds that it was the coastline rather than a contour, which was true of the
+ * line the map drew then and is not true now: the shoreline is this same 0 m
+ * contour. So it is excluded only until a diver asks for it, and asking puts it
+ * in the contour ink as well as under the coastline switch.
  */
 const AUTO_INTERVAL: ExpressionSpecification = ['step', ['zoom'], 20, 12, 10, 14, 5, 15, 2, 16, 1];
 
@@ -279,6 +278,14 @@ const isobathFilter = ({
 }: IsobathStyle): ExpressionSpecification => [
 	'all',
 	['<=', ['to-number', ['get', 'depth']], maxDepthM],
+	// 0 m is drawn when a diver asks for it and not otherwise. Zero is divisible by
+	// every interval, so without this it would come back at every setting rather
+	// than at the ones that include it, and the shoreline already draws that exact
+	// contour under the coastline switch. Asking for it puts it in the contour ink
+	// as well, which is the point of offering it.
+	...(emphasised.includes(0)
+		? []
+		: [['!=', ['to-number', ['get', 'depth']], 0] as ExpressionSpecification]),
 	[
 		'any',
 		['in', ['to-number', ['get', 'depth']], ['literal', [...emphasised]]],

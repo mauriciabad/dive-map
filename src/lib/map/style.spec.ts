@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { featureFilter } from '@maplibre/maplibre-gl-style-spec';
 import { GROUND_DEPTH_LAYER, type StyleOptions, buildStyle } from './style.ts';
 import { DEFAULT_ISOBATHS, DEFAULT_LAYERS, type LayerId } from '$lib/domain/card';
 import { DANGER_TAG_PREFIX, DIVE_NUMBER_KEYS, DIVE_TAG_KEYS } from '$lib/domain/osm';
@@ -259,5 +260,35 @@ describe('the surveyed depth the card reads', () => {
 		expect(probe({ groundLayer: 'substrate', visible: noGround })?.layout?.visibility).toBe(
 			'none'
 		);
+	});
+});
+
+describe('the 0 m line the isobath panel can now ask for', () => {
+	const drawsDepth = (style: StyleOptions, depth: number): boolean => {
+		const layer = buildStyle(style).layers.find((l) => l.id === 'isobath');
+		if (layer?.type !== 'line') throw new Error('no isobath line layer');
+		const spec = layer.filter;
+		if (spec === undefined) throw new Error('no isobath filter');
+		const { filter } = featureFilter(spec, 'layers[0].filter');
+		return filter({ zoom: 14 }, { type: 2, properties: { depth } });
+	};
+
+	const emphasising = (...depths: readonly number[]): StyleOptions =>
+		options({ isobaths: { ...DEFAULT_ISOBATHS, emphasised: depths, autoInterval: false } });
+
+	/**
+	 * The shoreline is this same contour, so 0 m is a depth the panel offers like
+	 * any other. It used to be excluded from this filter outright.
+	 */
+	it('draws 0 m when it is asked for', () => {
+		expect(drawsDepth(emphasising(0, 18), 0)).toBe(true);
+	});
+
+	it('leaves 0 m out when it is not, rather than always drawing it twice', () => {
+		expect(drawsDepth(emphasising(18), 0)).toBe(false);
+	});
+
+	it('still draws the depths it always did', () => {
+		expect(drawsDepth(emphasising(0, 18), 18)).toBe(true);
 	});
 });
