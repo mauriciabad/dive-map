@@ -46,6 +46,7 @@
 		<button
 			type="button"
 			class="name"
+			data-seabed={entry.key}
 			data-dim={index >= row.inFrame.length}
 			title={t(locale, 'legendChangeTexture', { name: entry.seabed[locale] })}
 			onclick={() => {
