@@ -32,6 +32,19 @@ export const LAND_SOURCE: SourceSpecification = {
 	maxzoom: 15
 };
 
+export const WORLD_SOURCE_ID = 'world';
+
+/**
+ * Stops at z11 on purpose. Above it the survey covers the screen and the ICGC
+ * coastline is the line being read; this only has to hold up where that one is
+ * not there, and MapLibre overzooms the rest.
+ */
+export const WORLD_SOURCE: SourceSpecification = {
+	type: 'vector',
+	url: `pmtiles://${asset('/tiles/world.pmtiles')}`,
+	maxzoom: 11
+};
+
 /**
  * Where land detail starts. A zoom below it the coast is 116 km across on a
  * laptop, where a network of lines is grey felt rather than information and the
@@ -107,6 +120,70 @@ export interface LandOptions {
 }
 
 const visibility = ({ visible }: LandOptions): 'visible' | 'none' => (visible ? 'visible' : 'none');
+
+/**
+ * The land outside the survey, so the map does not end in a straight line.
+ *
+ * Fully zoomed out, which is now where the map opens, Catalonia was a grey
+ * rectangle with three ruler-straight edges: the cuts at the French and
+ * Valencian borders, and the synthetic inland closure the coastline build draws
+ * to shut the mainland polygon. None of the three is a coast and all three read
+ * as one, which made the first thing anyone saw look like a torn page.
+ *
+ * This is not a basemap under the map. It is the same painted land continued, in
+ * the same fill and the same rock at the same opacity. The pipeline slides it
+ * four kilometres in under the ICGC polygon rather than butting the two together,
+ * because tippecanoe simplifies a shared edge independently in each tile and at
+ * the zoom the map opens at that is kilometres of wander. The overlap is always
+ * inland of the coastline, so none of it can show.
+ * See pipeline/scripts/build_world_tiles.sh.
+ */
+export const worldLayers = (options: LandOptions): LayerSpecification[] => {
+	const layout = { visibility: visibility(options) } as const;
+	return [
+		{
+			id: 'world-land',
+			type: 'fill',
+			source: WORLD_SOURCE_ID,
+			'source-layer': 'land',
+			layout,
+			// Same reason as the surveyed land: its outline pass runs along the seam
+			// under Catalonia as well as along the coast, and `world-coast` draws the
+			// only part of that boundary anybody should see.
+			paint: { 'fill-color': PALETTE.land, 'fill-antialias': false }
+		},
+		{
+			// The same whisper of rock as the surveyed land. A fill pattern is laid out
+			// in world space rather than per polygon, so the grain runs straight across
+			// the border without anything lining it up.
+			id: 'world-land-texture',
+			type: 'fill',
+			source: WORLD_SOURCE_ID,
+			'source-layer': 'land',
+			layout,
+			// Antialias off for the same reason as the surveyed land's rock: the
+			// outline pass lays the pattern down a second time and draws a bright
+			// hairline round every edge of it.
+			paint: { 'fill-pattern': 'ch_rock', 'fill-opacity': 0.16, 'fill-antialias': false }
+		},
+		{
+			// Only the real coast: the pipeline drops the stretch of this boundary that
+			// is the seam against the ICGC land, which would otherwise draw a shoreline
+			// straight down the middle of the Pyrenees, and the frame edge with it.
+			id: 'world-coast',
+			type: 'line',
+			source: WORLD_SOURCE_ID,
+			'source-layer': 'coast',
+			layout: { ...layout, 'line-join': 'round' },
+			paint: {
+				'line-color': PALETTE.landEdge,
+				'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 18, 3.5],
+				// A step under the surveyed shore, which is the one this map is about.
+				'line-opacity': 0.8
+			}
+		}
+	];
+};
 
 /**
  * Fresh water inside the coastline.

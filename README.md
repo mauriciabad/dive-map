@@ -209,6 +209,7 @@ node pipeline/scripts/verify-interaction.mjs <url>  # does tapping a site open t
 node pipeline/scripts/verify-options.mjs <url>      # do the settings do anything
 node pipeline/scripts/verify-export.mjs <url>       # does a real A3 PDF come out
 node pipeline/scripts/verify-land.mjs <url>         # does the land detail draw, and survive a restyle
+node pipeline/scripts/verify-world.mjs <url>        # does the map still end in a straight line
 node pipeline/scripts/find-seabed-centre.mjs <url>  # a centre with seabed under it
 node pipeline/scripts/validate-style.mjs            # the style against the MapLibre spec
 node pipeline/scripts/verify-pwa.mjs <url>          # would Chrome offer to install it

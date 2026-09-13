@@ -30,7 +30,14 @@ import {
 	markerHalo,
 	markerImageId
 } from './markers.ts';
-import { LAND_SOURCE, LAND_SOURCE_ID, landLayers } from './land.ts';
+import {
+	LAND_SOURCE,
+	LAND_SOURCE_ID,
+	WORLD_SOURCE,
+	WORLD_SOURCE_ID,
+	landLayers,
+	worldLayers
+} from './land.ts';
 import { UNSURVEYED_TEXTURE } from './textures.ts';
 
 /**
@@ -665,6 +672,7 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			maxzoom: 16
 		},
 		[LAND_SOURCE_ID]: LAND_SOURCE,
+		[WORLD_SOURCE_ID]: WORLD_SOURCE,
 		osm: { type: 'geojson', data: asset('/data/osm.geojson') },
 		...POSITION_SOURCES,
 		annotations: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } }
@@ -815,13 +823,27 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			}
 		},
 
+		// Before the surveyed land, so that where the two datasets disagree by a few
+		// metres along the Catalan shore the ICGC polygon is the one that wins.
+		...worldLayers({ visible: options.visible.includes('coastline') }),
+
 		{
 			id: 'land',
 			type: 'fill',
 			source: 'coastline',
 			'source-layer': 'land',
 			layout: { visibility: vis(options, 'coastline') },
-			paint: { 'fill-color': PALETTE.land }
+			paint: {
+				'fill-color': PALETTE.land,
+				// The outline pass draws this same dark fill one pixel wide along the
+				// whole polygon boundary, and three sides of that boundary are not coast:
+				// they are the cuts at the two borders and the synthetic inland closure.
+				// Over the world land outside them that pixel reads 53 against 74 and
+				// comes and goes with the tile simplification, which is what drew a dotted
+				// rectangle across Aragon. The coast itself is drawn by `shoreline` and
+				// `island-edge`, so nothing here needs an outline.
+				'fill-antialias': false
+			}
 		},
 		{
 			// A whisper of rock so the shore is not a flat plate, at an opacity that
@@ -831,7 +853,19 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			source: 'coastline',
 			'source-layer': 'land',
 			layout: { visibility: vis(options, 'coastline') },
-			paint: { 'fill-pattern': 'ch_rock', 'fill-opacity': 0.16 }
+			paint: {
+				'fill-pattern': 'ch_rock',
+				'fill-opacity': 0.16,
+				// A fill antialiases by drawing its own outline as a second pass, which
+				// for a pattern fill lays the rock down twice along the edge. Measured
+				// at the minimum zoom that is 46 to 73 inside and 95 on the edge pixel,
+				// and the edge in question is not a coast: it is the straight inland
+				// rectangle the coastline build draws to close the mainland polygon. It
+				// showed as a dotted line across Aragon the moment the map started
+				// opening fully zoomed out. The shape is already drawn by the fill under
+				// this one, so the outline pass has nothing to contribute.
+				'fill-antialias': false
+			}
 		},
 
 		// Land detail rides the coastline switch rather than one of its own. The
