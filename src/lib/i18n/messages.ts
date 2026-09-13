@@ -153,6 +153,8 @@ const ca = {
 	printTooLarge:
 		'Aquesta mida supera el que el navegador pot dibuixar. Abaixa la densitat o la mida.',
 	printPdfNeedsPaper: 'El PDF necessita una mida en paper. En píxels, exporta PNG.',
+	printSheetIncomplete:
+		"Part del full no s'ha pogut carregar. Torna a exportar-lo abans d'imprimir.",
 	printRuler: 'La barra fa {n} mm sobre el paper',
 	printPixelsHaveNoScale: 'Una imatge no té escala: el full es mesura en zoom i metres.',
 	cropOffScreen: "El full no hi cap a la pantalla. Allunya el mapa per veure'l sencer.",
@@ -350,6 +352,8 @@ const es: Catalogue = {
 	printTooLarge:
 		'Este tamaño supera lo que el navegador puede dibujar. Baja la densidad o el tamaño.',
 	printPdfNeedsPaper: 'El PDF necesita un tamaño en papel. En píxeles, exporta PNG.',
+	printSheetIncomplete:
+		'Parte de la hoja no se ha podido cargar. Vuelve a exportarla antes de imprimir.',
 	printRuler: 'La barra mide {n} mm sobre el papel',
 	printPixelsHaveNoScale: 'Una imagen no tiene escala: la hoja se mide en zoom y metros.',
 	cropOffScreen: 'La hoja no cabe en la pantalla. Aleja el mapa para verla entera.',
@@ -543,6 +547,7 @@ const en: Catalogue = {
 	printExportPng: 'Export PNG',
 	printTooLarge: 'This size is past what the browser will draw. Lower the density or the size.',
 	printPdfNeedsPaper: 'A PDF needs a size on paper. In pixels, export a PNG.',
+	printSheetIncomplete: 'Part of the sheet failed to load. Export it again before printing.',
 	printRuler: 'The bar measures {n} mm on paper',
 	printPixelsHaveNoScale: 'An image has no scale, so the sheet is measured in zoom and metres.',
 	cropOffScreen: 'The sheet does not fit the screen. Zoom out to see all of it.',
