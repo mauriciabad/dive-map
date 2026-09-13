@@ -83,8 +83,24 @@ describe('the ortophoto and the paint over it', () => {
 		expect(ids.indexOf('satellite-icgc')).toBeGreaterThan(ids.indexOf('satellite'));
 	});
 
-	it('puts both photographs away together', () => {
-		for (const id of ['satellite', 'satellite-icgc']) {
+	/**
+	 * `orto-costa` is a ribbon along the shore. On its own it left the map showing
+	 * PNOA a few kilometres inland under a credit line naming ICGC: at the camera
+	 * the app had last been left on, a field outside Palafrugell, all 35 coastal
+	 * tiles the screen asked for came back as the 334-byte transparent no-data PNG.
+	 * The territorial layer is what covers that ground, and it has to sit between
+	 * the two so the coastal strip still wins its 10 cm where it has any.
+	 */
+	it('stacks the three photographs coarsest first', () => {
+		const ids = buildStyle(withSatellite()).layers.map((l) => l.id);
+		expect(ids.indexOf('satellite-icgc-territorial')).toBeGreaterThan(ids.indexOf('satellite'));
+		expect(ids.indexOf('satellite-icgc')).toBeGreaterThan(
+			ids.indexOf('satellite-icgc-territorial')
+		);
+	});
+
+	it('puts every photograph away together', () => {
+		for (const id of ['satellite', 'satellite-icgc-territorial', 'satellite-icgc']) {
 			const layer = buildStyle(options()).layers.find((l) => l.id === id);
 			expect(layer?.layout?.visibility).toBe('none');
 		}

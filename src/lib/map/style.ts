@@ -177,6 +177,7 @@ const heavyDepths = (style: IsobathStyle): readonly number[] =>
 const BEYOND_WASH = 'rgba(3, 41, 59, 0.8)';
 
 export const SATELLITE_SOURCE_ID = 'satellite';
+export const ICGC_TERRITORIAL_SOURCE_ID = 'satellite-icgc-territorial';
 export const ICGC_SATELLITE_SOURCE_ID = 'satellite-icgc';
 
 /**
@@ -210,7 +211,36 @@ const SATELLITE_TILES =
 	'&width=256&height=256&bbox={bbox-epsg-3857}';
 
 /**
- * ICGC's Ortofoto de costa, which is the photograph that belongs on this map.
+ * ICGC's Ortofoto de Catalunya, the whole territory at 25 cm.
+ *
+ * `orto-costa` above is a ribbon along the shore and nothing else, which is what
+ * put an IGN photograph on screen every time the map was not pointed at the
+ * water. Measured at the camera this map had last been left on, a field outside
+ * Palafrugell about 4 km inland, all 35 `orto-costa` tiles the screen asked for
+ * came back as the 334-byte transparent no-data PNG, and the whole view was
+ * PNOA while the credit line still read ICGC. The same tile from this service is
+ * a 16.9 KB JPEG. Off Tamariu it is 19.0 KB and over the Medes 20.8 KB, so it
+ * carries the coast as well and only loses to `orto-costa` on resolution.
+ *
+ * Same `image/vnd.jpeg-png` contract as its two neighbours, and that is what lets
+ * three photographs stack: measured at 334 bytes fully transparent over open sea
+ * and over France, so it covers Catalonia and hands the rest back to PNOA.
+ *
+ * `maxzoom` is 19 against the other two at 20 because 25 cm is the grain. At this
+ * latitude z19 is 0.22 m a pixel and z20 is 0.11, so a z20 request is the server
+ * resampling its own 25 cm source. MapLibre stretching its z19 tile gets there
+ * from the same pixels without the round trip, and on the coast `orto-costa` is
+ * the layer answering at those zooms anyway.
+ */
+const ICGC_TERRITORIAL_TILES =
+	'https://geoserveis.icgc.cat/servei/catalunya/orto-territorial/wms?service=WMS' +
+	'&request=GetMap&version=1.1.1&layers=ortofoto_color_vigent&styles=&srs=EPSG:3857' +
+	'&format=image/vnd.jpeg-png&transparent=true' +
+	'&width=256&height=256&bbox={bbox-epsg-3857}';
+
+/**
+ * ICGC's Ortofoto de costa, the finest photograph this map has and the one it
+ * wants wherever the coast is on screen.
  *
  * It is flown by the body that made the bathymetry underneath it, on the same
  * campaigns, so the shoreline in the picture and the 0 m isobath are the same
@@ -225,12 +255,13 @@ const SATELLITE_TILES =
  *
  * `image/vnd.jpeg-png` is what makes it an overlay rather than a replacement.
  * MapServer returns JPEG where the strip is opaque, about 20 KB a tile, and a
- * 334-byte fully transparent PNG everywhere it has no coverage. So inland and
- * offshore the IGN photograph below shows through untouched, and along the coast
- * ICGC wins. Measured at Tamariu z16 through z20.
+ * 334-byte fully transparent PNG everywhere it has no coverage. So along the
+ * coast this is the picture, and away from it the territorial ICGC photograph
+ * below shows through untouched. Measured at Tamariu z16 through z20.
  *
- * `bounds` is the service's own declared extent. Outside Catalonia there is
- * nothing to ask for.
+ * What that transparency does not do is reach inland. The strip is narrow, and
+ * treating it as the only ICGC layer is what left a diver looking at IGN a few
+ * kilometres from the water. That is the territorial layer's job now.
  */
 const ICGC_SATELLITE_TILES =
 	'https://geoserveis.icgc.cat/servei/catalunya/orto-costa/wms?service=WMS' +
@@ -238,7 +269,11 @@ const ICGC_SATELLITE_TILES =
 	'&format=image/vnd.jpeg-png&transparent=true' +
 	'&width=256&height=256&bbox={bbox-epsg-3857}';
 
-const ICGC_SATELLITE_BOUNDS: [number, number, number, number] = [
+/**
+ * The extent both ICGC services declare, and the same rectangle for each. Outside
+ * Catalonia neither has anything to answer with, so there is nothing to ask for.
+ */
+const ICGC_BOUNDS: [number, number, number, number] = [
 	0.024303, 40.061468, 3.360594, 43.400669
 ];
 
@@ -1113,12 +1148,21 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			attribution:
 				'<a href="https://pnoa.ign.es/" target="_blank" rel="noopener">PNOA</a> cedido por © Instituto Geográfico Nacional de España'
 		},
+		[ICGC_TERRITORIAL_SOURCE_ID]: {
+			type: 'raster',
+			tiles: [ICGC_TERRITORIAL_TILES],
+			tileSize: 256,
+			maxzoom: 19,
+			bounds: ICGC_BOUNDS,
+			attribution:
+				'<a href="https://www.icgc.cat/" target="_blank" rel="noopener">ICGC</a> ortofoto de Catalunya, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>'
+		},
 		[ICGC_SATELLITE_SOURCE_ID]: {
 			type: 'raster',
 			tiles: [ICGC_SATELLITE_TILES],
 			tileSize: 256,
 			maxzoom: 20,
-			bounds: ICGC_SATELLITE_BOUNDS,
+			bounds: ICGC_BOUNDS,
 			attribution:
 				'<a href="https://www.icgc.cat/" target="_blank" rel="noopener">ICGC</a> ortofoto de costa, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>'
 		},
@@ -1158,11 +1202,28 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 		},
 
 		{
-			// Over the national photograph, under everything else. ICGC's coastal
-			// ortophoto only exists along the shore, and outside that strip its WMS
-			// answers with a transparent tile, so this layer is the finer picture where
-			// there is one and a sheet of glass everywhere else. Same switch as the
-			// layer below it: a diver asks for the photograph, not for a provider.
+			// Three photographs on one switch, coarsest at the bottom. PNOA below covers
+			// Spain, this one covers Catalonia at 25 cm, and the coastal strip above
+			// covers the shore at 10. Each answers a tile it has nothing for with a
+			// transparent PNG rather than a blank rectangle, so the stack resolves per
+			// pixel to the finest photograph that actually has one.
+			//
+			// This middle layer is the one that was missing. Without it the only ICGC
+			// picture was the coastal strip, so anywhere the shore was off screen the
+			// map fell all the way through to PNOA and showed a Spanish photograph
+			// under a credit line naming ICGC.
+			id: 'satellite-icgc-territorial',
+			type: 'raster',
+			source: ICGC_TERRITORIAL_SOURCE_ID,
+			layout: { visibility: vis(options, 'satellite') },
+			paint: { 'raster-opacity': 1 }
+		},
+
+		{
+			// The finest of the three, and the reason the other two are only a backing.
+			// It is flown on the bathymetry campaigns, so its shoreline and the 0 m
+			// isobath are one survey. Same switch as the layers below it: a diver asks
+			// for the photograph, not for a provider.
 			id: 'satellite-icgc',
 			type: 'raster',
 			source: ICGC_SATELLITE_SOURCE_ID,
