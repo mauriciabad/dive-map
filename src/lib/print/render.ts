@@ -2,7 +2,13 @@ import { Map as MapLibre, addProtocol } from 'maplibre-gl';
 import { Protocol } from 'pmtiles';
 import { installMarkerImages } from '$lib/map/marker-images';
 import { GROUND_FILL_LAYERS, type StyleOptions, buildStyle } from '$lib/map/style';
-import { PRINT_TEXTURE_SIZE, loadTextures, texturePalette } from '$lib/map/textures';
+import {
+	PATTERN_CSS_SIZE,
+	TEXTURE_SIZES,
+	type TextureSize,
+	loadTextures,
+	texturePalette
+} from '$lib/map/textures';
 import { type DiveCard, planFor } from '$lib/domain/card';
 import { NO_TEXTURE_CHOICES, type TextureChoices } from '$lib/domain/habitat';
 import { CANVAS_PIXEL_CAP, renderZoom } from '$lib/domain/print';
@@ -27,10 +33,39 @@ import { CANVAS_PIXEL_CAP, renderZoom } from '$lib/domain/print';
  *    buffer under it, so the zoom to set is `renderZoom(plan, pixelRatio)` and not
  *    the plan's own. Ratio 2 is deliberate: it is what makes labels and line
  *    weights land thick enough to read on laminate.
+ * 6. MapLibre packs the patterns one tile needs into one image and uploads it as a
+ *    single texture, so a texture too big for the GPU takes a whole tile's fill
+ *    down with it. See `printTextureSize`.
  */
 
 /** Ratio 2 is what makes map labels and line weights survive lamination. */
 export const PRINT_PIXEL_RATIO = 2;
+
+/**
+ * The finest seabed texture a sheet can actually show.
+ *
+ * A fill-pattern is laid out in CSS pixels, `PATTERN_CSS_SIZE` of them to a
+ * repeat, so one repeat lands on `PATTERN_CSS_SIZE * pixelRatio` sheet pixels
+ * whatever the sheet's size or density. At ratio 2 that is 512, and the 2048 this
+ * used to ask for was three quarters of every texture sampled away before it
+ * reached the paper.
+ *
+ * It was not free. MapLibre packs the patterns a tile needs into one image and
+ * uploads that as a single GPU texture, so the cost of an oversized texture is
+ * paid per tile and multiplied by how many classes the survey mapped there. At
+ * 2048 a tile using eight classes packed to 4100x8200, eight pixels over the 8192
+ * this machine's GL_MAX_TEXTURE_SIZE allows; the upload failed with
+ * GL_INVALID_VALUE, MapLibre said nothing, and every habitat in that tile painted
+ * as nothing at all, right up to the tile's own straight edge. The sheet came back
+ * with a rectangle of bare seabed across it.
+ *
+ * At 512 the whole 22-texture palette in one tile packs to 2570 a side, which is
+ * under every limit a device that can draw the sheet at all reports.
+ */
+const printTextureSize = (pixelRatio: number): TextureSize =>
+	// 1024 rather than the largest there is: it is the biggest whose atlas still
+	// fits 8192 with the whole palette in one tile. Unreachable at ratio 2.
+	TEXTURE_SIZES.find((size) => size >= PATTERN_CSS_SIZE * pixelRatio) ?? 1024;
 
 /**
  * Backstop for a style that neither loads nor errors. Every failure that announces
@@ -158,7 +193,7 @@ export const renderCard = async (
 	}
 
 	addProtocol('pmtiles', new Protocol().tile);
-	const textures = await loadTextures(texturePalette(), PRINT_TEXTURE_SIZE);
+	const textures = await loadTextures(texturePalette(), printTextureSize(pixelRatio));
 
 	const host = document.createElement('div');
 	host.style.cssText = [
