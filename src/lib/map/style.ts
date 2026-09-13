@@ -33,8 +33,10 @@ import {
 	MARKERS,
 	MARKER_DISC_IMAGE,
 	MARKER_INK,
+	MARKER_PLATE,
 	MARKER_RIM,
 	MINOR_KINDS,
+	markerFrom,
 	markerHalo,
 	markerImageId
 } from './markers.ts';
@@ -547,13 +549,20 @@ const markerLayer = (
 	id: string,
 	options: StyleOptions,
 	kinds: readonly DiveFeatureKind[],
-	{ crowds, minzoom }: { readonly crowds: boolean; readonly minzoom?: number }
+	{ crowds }: { readonly crowds: boolean }
 ): LayerSpecification => ({
 	id,
 	type: 'symbol',
 	source: 'osm',
-	...(minzoom === undefined ? {} : { minzoom }),
-	filter: isKind(...kinds),
+	// A minzoom on the layer is one answer for ten kinds. The table says when
+	// each of them starts and the filter reads that per feature. MapLibre
+	// evaluates a zoom expression in a filter at integer zooms, which is why
+	// every number in that column is a whole one.
+	filter: [
+		'all',
+		isKind(...kinds),
+		['>=', ['zoom'], ['coalesce', ['get', ['get', 'kind'], ['literal', markerFrom(kinds)]], 0]]
+	],
 	layout: {
 		visibility: vis(options, 'osm'),
 		'icon-image': byKind(kinds, markerImageId, MARKER_DISC_IMAGE),
@@ -596,24 +605,29 @@ const osmLayers = (options: StyleOptions): LayerSpecification[] => {
 		''
 	];
 	const discs = shown(options, DISC_KINDS);
-	const restricted = shown(options, ['restricted-area']);
+	// Both kinds of zone have an outline worth drawing and they do not mean the
+	// same thing, so each takes its own family colour rather than sharing a paint.
+	const zones = shown(options, ['restricted-area', 'swimming-area']);
 	return [
 		{
 			id: 'osm-restricted',
 			type: 'fill',
 			source: 'osm',
-			filter: ['all', ['==', ['geometry-type'], 'Polygon'], isKind(...restricted)],
+			filter: ['all', ['==', ['geometry-type'], 'Polygon'], isKind(...zones)],
 			layout: { visibility },
-			paint: { 'fill-color': MARKERS['restricted-area'].colour, 'fill-opacity': 0.14 }
+			paint: {
+				'fill-color': byKind(zones, (kind) => MARKERS[kind].colour, PALETTE.paper),
+				'fill-opacity': 0.14
+			}
 		},
 		{
 			id: 'osm-restricted-edge',
 			type: 'line',
 			source: 'osm',
-			filter: ['all', ['==', ['geometry-type'], 'Polygon'], isKind(...restricted)],
+			filter: ['all', ['==', ['geometry-type'], 'Polygon'], isKind(...zones)],
 			layout: { visibility },
 			paint: {
-				'line-color': MARKERS['restricted-area'].colour,
+				'line-color': byKind(zones, (kind) => MARKERS[kind].colour, PALETTE.paper),
 				'line-width': 1.6,
 				'line-dasharray': [3, 2],
 				'line-opacity': 0.8
@@ -668,17 +682,14 @@ const osmLayers = (options: StyleOptions): LayerSpecification[] => {
 				'icon-ignore-placement': false
 			},
 			paint: {
-				'icon-color': MARKER_INK,
+				'icon-color': MARKER_PLATE,
 				'icon-halo-color': MARKER_RIM,
 				'icon-halo-width': 1.6
 			}
 		},
 		// Furniture first, then the dive and what threatens it, so a crowded marina
 		// never draws over a wreck.
-		markerLayer('osm-marker-minor', options, shown(options, MINOR_KINDS), {
-			crowds: true,
-			minzoom: 11
-		}),
+		markerLayer('osm-marker-minor', options, shown(options, MINOR_KINDS), { crowds: true }),
 		markerLayer('osm-marker-key', options, shown(options, KEY_KINDS), { crowds: false }),
 		{
 			// A harbour is the one kind with no mark at all. Its name is what anybody
@@ -713,9 +724,26 @@ const osmLayers = (options: StyleOptions): LayerSpecification[] => {
 				'text-field': localName,
 				'text-font': labelFont,
 				'text-size': ['interpolate', ['linear'], ['zoom'], 10, 11, 18, 16],
-				// Clear of the plate, which grows with the zoom the text does.
-				'text-offset': [0, 1.4],
-				'text-anchor': 'top',
+				// Sixteen dive sites fit in one frame off Medes and their names do not,
+				// so seven were dropped and a site at planning zoom had nothing to call
+				// it. Nothing else was taking the space: holding the icons off placement
+				// changed nothing, and letting the names overlap recovered all sixteen.
+				// A single anchor gives a name one slot to fit in, so MapLibre tries
+				// these in turn and drops it only when every one of them is taken.
+				'text-variable-anchor': [
+					'top',
+					'bottom',
+					'left',
+					'right',
+					'top-left',
+					'top-right',
+					'bottom-left',
+					'bottom-right'
+				],
+				// Radial rather than an offset, because the anchor moves: the clearance
+				// from the plate has to be a radius rather than a direction.
+				'text-radial-offset': 1.3,
+				'text-justify': 'auto',
 				'text-max-width': 9,
 				'symbol-sort-key': ['-', 0, ['coalesce', ['get', 'maxDepth'], 0]]
 			},
