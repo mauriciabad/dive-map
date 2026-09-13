@@ -104,9 +104,9 @@ describe('picking a feature off the map', () => {
 		// OSM tags this reserve seamark:restricted_area:category=swimming, so the
 		// parser reads it as a bathing zone. Wrong about Ses Negres, right about the
 		// tag, and the tag is what a mapper can fix.
-		expect(pickFrom([zone], [], AT)?.feature?.kind).toBe('swimming-area');
-		expect(pickFrom([zone, site], [], AT)?.feature?.name).toBe('Canons de Tamariu');
-		expect(pickFrom([site, zone], [], AT)?.feature?.name).toBe('Canons de Tamariu');
+		expect(pickFrom([zone], [], AT, 'habitats')?.feature?.kind).toBe('swimming-area');
+		expect(pickFrom([zone, site], [], AT, 'habitats')?.feature?.name).toBe('Canons de Tamariu');
+		expect(pickFrom([site, zone], [], AT, 'habitats')?.feature?.name).toBe('Canons de Tamariu');
 	});
 
 	it('picks nothing when no hit is a feature this map shows', () => {
@@ -114,25 +114,33 @@ describe('picking a feature off the map', () => {
 			{ kind: 'dive-site', name: 'no ref on this one' },
 			{ t: 'node', id: 1, amenity: 'cafe' }
 		];
-		expect(pickFrom(hits, [], AT)).toBeUndefined();
+		expect(pickFrom(hits, [], AT, 'habitats')).toBeUndefined();
 	});
 
 	it('reads the seabed off ground hits that carry a code and skips the ones that do not', () => {
 		const site = namedFeature('Canons de Tamariu');
 		const ground = [{ code: '30512' }, { name: 'no code here' }, { code: '30402' }];
-		expect(pickFrom([site], ground, AT)?.seabed.map((c) => c.code)).toEqual(['30512', '30402']);
+		expect(pickFrom([site], ground, AT, 'habitats')?.seabed.map((c) => c.code)).toEqual(['30512', '30402']);
 	});
 });
 
 describe('the seabed strip under the tap', () => {
 	it('puts Posidonia ahead of bare sand', () => {
-		expect(seabedFrom(new Set(['30402', '30512']))[0]?.code).toBe('30512');
+		expect(seabedFrom(new Set(['30402', '30512']), 'habitats')[0]?.code).toBe('30512');
 	});
 
 	it('resolves a substrate-only code the habitat legend cannot see', () => {
-		const seabed = seabedFrom(new Set(['301']));
+		const seabed = seabedFrom(new Set(['301']), 'habitats');
 		expect(seabed[0]).toBe(substrateByCode.get('301'));
 		expect(seabed[0]?.ca).toBe('Roca');
+	});
+
+	// The same tap on the same polygon, read off whichever layer drew it. On
+	// seafloor type the card names the material under the meadow and shows the
+	// swatch the map is really painting there.
+	it('names a Posidonia bed by the layer under the tap', () => {
+		expect(seabedFrom(new Set(['30512']), 'habitats')[0]?.texture).toBe('ch_grass');
+		expect(seabedFrom(new Set(['30512']), 'substrate')[0]?.texture).toBe('ch_stone_pattern');
 	});
 
 	it('points a class at its swatch', () => {
@@ -256,24 +264,24 @@ describe('a tap on open seabed still answers', () => {
 	];
 
 	it('returns a pick with no OSM feature at all', () => {
-		const pick = pickFrom([], ground, AT);
+		const pick = pickFrom([], ground, AT, 'habitats');
 		expect(pick?.feature).toBeUndefined();
 		expect(pick?.seabed.map((c) => c.code)).toEqual(['30512', '30402']);
 	});
 
 	it('reports the surveyed depth spanning every class under the point', () => {
-		expect(pickFrom([], ground, AT)?.depth).toEqual({ min: 12, max: 26 });
+		expect(pickFrom([], ground, AT, 'habitats')?.depth).toEqual({ min: 12, max: 26 });
 	});
 
 	it('carries the tapped position so it can be read off the card', () => {
-		expect(pickFrom([], ground, AT)?.position).toEqual(AT);
+		expect(pickFrom([], ground, AT, 'habitats')?.position).toEqual(AT);
 	});
 
 	it('still answers nothing where there is neither a feature nor a seabed', () => {
-		expect(pickFrom([], [], AT)).toBeUndefined();
+		expect(pickFrom([], [], AT, 'habitats')).toBeUndefined();
 	});
 
 	it('leaves the depth out when the tiles carry no depth for the polygon', () => {
-		expect(pickFrom([], [{ code: '30512' }], AT)?.depth).toBeUndefined();
+		expect(pickFrom([], [{ code: '30512' }], AT, 'habitats')?.depth).toBeUndefined();
 	});
 });

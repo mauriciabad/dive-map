@@ -47,11 +47,15 @@ describe('the legend of a ground layer', () => {
 		expect(legend.inFrame.map((row) => row.inFrame[0]?.seabed.code)).toEqual(['30512', '30402']);
 	});
 
-	it('explains the seagrass the substrate layer returns but never defines', () => {
+	// Seafloor type asks what the bottom is made of, and the survey answers it for a
+	// Posidonia bed too: rock under a thin sediment veneer. So the row is the
+	// substrate class and its own pattern, and no grass reaches this legend.
+	it('explains a Posidonia bed by the ground under it, not the grass on it', () => {
 		const legend = buildLegend('substrate', new Set(['30512']), NO_TEXTURE_CHOICES);
-		const row = legend.inFrame.find((entry) => entry.texture === 'ch_grass');
+		const row = legend.inFrame.find((entry) => entry.texture === 'ch_stone_pattern');
 		expect(row?.inFrame.map((entry) => entry.seabed.code)).toEqual(['30512']);
-		expect(entriesOf(legend)).toHaveLength(SUBSTRATES.length + 1);
+		expect(legend.inFrame.some((entry) => entry.texture === 'ch_grass')).toBe(false);
+		expect(entriesOf(legend)).toHaveLength(SUBSTRATES.length);
 	});
 
 	it('regroups a class the diver repainted into the row it now belongs to', () => {

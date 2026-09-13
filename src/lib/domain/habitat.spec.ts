@@ -35,17 +35,20 @@ const byKey = (key: SeabedKey): SeabedClass => {
 };
 
 describe('seabed catalogue', () => {
-	it('carries both published catalogues in full', () => {
+	it('carries both published catalogues in full, and what the live layer adds', () => {
 		expect(HABITATS).toHaveLength(33);
-		expect(SUBSTRATES).toHaveLength(20);
+		expect(SUBSTRATES).toHaveLength(23);
 	});
 
-	it.each(['habitats', 'substrate'])('resolves every %s code the live WFS returns', (layer) => {
-		const codes = Object.keys(liveCodes[layer] ?? {});
-		expect(codes.length).toBeGreaterThan(0);
-		const unresolved = codes.filter((c) => seabedClassByCode(c) === undefined);
-		expect(unresolved).toEqual([]);
-	});
+	it.each(['habitats', 'substrate'] as const)(
+		'resolves every %s code the live WFS returns',
+		(layer) => {
+			const codes = Object.keys(liveCodes[layer] ?? {});
+			expect(codes.length).toBeGreaterThan(0);
+			const unresolved = codes.filter((c) => seabedClassByCode(c, layer) === undefined);
+			expect(unresolved).toEqual([]);
+		}
+	);
 
 	it('gives every class a texture', () => {
 		const missing = [...HABITATS, ...SUBSTRATES].filter((c) => c.texture.length === 0);
@@ -58,10 +61,29 @@ describe('seabed catalogue', () => {
 		expect(groynes?.texture).toBe('ch_bluestones');
 	});
 
-	it('finds seagrass codes that only the habitat catalogue defines', () => {
+	// Both layers publish these three. Seafloor type is what the bottom is made of,
+	// so there they are the material the survey's own TEXTURA field names under the
+	// meadow, and they paint with it rather than with grass.
+	it('reads the seagrass codes as cover on habitats and as ground on substrate', () => {
 		for (const code of ['30509', '30512', '30513']) {
-			expect(seabedClassByCode(code)).toBe(habitatByCode.get(code));
+			expect(seabedClassByCode(code, 'habitats')).toBe(habitatByCode.get(code));
+			expect(seabedClassByCode(code, 'substrate')).toBe(substrateByCode.get(code));
 		}
+		expect(textureOf(mustResolve('30512', substrateByCode), {})).toBe('ch_stone_pattern');
+		expect(textureOf(mustResolve('30509', substrateByCode), {})).toBe('ch_dirt_lines_02');
+	});
+
+	// The one code both catalogues published before, and the reason resolving by
+	// code alone was never enough: it is circalittoral rock on one layer and a
+	// biogenic reef on the other.
+	it('reads 30202 as whatever the layer under the tap means by it', () => {
+		expect(seabedClassByCode('30202', 'habitats')).toBe(habitatByCode.get('30202'));
+		expect(seabedClassByCode('30202', 'substrate')).toBe(substrateByCode.get('30202'));
+	});
+
+	it('falls through to the other catalogue for a code the layer does not define', () => {
+		expect(seabedClassByCode('301', 'habitats')).toBe(substrateByCode.get('301'));
+		expect(seabedClassByCode('30102', 'substrate')).toBe(habitatByCode.get('30102'));
 	});
 
 	it('puts Posidonia in the legend ahead of bare sand', () => {

@@ -642,6 +642,47 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		en: 'Anthropogenic sedimentary bottoms (dredge trenches)',
 		prominence: 'background',
 		texture: 'ch_bluerock'
+	},
+	// The three below are published by the live layer and not by the spec sheet.
+	// 30509, 30512 and 30513 are 41% of its features, and the survey does say what
+	// the bottom under them is: each feature carries a TEXTURA reading "fons rocós
+	// recobert de sediment amb vegetació (Posidonia oceanica)" for 30512 and "fons
+	// sedimentari amb substrat fi amb vegetació" for the other two, with GRUIX 10
+	// and 25 cm against 100 for open sand and mud. So the material is known and
+	// these are substrate classes, with the same material the spec's own 302 and
+	// 30402 name. Names are the layer's own DES_FONS. The published raster grid
+	// stops at 20 and these have no raster in it, so they are numbered on after it:
+	// nothing joins substrate by raster, the tiles carry CODI_FONS, and the number
+	// is only the half of `seabedKey` that keeps a saved texture choice resolving.
+	{
+		raster: 21,
+		ground: 'substrate',
+		code: '30509',
+		ca: 'Fons coberts per Cymodocea nodosa',
+		es: 'Fondos cubiertos por Cymodocea nodosa',
+		en: 'Bottom covered by Cymodocea nodosa',
+		prominence: 'notable',
+		texture: 'ch_dirt_lines_02'
+	},
+	{
+		raster: 22,
+		ground: 'substrate',
+		code: '30512',
+		ca: 'Fons coberts per Posidonia oceanica',
+		es: 'Fondos cubiertos por Posidonia oceanica',
+		en: 'Bottom covered by Posidonia oceanica',
+		prominence: 'signature',
+		texture: 'ch_stone_pattern'
+	},
+	{
+		raster: 23,
+		ground: 'substrate',
+		code: '30513',
+		ca: "Fons coberts per alguers i herbeis d'algues verdes rizomatoses",
+		es: 'Fondos cubiertos por praderas y herbazales de algas verdes rizomatosas',
+		en: 'Bottom covered by seagrass and rhizomatous green algae beds',
+		prominence: 'background',
+		texture: 'ch_dirt_lines_02'
 	}
 ];
 
@@ -682,16 +723,24 @@ export const legendFor = (present: ReadonlySet<string>, limit: number): readonly
 		.sort(byProminence)
 		.slice(0, limit);
 
-/**
- * The published substrate catalogue and the published habitat catalogue are
- * separate documents, but the live WFS does not respect the split: the substrate
- * layer returns 30509, 30512 and 30513, which are seagrass classes defined only
- * in the habitat catalogue. Resolve against both.
- */
 export type SeabedClass = HabitatClass | SubstrateClass;
 
-export const seabedClassByCode = (code: string): SeabedClass | undefined =>
-	substrateByCode.get(code) ?? habitatByCode.get(code);
+/**
+ * What a code means, decided by the layer that drew it.
+ *
+ * A code alone is not an answer. Habitat 30202 is circalittoral rock dominated by
+ * invertebrates and substrate 30202 is a biogenic reef, and both catalogues now
+ * publish 30509, 30512 and 30513. The ground is the other half, which is the rule
+ * `patternFor` and `buildLegend` already paint and list by, so a card naming a tap
+ * follows it too rather than answering for the layer nobody is looking at.
+ *
+ * Still falls through to the other catalogue, because each layer returns a handful
+ * of codes only the other defines.
+ */
+export const seabedClassByCode = (code: string, ground: Ground): SeabedClass | undefined =>
+	ground === 'substrate'
+		? (substrateByCode.get(code) ?? habitatByCode.get(code))
+		: (habitatByCode.get(code) ?? substrateByCode.get(code));
 
 export const catalogueOf = (ground: Ground): readonly SeabedClass[] =>
 	ground === 'habitats' ? HABITATS : SUBSTRATES;

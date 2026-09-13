@@ -1,4 +1,4 @@
-import { type SeabedClass, byProminence, seabedClassByCode } from '$lib/domain/habitat';
+import { type Ground, type SeabedClass, byProminence, seabedClassByCode } from '$lib/domain/habitat';
 import {
 	type DiveEntry,
 	type DiveFeature,
@@ -90,7 +90,8 @@ const KIND_PRIORITY: Record<DiveFeatureKind, number> = {
 export const pickFrom = (
 	osmHits: readonly FeatureProperties[],
 	groundHits: readonly FeatureProperties[],
-	position: { readonly lng: number; readonly lat: number }
+	position: { readonly lng: number; readonly lat: number },
+	ground: Ground
 ): FeaturePick | undefined => {
 	let best: DiveFeature | undefined;
 	for (const props of osmHits) {
@@ -113,7 +114,7 @@ export const pickFrom = (
 		if (typeof lo === 'number') min = Math.min(min, lo);
 		if (typeof hi === 'number') max = Math.max(max, hi);
 	}
-	const seabed = seabedFrom(codes);
+	const seabed = seabedFrom(codes, ground);
 	if (best === undefined && seabed.length === 0) return undefined;
 
 	return {
@@ -126,15 +127,16 @@ export const pickFrom = (
 
 /**
  * The classes under the tap, most diver-relevant first and capped at what the
- * card has room for. The codes come from whichever ground layer is drawn, so
- * they are resolved against both catalogues rather than against one.
+ * card has room for. The codes come off the one ground layer that is drawn, so
+ * they resolve against that layer's catalogue and fall through to the other.
  */
 export const seabedFrom = (
 	codes: ReadonlySet<string>,
+	ground: Ground,
 	limit = SEABED_LIMIT
 ): readonly SeabedClass[] =>
 	[...codes]
-		.flatMap((code) => seabedClassByCode(code) ?? [])
+		.flatMap((code) => seabedClassByCode(code, ground) ?? [])
 		.sort(byProminence)
 		.slice(0, limit);
 

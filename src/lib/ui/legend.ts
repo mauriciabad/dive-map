@@ -83,13 +83,13 @@ export const buildLegend = (
 ): Legend => {
 	const own = catalogueOf(ground);
 	const entries = own.map((seabed) => entryOf(seabed, chosen));
-	// The substrate layer returns 30509, 30512 and 30513, which only the habitat
-	// catalogue defines and which the style really does paint. A code the ground's
-	// own catalogue claims keeps the ground's meaning, as patternFor does.
+	// Each layer returns a few codes only the other catalogue defines, and the style
+	// really does paint them. A code the ground's own catalogue claims keeps the
+	// ground's meaning, as patternFor does.
 	const claimed = new Set(own.map((seabed) => seabed.code));
 	for (const code of present) {
 		if (claimed.has(code)) continue;
-		const seabed = seabedClassByCode(code);
+		const seabed = seabedClassByCode(code, ground);
 		if (seabed !== undefined) entries.push(entryOf(seabed, chosen));
 	}
 	entries.sort((a, b) => byProminence(a.seabed, b.seabed));
