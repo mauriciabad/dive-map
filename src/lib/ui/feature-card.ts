@@ -14,6 +14,7 @@ import {
 	type OsmTags,
 	parseDiveFeature
 } from '$lib/domain/osm';
+import type { DepthReading } from '$lib/map/depth';
 import { GROUND_BY_LAYER } from '$lib/map/style';
 import type { Depth } from '$lib/domain/units';
 import { type Locale, localisedName } from '$lib/i18n/locale';
@@ -42,8 +43,15 @@ export interface FeaturePick {
 	/** One reading per catalogue that had anything to say, habitats first. */
 	readonly seabed: readonly SeabedReading[];
 	readonly position: { readonly lng: number; readonly lat: number };
-	/** Surveyed depth range of the habitat polygon under the point, in metres. */
-	readonly depth: { readonly min: number; readonly max: number } | undefined;
+	/**
+	 * How deep it is where the diver tapped, in metres.
+	 *
+	 * Read off the contours at that point rather than off the habitat polygon,
+	 * which carries the range of the whole polygon and answered "0 to 42 m" on a
+	 * card about one spot. Between two contours the honest answer is still a pair,
+	 * so this keeps both ends; see `depthUnder`.
+	 */
+	readonly depth: DepthReading | undefined;
 }
 
 /** A ground polygon under the tap, with the layer that says which catalogue it is in. */
@@ -114,10 +122,14 @@ const GROUNDS: readonly Ground[] = ['habitats', 'substrate'];
 /**
  * A tap always answers.
  *
- * Open water is not nothing: there is a habitat class, a substrate, a surveyed
- * depth range and a position under every point on this map, and that is most of
- * what a diver wants to know. Returning undefined there left the panel shut and
- * the map feeling broken.
+ * Open water is not nothing: there is a habitat class, a substrate, a depth and a
+ * position under every point on this map, and that is most of what a diver wants
+ * to know. Returning undefined there left the panel shut and the map feeling
+ * broken.
+ *
+ * The depth arrives already read. It comes off the contours on screen at the
+ * exact point, which only the map can do, and this stays a function of what was
+ * hit rather than of a live map.
  *
  * The catalogue a code belongs to comes off the layer the hit arrived on rather
  * than off the switch in the panel. The style keeps a zero-opacity probe over the
@@ -126,7 +138,8 @@ const GROUNDS: readonly Ground[] = ['habitats', 'substrate'];
 export const pickFrom = (
 	osmHits: readonly FeatureProperties[],
 	groundHits: readonly GroundHit[],
-	position: { readonly lng: number; readonly lat: number }
+	position: { readonly lng: number; readonly lat: number },
+	depth: DepthReading | undefined
 ): FeaturePick | undefined => {
 	let best: DiveFeature | undefined;
 	for (const props of osmHits) {
@@ -139,16 +152,10 @@ export const pickFrom = (
 		}
 	}
 	const codes: Record<Ground, Set<string>> = { habitats: new Set(), substrate: new Set() };
-	let min = Number.POSITIVE_INFINITY;
-	let max = Number.NEGATIVE_INFINITY;
 	for (const { layer, props } of groundHits) {
 		const ground = GROUND_BY_LAYER[layer];
 		const code = props['code'];
 		if (ground !== undefined && typeof code === 'string') codes[ground].add(code);
-		const lo: unknown = props['dmin'];
-		const hi: unknown = props['dmax'];
-		if (typeof lo === 'number') min = Math.min(min, lo);
-		if (typeof hi === 'number') max = Math.max(max, hi);
 	}
 	const seabed = GROUNDS.flatMap((ground) => {
 		const classes = seabedFrom(codes[ground], ground);
@@ -156,12 +163,7 @@ export const pickFrom = (
 	});
 	if (best === undefined && seabed.length === 0) return undefined;
 
-	return {
-		feature: best,
-		seabed,
-		position,
-		depth: Number.isFinite(min) && Number.isFinite(max) ? { min, max } : undefined
-	};
+	return { feature: best, seabed, position, depth };
 };
 
 /**

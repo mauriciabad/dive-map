@@ -113,9 +113,9 @@ describe('picking a feature off the map', () => {
 		// Ses Negres is tagged seamark:restricted_area:category=swimming and is a
 		// marine reserve. The protection tags are what say so, and they outrank the
 		// seamark category: see `isProtected` in osm.ts.
-		expect(pickFrom([zone], [], AT)?.feature?.kind).toBe('marine-reserve');
-		expect(pickFrom([zone, site], [], AT)?.feature?.name).toBe('Canons de Tamariu');
-		expect(pickFrom([site, zone], [], AT)?.feature?.name).toBe('Canons de Tamariu');
+		expect(pickFrom([zone], [], AT, undefined)?.feature?.kind).toBe('marine-reserve');
+		expect(pickFrom([zone, site], [], AT, undefined)?.feature?.name).toBe('Canons de Tamariu');
+		expect(pickFrom([site, zone], [], AT, undefined)?.feature?.name).toBe('Canons de Tamariu');
 	});
 
 	it('picks nothing when no hit is a feature this map shows', () => {
@@ -123,7 +123,7 @@ describe('picking a feature off the map', () => {
 			{ kind: 'dive-site', name: 'no ref on this one' },
 			{ t: 'node', id: 1, amenity: 'cafe' }
 		];
-		expect(pickFrom(hits, [], AT)).toBeUndefined();
+		expect(pickFrom(hits, [], AT, undefined)).toBeUndefined();
 	});
 
 	it('reads the seabed off ground hits that carry a code and skips the ones that do not', () => {
@@ -133,7 +133,7 @@ describe('picking a feature off the map', () => {
 			{ name: 'no code here' },
 			{ code: '30402' }
 		]);
-		expect(named(pickFrom([site], ground, AT), 'habitats')).toEqual(['30512', '30402']);
+		expect(named(pickFrom([site], ground, AT, undefined), 'habitats')).toEqual(['30512', '30402']);
 	});
 
 	// The card asks both questions, so the switch in the panel cannot decide which
@@ -143,7 +143,8 @@ describe('picking a feature off the map', () => {
 		const pick = pickFrom(
 			[],
 			[...off('habitats', [{ code: '30202' }]), ...off('substrate', [{ code: '30202' }])],
-			AT
+			AT,
+			undefined
 		);
 		expect(pick?.seabed.map((reading) => reading.ground)).toEqual(['habitats', 'substrate']);
 		expect(pick?.seabed[0]?.classes[0]?.en).toBe('Circalittoral rock, invertebrate-dominated');
@@ -151,7 +152,7 @@ describe('picking a feature off the map', () => {
 	});
 
 	it('leaves out a catalogue with nothing under the point rather than heading an empty list', () => {
-		const pick = pickFrom([], off('habitats', [{ code: '30512' }]), AT);
+		const pick = pickFrom([], off('habitats', [{ code: '30512' }]), AT, undefined);
 		expect(pick?.seabed.map((reading) => reading.ground)).toEqual(['habitats']);
 	});
 });
@@ -292,30 +293,37 @@ describe('the layers a tap is allowed to hit', () => {
 });
 
 describe('a tap on open seabed still answers', () => {
-	const ground = off('habitats', [
-		{ code: '30512', dmin: 12, dmax: 22 },
-		{ code: '30402', dmin: 20, dmax: 26 }
-	]);
+	const ground = off('habitats', [{ code: '30512' }, { code: '30402' }]);
 
 	it('returns a pick with no OSM feature at all', () => {
-		const pick = pickFrom([], ground, AT);
+		const pick = pickFrom([], ground, AT, undefined);
 		expect(pick?.feature).toBeUndefined();
 		expect(named(pick, 'habitats')).toEqual(['30512', '30402']);
 	});
 
-	it('reports the surveyed depth spanning every class under the point', () => {
-		expect(pickFrom([], ground, AT)?.depth).toEqual({ min: 12, max: 26 });
+	/**
+	 * The card used to read `dmin` and `dmax` off the habitat polygon, which is the
+	 * range of the whole polygon and printed "0 to 42 m" on a card about one spot.
+	 * The depth is now read at the point and handed in, and nothing in the polygon
+	 * can put a number on this card any more.
+	 */
+	it('reports the depth read at the point, not the range of the polygon', () => {
+		const deep = off('habitats', [{ code: '30512', dmin: 0, dmax: 42 }]);
+		expect(pickFrom([], deep, AT, { shallowestM: 18, deepestM: 18 })?.depth).toEqual({
+			shallowestM: 18,
+			deepestM: 18
+		});
 	});
 
 	it('carries the tapped position so it can be read off the card', () => {
-		expect(pickFrom([], ground, AT)?.position).toEqual(AT);
+		expect(pickFrom([], ground, AT, undefined)?.position).toEqual(AT);
 	});
 
 	it('still answers nothing where there is neither a feature nor a seabed', () => {
-		expect(pickFrom([], [], AT)).toBeUndefined();
+		expect(pickFrom([], [], AT, undefined)).toBeUndefined();
 	});
 
-	it('leaves the depth out when the tiles carry no depth for the polygon', () => {
-		expect(pickFrom([], off('habitats', [{ code: '30512' }]), AT)?.depth).toBeUndefined();
+	it('leaves the depth out where no contour was close enough to read', () => {
+		expect(pickFrom([], ground, AT, undefined)?.depth).toBeUndefined();
 	});
 });

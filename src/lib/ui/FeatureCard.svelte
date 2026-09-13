@@ -69,12 +69,12 @@
 			card about one point on the seabed is the depth there.
 		-->
 		{#if pick.depth !== undefined}
-			{@const flat = pick.depth.min === pick.depth.max}
+			{@const flat = pick.depth.shallowestM === pick.depth.deepestM}
 			<p class={['here', { flat }]}>
 				{#if flat}
-					{pick.depth.min}<span class="unit">m</span>
+					{pick.depth.shallowestM}<span class="unit">m</span>
 				{:else}
-					{t(locale, 'depthRange', { min: pick.depth.min, max: pick.depth.max })}
+					{t(locale, 'depthRange', { min: pick.depth.shallowestM, max: pick.depth.deepestM })}
 				{/if}
 			</p>
 		{/if}
