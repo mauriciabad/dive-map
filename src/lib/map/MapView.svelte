@@ -20,6 +20,7 @@
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import { installMarkerImages } from './marker-images';
 	import { PALETTE, SATELLITE_SOURCE_ID, buildStyle } from './style';
+	import { WORLD_SOURCE_ID } from './land';
 	import { failedTileSource } from './tile-errors';
 	import {
 		FLOURISH_TEXTURE,
@@ -55,7 +56,8 @@
 			groundLayer: view.groundLayer,
 			smoothed: view.smoothed,
 			textures: view.textures,
-			photoStrength: view.photoStrength
+			photoStrength: view.photoStrength,
+			worldPainted: view.worldPainted
 		})
 	);
 
@@ -177,6 +179,23 @@
 			restorePatterns(m);
 		});
 		void loadPatterns(m, texturePalette(untrack(() => view.textures)));
+		/**
+		 * The one thing that covers the DEM's lit nodata plane is the land, and on a
+		 * cold load a 487 KB archive loses the race to a 33 MB one. So the hillshade
+		 * waits here rather than in the DEM. See the layer's own comment in style.ts.
+		 *
+		 * `idle` is the release valve, not a second signal: a `world` source that
+		 * errors or is missing would otherwise hold the hillshade back forever, and
+		 * by the time the map is idle the flash window is over either way.
+		 */
+		const paintHillshade = () => {
+			view.worldPainted = true;
+		};
+		m.on('sourcedata', (e) => {
+			if (e.sourceId === WORLD_SOURCE_ID && e.isSourceLoaded) paintHillshade();
+		});
+		m.once('idle', paintHillshade);
+
 		m.on('load', () => {
 			view.ready = true;
 			onready?.(m);
