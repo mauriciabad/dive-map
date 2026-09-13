@@ -14,14 +14,17 @@ z13 and 20 km at z11, which is where the three clip strips of 3, 8 and 30 km
 come from: each is wider than the view that first shows what it holds, so no
 strip can be panned to until its own inner edge is off screen.
 
-The rule binds a continuous field, not a scatter. A road network or a town of
-buildings stopping in an arc across the interior is obvious; names, beaches and
-landmarks are sparse enough that nobody can see where they stop, so those take the
-strip that is cheap rather than the one the arithmetic demands.
+The rule binds a continuous field, not a scatter. A road network stopping in an
+arc across the interior is obvious; beaches are sparse enough that nobody can see
+where they stop, so those take the strip that is cheap rather than the one the
+arithmetic demands.
 
-Woodland and scrub were here and are not any more. They were nobody's request,
-they were the wash meant to give the interior some shape, and they cost 12.9 MB
-of a 51 MB archive, a quarter of it, to do a job the roads do better for less.
+Two rounds of deletion got this down. Woodland and scrub were the wash meant to
+give the interior some shape, and cost 12.9 MB of a 51 MB archive to do a job the
+roads do better. Buildings, place names and landmarks went next: the tiles carried
+all three and the style drew none of them, which is 6.0 MB of a 22.4 MB archive
+spent on nothing. The landmarks are the ones worth bringing back, with the
+authored icons issue #13 asks for rather than borrowed art.
 """
 
 from __future__ import annotations
@@ -68,28 +71,6 @@ ROAD_MINZOOM: dict[str, int] = {
 }
 
 WATERWAY_MINZOOM: dict[str, int] = {"river": 11, "canal": 13, "stream": 13}
-
-PLACE_MINZOOM: dict[str, int] = {
-    "city": 9,
-    "town": 10,
-    "village": 11,
-    "hamlet": 13,
-    "suburb": 13,
-    "locality": 14,
-}
-
-# A landmark earns its place by being visible from the water or by being the
-# thing a boat crew names when they say where they are. A lighthouse is both.
-LANDMARK_MINZOOM: dict[str, int] = {
-    "lighthouse": 11,
-    "peak": 11,
-    "castle": 12,
-    "tower": 13,
-    "church": 13,
-    "monastery": 13,
-    "ruins": 13,
-    "windmill": 13,
-}
 
 SAND_KINDS: dict[str, str] = {
     "beach": "beach",
@@ -176,55 +157,6 @@ def area_m2(geometry: dict[str, object]) -> float:
     return 0.0
 
 
-def centroid(geometry: dict[str, object]) -> list[float] | None:
-    """A point to hang a landmark mark on, for a landmark mapped as an area."""
-    kind = geometry.get("type")
-    coords = geometry.get("coordinates")
-    if kind == "Point" and isinstance(coords, list):
-        return [float(coords[0]), float(coords[1])]
-    ring: list[list[float]] | None = None
-    if kind == "Polygon" and isinstance(coords, list) and coords:
-        ring = coords[0]
-    elif kind == "MultiPolygon" and isinstance(coords, list) and coords:
-        ring = max((p[0] for p in coords if p), key=ring_area_m2, default=None)
-    if not ring:
-        return None
-    return [
-        round(sum(p[0] for p in ring) / len(ring), 6),
-        round(sum(p[1] for p in ring) / len(ring), 6),
-    ]
-
-
-def landmark_kind(props: dict[str, object], tags: dict[str, str]) -> str | None:
-    def tag(key: str) -> str:
-        value = props.get(key)
-        if isinstance(value, str) and value:
-            return value
-        return tags.get(key, "")
-
-    man_made, historic, natural = tag("man_made"), tag("historic"), tag("natural")
-    building, amenity = tag("building"), tag("amenity")
-    if man_made == "lighthouse" or tags.get("seamark:type") == "landmark" and tag("seamark:landmark:category") == "tower":
-        return "lighthouse"
-    if natural == "peak":
-        return "peak"
-    if historic in ("castle", "fort", "citywalls", "city_gate") or building == "castle":
-        return "castle"
-    if man_made in ("windmill", "watermill"):
-        return "windmill"
-    if historic in ("monastery",) or building in ("monastery", "abbey"):
-        return "monastery"
-    if building in ("church", "chapel", "cathedral") or amenity == "place_of_worship":
-        return "church"
-    if historic in ("ruins", "archaeological_site"):
-        return "ruins"
-    # A plain mast or water tower is clutter. A defensive tower is the thing on
-    # the headland that everyone on the boat points at.
-    if man_made == "tower" and tags.get("tower:type") in ("defensive", "watchtower", "bell_tower"):
-        return "tower"
-    return None
-
-
 def emit(
     geometry: dict[str, object],
     props: dict[str, object],
@@ -295,45 +227,6 @@ def convert(layer: str, lines: Iterator[str]) -> Iterator[str]:
             if kind is None:
                 continue
             yield emit(geometry, {"kind": kind, **names(source, tags)}, 12)
-
-        elif layer == "building":
-            if not tag("building") or tag("building") == "no":
-                continue
-            kind = landmark_kind(source, tags) or "house"
-            yield emit(geometry, {"kind": kind}, 15)
-
-        elif layer == "place":
-            place = tag("place")
-            minzoom = PLACE_MINZOOM.get(place)
-            named = names(source, tags)
-            if minzoom is None or "name" not in named:
-                continue
-            props = {"kind": place, **named}
-            population = tag("population")
-            if population.isdigit():
-                props["population"] = int(population)
-            yield emit(geometry, props, minzoom)
-
-        elif layer == "landmark":
-            kind = landmark_kind(source, tags)
-            if kind is None:
-                continue
-            point = centroid(geometry)
-            if point is None:
-                continue
-            props = {"kind": kind, **names(source, tags)}
-            elevation = tags.get("ele")
-            if kind == "peak":
-                try:
-                    metres = round(float(elevation or ""))
-                except ValueError:
-                    continue
-                # Every rise with a name is a peak in OSM. On a coast read from a
-                # boat, only the ones that carry the skyline are worth ink.
-                if metres < 200:
-                    continue
-                props["ele"] = metres
-            yield emit(geometry, props, LANDMARK_MINZOOM[kind])
 
         else:
             raise SystemExit(f"unknown layer {layer}")

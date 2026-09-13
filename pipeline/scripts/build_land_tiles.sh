@@ -11,6 +11,17 @@
 # streets and footpaths from the 8 km strip at z13 to the 3 km strip at z14, and
 # irrigation canals from 30 km to 8 km, is most of the difference between that and
 # what ships. Rerun the per-layer measurement before widening any of them again.
+#
+# Nothing here ships a layer the style does not draw. `building`, `landmark` and
+# `place` did: 196,913 buildings, 7,702 landmarks and 13,524 place names, 6.0 MB
+# of a 22.4 MB archive, every one of them decoded by the phone and drawn by
+# nothing. Removing them took it to 16.2 MB with all four drawn layers at exactly
+# the feature counts they had before.
+#
+# The landmarks are the loss worth knowing about. Lighthouses, castles, windmills
+# and the headland towers a boat crew points at, which issue #13 wants drawn with
+# authored icons rather than borrowed art. Bringing them back is one extract, one
+# normalise and one -L below, and then the icons, which is the actual work.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -19,10 +30,6 @@ BUILD="$ROOT/data/build/land"
 OUT="$ROOT/static/tiles/land.pmtiles"
 NORMALISE="$ROOT/pipeline/scripts/osm_land.py"
 COASTLINE="$ROOT/data/raw/coastline/coastline-4326.fgb"
-# GDAL reports no `historic`, `natural` or `amenity` on nodes by default and drops
-# `ele` outright, so selecting a castle or a named peak is impossible with the
-# stock config. This one is GDAL's with those two changes.
-export OSM_CONFIG_FILE="$ROOT/pipeline/config/osmconf-land.ini"
 MAX_BYTES=104857600
 
 PBF="$RAW/cataluna-latest.osm.pbf"
@@ -115,23 +122,17 @@ normalise() {
 MAJOR="'motorway','motorway_link','trunk','trunk_link','primary','primary_link','secondary','secondary_link','tertiary','tertiary_link'"
 MINOR="'unclassified','residential','living_street','pedestrian','track','path','footway','bridleway','cycleway','steps'"
 WET="natural IN ('water','wetland') OR landuse IN ('reservoir','basin')"
-MARKS="historic IS NOT NULL OR man_made IN ('windmill','watermill','tower','lighthouse') OR amenity = 'place_of_worship' OR natural = 'peak'"
 
 extract lines-wide  lines         30  "highway IN ($MAJOR) OR waterway = 'river'"
 extract lines-mid   lines         8   "waterway IN ('canal','stream')"
 extract lines-near  lines         3   "highway IN ($MINOR)"
 extract water-wide  multipolygons 30  "$WET"
-extract shore-near  multipolygons 8   "natural IN ('beach','sand','shingle','dune') OR ($MARKS)"
-extract points-wide points        30  "place IS NOT NULL OR ($MARKS)"
-extract build-near  multipolygons 3   "building IS NOT NULL AND building <> 'no'"
+extract shore-near  multipolygons 8   "natural IN ('beach','sand','shingle','dune')"
 
 normalise road      lines-wide lines-near
 normalise waterway  lines-wide lines-mid
 normalise water     water-wide
 normalise sand      shore-near
-normalise landmark  shore-near points-wide
-normalise place     points-wide
-normalise building  build-near
 
 # tippecanoe picks its output format from the extension, so the half-written file
 # has to keep it. Appending .part silently produced an mbtiles archive that the app
@@ -149,10 +150,7 @@ tippecanoe -o "$PART" -f -q -Z9 -z15 -pk \
   -L "water:$BUILD/water.geojsonseq" \
   -L "waterway:$BUILD/waterway.geojsonseq" \
   -L "sand:$BUILD/sand.geojsonseq" \
-  -L "road:$BUILD/road.geojsonseq" \
-  -L "building:$BUILD/building.geojsonseq" \
-  -L "landmark:$BUILD/landmark.geojsonseq" \
-  -L "place:$BUILD/place.geojsonseq"
+  -L "road:$BUILD/road.geojsonseq"
 mv "$PART" "$OUT"
 
 bytes="$(wc -c < "$OUT" | tr -d '[:space:]')"
