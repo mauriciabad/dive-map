@@ -3,6 +3,7 @@ import type {
 	DataDrivenPropertyValueSpecification,
 	ExpressionSpecification,
 	LayerSpecification,
+	LineLayerSpecification,
 	StyleSpecification
 } from 'maplibre-gl';
 import {
@@ -15,7 +16,13 @@ import {
 import { POSITION_SOURCES, positionLayers } from '$lib/geo/style-layers';
 export { PALETTE } from './palette.ts';
 import { PALETTE } from './palette.ts';
-import { type IsobathStyle, type LayerId, markerLayerId } from '$lib/domain/card';
+import {
+	DEFAULT_PHOTO_STRENGTH,
+	type IsobathStyle,
+	type LayerId,
+	type PhotoStrength,
+	markerLayerId
+} from '$lib/domain/card';
 import type { DiveFeatureKind } from '$lib/domain/osm';
 import type { Locale } from '$lib/i18n/locale';
 import {
@@ -195,18 +202,59 @@ const isobathColour = (): DataDrivenPropertyValueSpecification<string> => {
 };
 
 const isobathWidth = (
-	emphasised: readonly number[]
+	emphasised: readonly number[],
+	extra = 0
 ): DataDrivenPropertyValueSpecification<number> => [
 	'interpolate',
 	['linear'],
 	['zoom'],
 	10,
-	heavyIf(emphasised, 0.9, 0.3),
+	heavyIf(emphasised, 0.9 + extra, 0.3 + extra),
 	14,
-	heavyIf(emphasised, 2.0, 0.7),
+	heavyIf(emphasised, 2.0 + extra, 0.7 + extra),
 	18,
-	heavyIf(emphasised, 4.4, 1.4)
+	heavyIf(emphasised, 4.4 + extra, 1.4 + extra)
 ];
+
+/**
+ * The dark stroke under every contour, and what the ortophoto does to it.
+ *
+ * Over the painted seabed it is a soft shadow dropped a pixel and a half, and
+ * that is all the separation the palette needs. The depth bands run from #93e9c0
+ * to #ff7a6b, luminance 150 to 210, over ground that measures around 60.
+ *
+ * A photograph puts the same lines over different ground. Sunlit sand in three
+ * metres of water is the brightest thing PNOA returns, and the two bands a
+ * recreational plan reads most are the palest two in the ramp: 0 to 4 m cream at
+ * luminance 230 and 5 to 17 m mint at 213. Those are the contours that vanish.
+ *
+ * Repainting the bands was the other option and it is the wrong one, because the
+ * band colour is the thing that says which depth a diver is looking at without
+ * reading a number, and it would change the map for everyone to fix a layer that
+ * is off by default. So the shadow becomes a casing instead: centred rather than
+ * dropped, near-opaque, and 0.7 px of black proud of the line on each side at
+ * every zoom. Every band keeps its own colour and reads it against black.
+ *
+ * 0.7 and not more. At 1.2 the thin metre contours came out as black threads
+ * with a hint of colour in them, because the casing was then wider than the 0.7
+ * px line it was carrying. Compared side by side over the photograph at zoom
+ * 16.4, 0.7 is the widest casing that still leaves the band colour readable on
+ * the lines between the emphasised ones.
+ */
+const CASING_WIDENING_OVER_PHOTO = 1.4;
+
+const isobathCasing = (options: StyleOptions): NonNullable<LineLayerSpecification['paint']> => {
+	const overPhoto = options.visible.includes('satellite');
+	return {
+		'line-color': overPhoto ? 'rgba(2, 9, 14, 0.92)' : 'rgba(4, 16, 24, 0.55)',
+		'line-blur': overPhoto ? 0.6 : 2.2,
+		'line-translate': overPhoto ? [0, 0] : [0, 1.6],
+		'line-width': isobathWidth(
+			options.isobaths.emphasised,
+			overPhoto ? CASING_WIDENING_OVER_PHOTO : 0
+		)
+	};
+};
 
 /**
  * The tiles carry every metre. Filtering the interval here rather than baking it
@@ -248,7 +296,42 @@ export interface StyleOptions {
 	readonly smoothed: boolean;
 	/** A diver's own texture per seabed class. Absent means every class keeps the catalogue's own. */
 	readonly textures?: TextureChoices;
+	/** How strongly the ortophoto paints. Absent is full strength. */
+	readonly photoStrength?: PhotoStrength;
 }
+
+/**
+ * What the seabed paint is multiplied by so the photograph under it can be seen.
+ *
+ * The ortophoto is at the bottom of the stack and the ground fill above it runs
+ * 0.55 at zoom 9 to 0.92 from 13 up, with the unclassified hatch stacking under
+ * that again. At full paint the photo is not visible: turning it on and off over
+ * Tamariu moved 0.55% of the frame by more than 12 of 765, and every one of
+ * those pixels was in the sliver where the habitat survey stops. A raster
+ * opacity alone would therefore have been a control over nothing.
+ *
+ * So the photograph and the paint move together on one number, linearly, which
+ * keeps every step doing something. At a quarter the map is the painted seabed
+ * it has always been with the shelf faintly under it; at full the paint is a
+ * wash of habitat colour over a photograph, which is the "textures with some
+ * opacity on top of the satellite" the issue asked for. The isobaths, the
+ * markers and every label are untouched at every step, so nothing a diver reads
+ * off the sheet fades with the paint.
+ *
+ * The land is deliberately not faded with it. Its fill is opaque over a world
+ * fill that runs four kilometres further inland on purpose, so making either one
+ * translucent draws a darker band along the whole overlap. The photograph on
+ * land already has its own switch, which is the coastline one.
+ */
+const GROUND_GIVEN_UP = 0.72;
+
+const groundOpacity = (options: StyleOptions): DataDrivenPropertyValueSpecification<number> => {
+	const strength = options.visible.includes('satellite')
+		? (options.photoStrength ?? DEFAULT_PHOTO_STRENGTH)
+		: 0;
+	const fade = 1 - GROUND_GIVEN_UP * strength;
+	return ['interpolate', ['linear'], ['zoom'], 9, 0.55 * fade, 13, 0.92 * fade];
+};
 
 const vis = (options: StyleOptions, id: LayerId): 'visible' | 'none' =>
 	options.visible.includes(id) ? 'visible' : 'none';
@@ -282,7 +365,7 @@ const groundLayers = (options: StyleOptions): LayerSpecification[] =>
 					layout: { visibility },
 					paint: {
 						'fill-pattern': patternFor(ground, options.textures ?? NO_TEXTURE_CHOICES),
-						'fill-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.55, 13, 0.92]
+						'fill-opacity': groundOpacity(options)
 					}
 				},
 				{
@@ -714,7 +797,8 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			id: 'satellite',
 			type: 'raster',
 			source: SATELLITE_SOURCE_ID,
-			layout: { visibility: vis(options, 'satellite') }
+			layout: { visibility: vis(options, 'satellite') },
+			paint: { 'raster-opacity': options.photoStrength ?? DEFAULT_PHOTO_STRENGTH }
 		},
 
 		{
@@ -730,7 +814,7 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			layout: { visibility: vis(options, options.groundLayer) },
 			paint: {
 				'fill-pattern': UNSURVEYED_TEXTURE,
-				'fill-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.55, 13, 0.92]
+				'fill-opacity': groundOpacity(options)
 			}
 		},
 
@@ -807,12 +891,7 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			'source-layer': 'isobaths',
 			filter: isobathFilter(options.isobaths),
 			layout: { visibility: vis(options, 'isobaths'), 'line-join': 'round' },
-			paint: {
-				'line-color': 'rgba(4, 16, 24, 0.55)',
-				'line-blur': 2.2,
-				'line-translate': [0, 1.6],
-				'line-width': isobathWidth(options.isobaths.emphasised)
-			}
+			paint: isobathCasing(options)
 		},
 		{
 			id: 'isobath',

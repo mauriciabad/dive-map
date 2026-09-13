@@ -48,6 +48,38 @@ export type LayerId =
 	| 'annotations'
 	| MarkerLayerId;
 
+/**
+ * How much of the map is photograph, in the four steps the panel offers.
+ *
+ * One number rather than a raster opacity, because a raster opacity on its own
+ * controls nothing a diver can see. The ortophoto sits at the bottom of the
+ * stack, and the seabed paint above it runs 0.55 to 0.92. Measured over Tamariu
+ * with the photo switched on and off, the frame changed by 3.6 luminance at
+ * zoom 11 and by nothing at all at 13.5 and 16.4: 0.55% of pixels moved by more
+ * than 12, and those were the sliver where the habitat survey stops. So this
+ * raises the photograph and steps the seabed paint back over it in one move,
+ * which is what the issue asked for in its own words.
+ *
+ * Four steps because the control is a row of buttons a gloved thumb hits on a
+ * moving boat. A union rather than a number because it makes the panel and the
+ * stored blob agree for free: every value the style can be handed is one the
+ * panel can show as chosen, and a hand-edited 0.63 is refused at the boundary
+ * instead of arriving as a setting no control can display.
+ */
+export const PHOTO_STRENGTHS = [0.25, 0.5, 0.75, 1] as const;
+
+export type PhotoStrength = (typeof PHOTO_STRENGTHS)[number];
+
+/**
+ * Where a diver lands when they turn the photograph on. Half, because the switch
+ * says satellite and at a quarter there is nothing to see, while at full
+ * strength the seabed paint drops to a third and the briefing goes with it.
+ */
+export const DEFAULT_PHOTO_STRENGTH: PhotoStrength = 0.5;
+
+export const isPhotoStrength = (value: unknown): value is PhotoStrength =>
+	PHOTO_STRENGTHS.some((step) => step === value);
+
 export interface IsobathStyle {
 	/** Draw a line every this many metres. The tiles carry 1 m, the style filters. */
 	readonly intervalM: number;

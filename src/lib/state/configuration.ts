@@ -1,10 +1,13 @@
 import {
 	DEFAULT_ISOBATHS,
 	DEFAULT_LAYERS,
+	DEFAULT_PHOTO_STRENGTH,
 	type IsobathStyle,
 	type LayerId,
 	type LngLat,
 	type MarkerLayerId,
+	type PhotoStrength,
+	isPhotoStrength,
 	markerLayerId
 } from '$lib/domain/card';
 import {
@@ -48,6 +51,12 @@ export interface Configuration {
 	 * written before this field existed reads as no choices at all.
 	 */
 	readonly textures: TextureChoices;
+	/**
+	 * How much of the map is photograph when the ortophoto is on. It has no say in
+	 * whether it is on, which is the layer switch's job, so a diver who dialled the
+	 * photo down and switched it off finds it where they left it on the way back.
+	 */
+	readonly photoStrength: PhotoStrength;
 	/**
 	 * The sheet a card is cut to, when one was saved alongside the rest.
 	 *
@@ -125,7 +134,8 @@ export const shippedConfiguration = (locale: Locale): Configuration => ({
 	smoothed: true,
 	isobaths: DEFAULT_ISOBATHS,
 	locale,
-	textures: NO_TEXTURE_CHOICES
+	textures: NO_TEXTURE_CHOICES,
+	photoStrength: DEFAULT_PHOTO_STRENGTH
 });
 
 /**
@@ -284,6 +294,13 @@ export const parseConfiguration = (value: unknown, locale: Locale): Configuratio
 		isobaths: parseIsobaths(value['isobaths']),
 		locale: typeof stored === 'string' && isLocale(stored) ? stored : locale,
 		textures: parseTextures(value['textures']),
+		// A blob written before the control existed carries none, and a hand-edited
+		// step the panel cannot show is not honoured, for the same reason a texture
+		// that is no longer built is dropped: what the style is handed has to be
+		// something a control can show as chosen.
+		photoStrength: isPhotoStrength(value['photoStrength'])
+			? value['photoStrength']
+			: DEFAULT_PHOTO_STRENGTH,
 		...(print === undefined ? {} : { print })
 	};
 };

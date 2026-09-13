@@ -46,7 +46,8 @@
 			visible: [...view.visible],
 			groundLayer: view.groundLayer,
 			smoothed: view.smoothed,
-			textures: view.textures
+			textures: view.textures,
+			photoStrength: view.photoStrength
 		})
 	);
 

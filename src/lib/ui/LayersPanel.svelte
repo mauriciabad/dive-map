@@ -8,7 +8,7 @@
 	import type { Choice } from './controls/types';
 	import type { IconName } from './icons';
 	import { PANEL_ID } from './panel';
-	import type { LayerId } from '$lib/domain/card';
+	import { PHOTO_STRENGTHS, type LayerId, type PhotoStrength } from '$lib/domain/card';
 	import type { Ground } from '$lib/domain/habitat';
 	import { type MessageKey, t } from '$lib/i18n/messages';
 	import type { MapState } from '$lib/state/map-view.svelte';
@@ -27,7 +27,6 @@
 	}
 
 	const LAYER_ROWS: readonly LayerRow[] = [
-		{ id: 'satellite', icon: 'satellite', key: 'satellite' },
 		{ id: 'hillshade', icon: 'relief', key: 'relief' },
 		{ id: 'depth-tint', icon: 'depth', key: 'depthTint' },
 		{ id: 'coastline', icon: 'frame', key: 'coastline' },
@@ -39,6 +38,11 @@
 		{ value: 'habitats', label: t(view.locale, 'habitats'), icon: 'habitat' },
 		{ value: 'substrate', label: t(view.locale, 'substrate'), icon: 'substrate' }
 	]);
+
+	const strengths: readonly Choice<PhotoStrength>[] = PHOTO_STRENGTHS.map((value) => ({
+		value,
+		label: `${value * 100}%`
+	}));
 </script>
 
 <Panel
@@ -68,6 +72,28 @@
 	</Field>
 
 	<div class="rows">
+		<Toggle
+			label={t(view.locale, 'satellite')}
+			icon="satellite"
+			pressed={view.shows('satellite')}
+			onchange={() => {
+				view.toggle('satellite');
+			}}
+		/>
+		{#if view.shows('satellite')}
+			<div class="under">
+				<Field label={t(view.locale, 'photoStrength')}>
+					<Segmented
+						options={strengths}
+						value={view.photoStrength}
+						numeric
+						onselect={(next: PhotoStrength) => {
+							view.photoStrength = next;
+						}}
+					/>
+				</Field>
+			</div>
+		{/if}
 		{#each LAYER_ROWS as row (row.id)}
 			<Toggle
 				label={t(view.locale, row.key)}
@@ -93,5 +119,11 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.2rem;
+	}
+
+	/* Indented so the strength reads as belonging to the switch above it rather
+	   than as a seventh layer. */
+	.under {
+		padding: 0.15rem 0 0.35rem 1.9rem;
 	}
 </style>

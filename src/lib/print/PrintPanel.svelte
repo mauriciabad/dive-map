@@ -151,7 +151,8 @@
 					visible: view.live.layers,
 					groundLayer: view.live.groundLayer,
 					smoothed: view.live.smoothed,
-					textures: view.textures
+					textures: view.textures,
+					photoStrength: view.photoStrength
 				},
 				locale,
 				format: print.format

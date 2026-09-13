@@ -12,7 +12,7 @@ import {
 	writeWorking
 } from './configuration.ts';
 import { memoryStore } from './storage.ts';
-import { DEFAULT_ISOBATHS } from '$lib/domain/card';
+import { DEFAULT_ISOBATHS, DEFAULT_PHOTO_STRENGTH } from '$lib/domain/card';
 
 const ca = shippedConfiguration('ca');
 
@@ -278,5 +278,27 @@ describe('the working configuration', () => {
 		);
 		expect(readWorking(store, 'ca')?.camera).toBeUndefined();
 		expect(readWorking(store, 'ca')?.configuration).toEqual(ca);
+	});
+});
+
+describe('photo strength', () => {
+	const roundTrip = (photoStrength: unknown) => {
+		const store = memoryStore();
+		store.write(
+			WORKING_KEY,
+			JSON.stringify({ version: STORAGE_VERSION, configuration: { ...ca, photoStrength } })
+		);
+		return readWorking(store, 'ca')?.configuration.photoStrength;
+	};
+
+	it('keeps a step the panel can show as chosen', () => {
+		expect(roundTrip(0.25)).toBe(0.25);
+		expect(roundTrip(1)).toBe(1);
+	});
+
+	it('refuses a strength no control could display, rather than storing it', () => {
+		expect(roundTrip(0.63)).toBe(DEFAULT_PHOTO_STRENGTH);
+		expect(roundTrip('half')).toBe(DEFAULT_PHOTO_STRENGTH);
+		expect(roundTrip(undefined)).toBe(DEFAULT_PHOTO_STRENGTH);
 	});
 });
