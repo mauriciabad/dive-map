@@ -16,6 +16,7 @@ import {
 	type PaintLevel,
 	newCard
 } from '$lib/domain/card';
+import { type BaseMapId, DEFAULT_BASE_MAP, NO_BASE_MAP } from '$lib/domain/basemaps';
 import {
 	NO_TEXTURE_CHOICES,
 	type SeabedClass,
@@ -76,6 +77,17 @@ export class MapState {
 	 */
 	seabedPaint = $state<PaintLevel>(DEFAULT_SEABED_PAINT);
 	landPaint = $state<PaintLevel>(DEFAULT_LAND_PAINT);
+
+	/**
+	 * Which borrowed map is under the chart. One choice, never a set, so nothing
+	 * here can reorder a photograph stack; see `$lib/domain/basemaps`.
+	 *
+	 * Written only through `setBaseMap`, which also mirrors it onto the `satellite`
+	 * layer flag. That mirror is temporary. The style still asks `visible` whether
+	 * to draw a photograph, and it goes the moment the style reads this field
+	 * instead, which is the same wave that takes `satellite` out of `LayerId`.
+	 */
+	baseMap = $state<BaseMapId>(DEFAULT_BASE_MAP);
 
 	readonly print = new PrintState();
 
@@ -158,6 +170,7 @@ export class MapState {
 			textures: this.textures,
 			seabedPaint: this.seabedPaint,
 			landPaint: this.landPaint,
+			baseMap: this.baseMap,
 			print: this.print.settings
 		};
 	}
@@ -178,6 +191,8 @@ export class MapState {
 		this.textures = configuration.textures;
 		this.seabedPaint = configuration.seabedPaint;
 		this.landPaint = configuration.landPaint;
+		this.baseMap = configuration.baseMap;
+		this.#mirrorBaseMap();
 		// Through the print state's own transitions rather than over its fields, so a
 		// stored pixel sheet carrying a scale ratio comes back framed by zoom. The
 		// latitude is the live one because that is where the ratio has to hold.
@@ -216,11 +231,20 @@ export class MapState {
 
 	toggle(id: LayerId): void {
 		if (this.lockedByPhoto(id)) return;
+		/*
+		 * The old photograph switch is the base map picker with one option in it, and
+		 * routing it through `setBaseMap` is what keeps the two from disagreeing.
+		 * `satellite-costa` is the pair this switch has always meant. The whole branch
+		 * goes when the picker replaces the switch and `satellite` leaves `LayerId`.
+		 */
+		if (id === 'satellite') {
+			this.setBaseMap(this.baseMap === NO_BASE_MAP ? 'satellite-costa' : NO_BASE_MAP);
+			return;
+		}
 		if (!this.visible.delete(id)) this.visible.add(id);
 		// Flipping a suspended layer by hand is the diver taking it back, so there is
 		// no longer anything of theirs to restore when the photograph goes away.
-		if (id === 'satellite') this.#settlePhoto();
-		else this.#suspended.delete(id);
+		this.#suspended.delete(id);
 	}
 
 	/** What was on before the photograph took it away, so it can go back exactly there. */
@@ -247,6 +271,32 @@ export class MapState {
 		}
 		for (const id of this.#suspended) this.visible.add(id);
 		this.#suspended.clear();
+	}
+
+	/**
+	 * Put a base map under the chart, or take the last one away.
+	 *
+	 * `#settlePhoto` runs either way, because what the depth veil and the relief
+	 * have to do with a borrowed map is the same question whichever one it is: both
+	 * draw a second opinion over a picture that already shows what they draw.
+	 */
+	setBaseMap(id: BaseMapId): void {
+		this.baseMap = id;
+		this.#mirrorBaseMap();
+		this.#settlePhoto();
+	}
+
+	/**
+	 * The `satellite` flag, brought in line with the chosen base map.
+	 *
+	 * Apart from `#settlePhoto` because `apply` runs that once at the end of a
+	 * whole configuration, and running it twice against a base map that is on
+	 * would clear the suspended set and then find nothing left in `visible` to put
+	 * in it, which loses what the diver had on before.
+	 */
+	#mirrorBaseMap(): void {
+		if (this.baseMap === NO_BASE_MAP) this.visible.delete('satellite');
+		else this.visible.add('satellite');
 	}
 
 	toggleLabels(): void {

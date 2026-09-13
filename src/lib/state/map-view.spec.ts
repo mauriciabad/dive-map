@@ -46,7 +46,14 @@ describe('what the photograph does to the layers under it', () => {
 
 	it('settles a stored configuration that predates any of this', () => {
 		const view = new MapState();
-		view.apply({ ...view.configuration, layers: ['satellite', 'depth-tint', 'hillshade'] });
+		// `baseMap` is what says whether a photograph is on. `layers` still carries
+		// the flag the style reads, and a parsed old blob sets both, so this is what
+		// one of those looks like on the way in.
+		view.apply({
+			...view.configuration,
+			baseMap: 'satellite-costa',
+			layers: ['satellite', 'depth-tint', 'hillshade']
+		});
 		expect([view.shows('depth-tint'), view.shows('hillshade')]).toEqual([false, false]);
 		view.toggle('satellite');
 		expect([view.shows('depth-tint'), view.shows('hillshade')]).toEqual([true, true]);

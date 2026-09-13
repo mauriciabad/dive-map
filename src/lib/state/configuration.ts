@@ -19,6 +19,12 @@ import {
 	isSeabedKey,
 	isSeabedTexture
 } from '$lib/domain/habitat';
+import {
+	type BaseMapId,
+	DEFAULT_BASE_MAP,
+	NO_BASE_MAP,
+	isBaseMapId
+} from '$lib/domain/basemaps';
 import { parseIsobathPaint } from '$lib/domain/isobaths';
 import { DIVE_FEATURE_KINDS } from '$lib/domain/osm';
 import { type PrintSettings, parsePrintSettings } from '$lib/domain/print';
@@ -60,6 +66,13 @@ export interface Configuration {
 	 */
 	readonly seabedPaint: PaintLevel;
 	readonly landPaint: PaintLevel;
+	/**
+	 * Which borrowed map is under the chart, or `none` for the chart on its own.
+	 *
+	 * One choice rather than a set of switches, which is what stops a picker from
+	 * putting a 25 cm photograph over a 5 cm one. See `$lib/domain/basemaps`.
+	 */
+	readonly baseMap: BaseMapId;
 	/**
 	 * The sheet a card is cut to, when one was saved alongside the rest.
 	 *
@@ -146,7 +159,8 @@ export const shippedConfiguration = (locale: Locale): Configuration => ({
 	locale,
 	textures: NO_TEXTURE_CHOICES,
 	seabedPaint: DEFAULT_SEABED_PAINT,
-	landPaint: DEFAULT_LAND_PAINT
+	landPaint: DEFAULT_LAND_PAINT,
+	baseMap: DEFAULT_BASE_MAP
 });
 
 /**
@@ -291,6 +305,26 @@ const parseTextures = (value: unknown): TextureChoices => {
 };
 
 /**
+ * Which base map a stored configuration asks for.
+ *
+ * A name this version does not have is not honoured and is not guessed at
+ * either. It falls to `none`, which is the chart on its own: the absence of a
+ * base map rather than some other body's map the diver never picked. Drawing the
+ * nearest thing we do recognise would be the mistake that put ICGC in the credit
+ * line over a PNOA photograph, one layer further out.
+ *
+ * A blob carrying no `baseMap` at all was written before the picker existed,
+ * when the whole question was one `satellite` switch that meant the 5 cm coastal
+ * flight over PNOA. That pair is `satellite-costa` now, so a diver who saved a
+ * setup with the photograph on gets the same photograph back.
+ */
+const parseBaseMap = (value: unknown, layers: readonly LayerId[]): BaseMapId => {
+	if (isBaseMapId(value)) return value;
+	if (value !== undefined) return NO_BASE_MAP;
+	return layers.includes('satellite') ? 'satellite-costa' : NO_BASE_MAP;
+};
+
+/**
  * A field this version cannot make sense of falls back to what the map ships
  * with, rather than failing the whole configuration. A diver who saved eight
  * settings and finds seven of them restored is better served than one who is
@@ -303,8 +337,9 @@ export const parseConfiguration = (value: unknown, locale: Locale): Configuratio
 	// A sheet that will not parse is left out rather than replaced by the default
 	// one. Handing back A3 portrait would claim somebody chose it.
 	const print = parsePrintSettings(value['print']);
+	const layers = parseLayers(value['layers']) ?? DEFAULT_LAYERS;
 	return {
-		layers: parseLayers(value['layers']) ?? DEFAULT_LAYERS,
+		layers,
 		ground: ground === 'substrate' || ground === 'habitats' ? ground : 'habitats',
 		smoothed: booleanOr(value['smoothed'], true),
 		isobaths: parseIsobaths(value['isobaths']),
@@ -316,6 +351,7 @@ export const parseConfiguration = (value: unknown, locale: Locale): Configuratio
 		// something a control can show as chosen.
 		seabedPaint: isPaintLevel(value['seabedPaint']) ? value['seabedPaint'] : DEFAULT_SEABED_PAINT,
 		landPaint: isPaintLevel(value['landPaint']) ? value['landPaint'] : DEFAULT_LAND_PAINT,
+		baseMap: parseBaseMap(value['baseMap'], layers),
 		...(print === undefined ? {} : { print })
 	};
 };

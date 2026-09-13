@@ -310,3 +310,57 @@ describe('how much paint is left over the photograph', () => {
 		expect(old?.landPaint).toBe(DEFAULT_LAND_PAINT);
 	});
 });
+
+describe('which map is under the chart', () => {
+	const stored = (configuration: Record<string, unknown>) => {
+		const store = memoryStore();
+		store.write(
+			WORKING_KEY,
+			JSON.stringify({ version: STORAGE_VERSION, configuration: { ...ca, ...configuration } })
+		);
+		return readWorking(store, 'ca')?.configuration;
+	};
+
+	it('ships with the chart on its own', () => {
+		expect(shippedConfiguration('ca').baseMap).toBe('none');
+	});
+
+	it('keeps a base map it has', () => {
+		expect(stored({ baseMap: 'standard-osm' })?.baseMap).toBe('standard-osm');
+		expect(stored({ baseMap: 'classic-ign' })?.baseMap).toBe('classic-ign');
+		expect(stored({ baseMap: 'none' })?.baseMap).toBe('none');
+	});
+
+	/*
+	 * The nearest thing we do recognise is not the answer. Drawing somebody else's
+	 * map because a name half matched is the credit-line mistake one layer out.
+	 */
+	it('draws nothing at all for a name it does not have', () => {
+		expect(stored({ baseMap: 'satellite' })?.baseMap).toBe('none');
+		expect(stored({ baseMap: 'bg-satelite-esri' })?.baseMap).toBe('none');
+		expect(stored({ baseMap: 7 })?.baseMap).toBe('none');
+	});
+
+	/*
+	 * A blob written before the picker existed carries no `baseMap` key at all, so
+	 * these two drop it rather than overriding it.
+	 */
+	const before = (layers: readonly string[]) => {
+		const older: Record<string, unknown> = { ...ca, layers };
+		delete older['baseMap'];
+		const store = memoryStore();
+		store.write(
+			WORKING_KEY,
+			JSON.stringify({ version: STORAGE_VERSION, configuration: older })
+		);
+		return readWorking(store, 'ca')?.configuration;
+	};
+
+	it('reads the old satellite switch as the photograph it used to mean', () => {
+		expect(before(['habitats', 'isobaths', 'satellite'])?.baseMap).toBe('satellite-costa');
+	});
+
+	it('leaves a configuration saved with the photograph off on the chart', () => {
+		expect(before(['habitats', 'isobaths'])?.baseMap).toBe('none');
+	});
+});
