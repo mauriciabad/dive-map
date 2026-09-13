@@ -19,7 +19,7 @@ const shotAt = process.argv.indexOf('--shot');
 const shotDir = shotAt === -1 ? undefined : process.argv[shotAt + 1];
 if (shotDir) mkdirSync(shotDir, { recursive: true });
 
-/** Illes Medes: a dozen dive sites, a marina, lights and swimming zones in one frame. */
+/** Illes Medes: a dozen dive sites, a marina, lights and bathing zones in one frame. */
 const MEDES = [3.2235, 42.047, 14];
 
 /** Begur: the coast's one charted rock, with the Aiguablava wrecks below it. */
@@ -30,7 +30,9 @@ const KINDS = [
 	'wreck',
 	'rock',
 	'restricted-area',
+	'swimming-area',
 	'mooring',
+	'buoy',
 	'light',
 	'dive-centre',
 	'slipway',
