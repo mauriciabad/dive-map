@@ -80,7 +80,7 @@ const result = await page.evaluate(async ({ camera, extraLayers, settleMs }) => 
   }
   const layers = {};
   if (m) {
-    const wanted = ['isobath', 'isobath-label', 'shoreline', 'land', 'marker-dive-site', ...extraLayers];
+    const wanted = ['isobath', 'isobath-label', 'shoreline', 'land', 'osm-marker-key', ...extraLayers];
     for (const id of wanted) {
       try { layers[id] = m.queryRenderedFeatures({ layers: [id] }).length; } catch { layers[id] = 'absent'; }
     }
