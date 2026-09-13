@@ -10,6 +10,19 @@ import { PRINT_PIXEL_RATIO, renderCard } from './render.ts';
 
 export type SheetFormat = 'pdf' | 'png';
 
+export interface SheetReport {
+	/**
+	 * Empty when the sheet is whole. Anything listed is something the file on disk
+	 * is missing, and the panel says so.
+	 *
+	 * A tile that fails to fetch no longer abandons the export, because a sheet with
+	 * a hole in one corner beats no sheet at all on a boat. That trade only holds if
+	 * the hole is announced: a card that prints with a corner missing and reports
+	 * success is worse than one that refuses to export.
+	 */
+	readonly problems: readonly string[];
+}
+
 const slug = (title: string): string => {
 	const cleaned = title
 		.normalize('NFD')
@@ -45,7 +58,7 @@ export const exportSheet = async (input: {
 	readonly style: StyleOptions;
 	readonly locale: Locale;
 	readonly format: SheetFormat;
-}): Promise<void> => {
+}): Promise<SheetReport> => {
 	const { card, style, locale, format } = input;
 	const plan = planFor(card);
 	const rendered = await renderCard(card, style);
@@ -80,4 +93,10 @@ export const exportSheet = async (input: {
 	}
 
 	download(blob, `${slug(card.title)}.${format}`);
+	return {
+		problems: [
+			...(rendered.complete ? [] : ['tiles were still arriving when the sheet was captured']),
+			...rendered.problems
+		]
+	};
 };

@@ -57,6 +57,12 @@ export class PrintState {
 	format = $state<SheetFormat>('pdf');
 	busy = $state(false);
 	error = $state<string | undefined>(undefined);
+	/**
+	 * What the last exported sheet came back missing. The file is on disk either
+	 * way, so this line is the only thing between a diver and a card with a hole in
+	 * it that looks finished.
+	 */
+	problems = $state.raw<readonly string[]>([]);
 
 	/** So a trip through a custom size and back does not silently lose the A4 you picked. */
 	#lastStock: StockId = 'A3';

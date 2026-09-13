@@ -131,8 +131,9 @@
 	const run = async (): Promise<void> => {
 		print.busy = true;
 		print.error = undefined;
+		print.problems = [];
 		try {
-			await exportSheet({
+			const report = await exportSheet({
 				card: print.card(view.live),
 				style: {
 					locale,
@@ -144,6 +145,7 @@
 				locale,
 				format: print.format
 			});
+			print.problems = report.problems;
 		} catch (e) {
 			print.error = e instanceof Error ? e.message : String(e);
 		} finally {
@@ -323,6 +325,9 @@
 		{/if}
 		{#if print.error !== undefined}
 			<Note tone="warn">{print.error}</Note>
+		{/if}
+		{#if print.problems.length > 0}
+			<Note tone="warn">{t(locale, 'printSheetIncomplete')}</Note>
 		{/if}
 		<Segmented
 			options={formats}

@@ -31,6 +31,36 @@ import { CANVAS_PIXEL_CAP, renderZoom } from '$lib/domain/print';
 /** Ratio 2 is what makes map labels and line weights survive lamination. */
 export const PRINT_PIXEL_RATIO = 2;
 
+/**
+ * Backstop for a style that neither loads nor errors. Every failure that announces
+ * itself is caught the moment it does, so nothing normally waits this out. Loading
+ * an A3 has measured at 7 to 9 seconds.
+ */
+const LOAD_DEADLINE_MS = 30_000;
+
+/**
+ * The source whose tile failed, or undefined when the failure was not about a tile.
+ *
+ * This distinction decides whether a sheet survives. One tile that fails to fetch
+ * leaves a hole in a corner of a sheet that is otherwise finished, and a sheet with
+ * a hole that says so beats no sheet at all. Rejecting on the first error of any
+ * kind, which is what used to happen here, threw away an export that was complete
+ * 9.9 seconds in: a By zoom 17 A3 covers 1039x1470 m, one habitat tile more than the
+ * same sheet at 1:2000, and that tile failed to fetch. Anything that is not a tile,
+ * a style that will not parse above all, means no sheet is coming at all.
+ *
+ * `sourceId` and `tile` are real at runtime and absent from `ErrorEvent`, whose
+ * constructor spreads an untyped `data` object onto the instance, so they are
+ * narrowed rather than asserted.
+ */
+const failedTileSource = (event: object): string | undefined => {
+	if (!('sourceId' in event) || !('tile' in event)) return undefined;
+	const { sourceId, tile } = event;
+	return typeof sourceId === 'string' && typeof tile === 'object' && tile !== null
+		? sourceId
+		: undefined;
+};
+
 export interface RenderedCard {
 	/** Lossless, so a PNG export never passes through a JPEG. */
 	readonly bitmap: ImageBitmap;
@@ -128,9 +158,13 @@ export const renderCard = async (
 	].join(';');
 	document.body.append(host);
 
+	const problems: string[] = [];
+	const missingImages: string[] = [];
+	// Named outside the try so the finally can always take the WebGL context back.
+	// Browsers allow about sixteen at once, and an export that failed used to keep
+	// its one, so a diver retrying a failing sheet a dozen times wedged the tab.
+	let opened: MapLibre | undefined;
 	try {
-		const problems: string[] = [];
-		const missingImages: string[] = [];
 		const map = new MapLibre({
 			container: host,
 			style: buildStyle(style),
@@ -146,8 +180,21 @@ export const renderCard = async (
 			interactive: false,
 			fadeDuration: 0
 		});
+		opened = map;
 
-		map.on('error', (e) => problems.push(e.error.message.slice(0, 160)));
+		// The listener lives inside the promise so that the one thing it may need to
+		// do, abandon the sheet, is wired up at the moment it starts listening.
+		const fatal = new Promise<never>((_, reject) => {
+			map.on('error', (e) => {
+				const source = failedTileSource(e);
+				if (source === undefined) {
+					problems.push(e.error.message.slice(0, 160));
+					reject(new Error(e.error.message));
+					return;
+				}
+				problems.push(`${source}: ${e.error.message.slice(0, 140)}`);
+			});
+		});
 		map.on('styleimagemissing', (e) => missingImages.push(e.id));
 		const install = (): void => {
 			for (const texture of textures) {
@@ -162,14 +209,23 @@ export const renderCard = async (
 		map.on('styledata', install);
 		install();
 
-		await new Promise<void>((resolve, reject) => {
-			map.once('load', () => {
-				resolve();
-			});
-			map.once('error', (e) => {
-				reject(new Error(e.error.message));
-			});
-		});
+		await Promise.race([
+			new Promise<void>((resolve) => {
+				map.once('load', () => {
+					resolve();
+				});
+			}),
+			fatal,
+			new Promise<never>((_, reject) => {
+				setTimeout(() => {
+					reject(
+						new Error(
+							`the print map never finished loading in ${LOAD_DEADLINE_MS / 1000}s and never said why.`
+						)
+					);
+				}, LOAD_DEADLINE_MS);
+			})
+		]);
 
 		map.triggerRepaint();
 		const settled = await tilesSettled(map);
@@ -212,9 +268,9 @@ export const renderCard = async (
 			pixelSpread: luminanceSpread(canvas),
 			missingImages
 		};
-		map.remove();
 		return rendered;
 	} finally {
+		opened?.remove();
 		host.remove();
 	}
 };

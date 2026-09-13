@@ -150,6 +150,37 @@ const spreadOf = async (page, file) => {
 	}, dataUrl);
 };
 
+/**
+ * Waits until the export button has stopped working, and reports what the panel is
+ * warning about once it has.
+ *
+ * A refused export never produces a file, so waiting only on a download spent four
+ * minutes to report a bare timeout while the panel had been showing the reason the
+ * whole time. That is how the By zoom case sat undiagnosed. Nothing here rejects:
+ * a loser that rejects after the winner has been read takes the whole script down
+ * with an unhandled rejection, which is a worse way to learn nothing.
+ */
+const exportFinished = async (page) => {
+	let started = false;
+	for (let waited = 0; waited < 260_000; waited += 500) {
+		await page.waitForTimeout(500);
+		const working = await page
+			.locator('.action[data-busy="true"]')
+			.count()
+			.catch(() => 0);
+		if (working > 0) started = true;
+		else if (started) break;
+	}
+	if (!started) return 'the export button never started working';
+	const notes = await page
+		.locator('.note[data-tone="warn"]')
+		.allTextContents()
+		.catch(() => []);
+	return notes.join(' | ').slice(0, 220) || 'nothing at all';
+};
+
+const after = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const runCase = async (context, testCase) => {
 	const page = await context.newPage();
 	const errors = [];
@@ -191,24 +222,24 @@ const runCase = async (context, testCase) => {
 	});
 
 	const wanted = testCase.format === 'pdf' ? /^Export PDF$/ : /^Export PNG$/;
-	const download = page.waitForEvent('download', { timeout: 240_000 });
+	const download = page.waitForEvent('download', { timeout: 260_000 }).catch(() => undefined);
 	await byName(page, wanted).click();
+	const panel = await exportFinished(page);
 
-	let saved;
-	try {
-		const file = await download;
-		saved = join(outDir, `${testCase.name}-${file.suggestedFilename()}`);
-		await file.saveAs(saved);
-	} catch (e) {
+	// The button is back, so a file that was going to arrive already has.
+	const file = await Promise.race([download, after(5_000)]);
+	if (file === undefined) {
 		await page.close();
 		return {
 			case: testCase.name,
 			ok: false,
 			stage: 'download',
-			error: String(e).slice(0, 200),
+			error: `the export ended without a file. The panel says: ${panel}`,
 			consoleErrors: errors.slice(0, 6)
 		};
 	}
+	const saved = join(outDir, `${testCase.name}-${file.suggestedFilename()}`);
+	await file.saveAs(saved);
 
 	const render = await page.evaluate(() => window.lastRender ?? null);
 
