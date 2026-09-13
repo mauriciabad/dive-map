@@ -13,6 +13,20 @@ export {
 	type StorageUsage
 } from './areas.ts';
 export { assetPolicy, type AssetPolicy } from './assets.ts';
+export {
+	OSM_CACHE,
+	OSM_CACHE_KEY,
+	OSM_TTL_MS,
+	OVERPASS_MIRRORS,
+	cacheStorageOsmStore,
+	liveDiveFeatures,
+	memoryOsmStore,
+	type CachedOsm,
+	type LiveOsm,
+	type LiveOsmOptions,
+	type OsmOrigin,
+	type OsmStore
+} from './overpass-cache.ts';
 export { cachedRangeSource } from './pmtiles-source.ts';
 export {
 	CHUNK_SIZE,

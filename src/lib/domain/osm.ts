@@ -103,10 +103,66 @@ const parseDepth = (raw: string | undefined): Depth | undefined => {
 const entries = (raw: string | undefined): readonly DiveEntry[] =>
 	semicolonList(raw).filter((v): v is DiveEntry => v === 'shore' || v === 'boat');
 
+/** Prefix on the per-site hazard flags, one tag per danger. */
+export const DANGER_TAG_PREFIX = 'scuba_diving:dangers:';
+
+/**
+ * Every tag key `parseDiveFeature` reads by name, so a fetched element can be cut
+ * down to what this map uses before it is cached or handed to the style.
+ *
+ * An Overpass answer for this coast is about a megabyte, and nine tenths of it is
+ * tags nothing here looks at. `osm.spec.ts` fails if the parser starts reading a
+ * key that is not on this list, which is the same guard `osm_to_geojson.py`
+ * applies to the build-time copy.
+ */
+export const DIVE_TAG_KEYS = [
+	'alt_name',
+	'amenity',
+	'depth',
+	'description',
+	'highway',
+	'historic:civilization',
+	'location',
+	'name',
+	'name:ca',
+	'name:en',
+	'name:es',
+	'natural',
+	'scuba_diving:difficulty',
+	'scuba_diving:divespot',
+	'scuba_diving:entry',
+	'scuba_diving:maxdepth',
+	'seamark:buoy_special_purpose:category',
+	'seamark:harbour:category',
+	'seamark:light:character',
+	'seamark:light:colour',
+	'seamark:light:period',
+	'seamark:light:range',
+	'seamark:mooring:category',
+	'seamark:restricted_area:category',
+	'seamark:rock:water_level',
+	'seamark:type',
+	'seamark:wreck:water_level',
+	'shop',
+	'sport',
+	'waterway'
+] as const satisfies readonly string[];
+
+const KEPT_TAGS: ReadonlySet<string> = new Set<string>(DIVE_TAG_KEYS);
+
+/** The tags of one element, cut to what this map reads. */
+export function keepDiveTags(tags: OsmTags): Record<string, string> {
+	const kept: Record<string, string> = {};
+	for (const [key, value] of Object.entries(tags)) {
+		if (KEPT_TAGS.has(key) || key.startsWith(DANGER_TAG_PREFIX)) kept[key] = value;
+	}
+	return kept;
+}
+
 const dangerTags = (tags: OsmTags): readonly string[] =>
 	Object.entries(tags)
-		.filter(([k, v]) => k.startsWith('scuba_diving:dangers:') && v === 'yes')
-		.map(([k]) => k.slice('scuba_diving:dangers:'.length));
+		.filter(([k, v]) => k.startsWith(DANGER_TAG_PREFIX) && v === 'yes')
+		.map(([k]) => k.slice(DANGER_TAG_PREFIX.length));
 
 /**
  * Returns undefined for elements this map has no use for, which is most of a
