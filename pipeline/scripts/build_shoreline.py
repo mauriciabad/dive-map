@@ -48,8 +48,13 @@ CRS = "EPSG:25831"
 # two open ends cannot recross the coast anywhere in Catalonia.
 INLAND_EDGE_X = 250000.0
 
-# Below this a ring is a contour artefact rather than a rock anyone dives.
-MIN_RING_M2 = 100.0
+# Below this a ring is a contour artefact rather than a rock anyone dives. 100 m2 was
+# the first answer and it was too coarse by a factor of ten. Every rock in the Medes
+# between 11 and 87 m2 got its 0 m contour drawn by the shoreline layer and no polygon
+# to fill, so les Ferranelles and the Tascons read as outlined holes with seabed inside.
+# At the deepest zoom the map supports, 18.5, a 10 m2 rock is about 8 px across, which
+# is the smallest thing worth filling. The cut admits 4,598 rings against 1,305.
+MIN_RING_M2 = 10.0
 
 
 def chains(path: str, **kwargs: object) -> list[LineString]:
@@ -135,6 +140,7 @@ def main() -> int:
     ap.add_argument("--isobath", required=True, help="0 m isobath, EPSG:25831")
     ap.add_argument("--ruler", required=True, help="linia-costa gpkg, used only for ordering")
     ap.add_argument("--out", required=True)
+    ap.add_argument("--coast-out", required=True, help="the drawn coast, without the closure")
     args = ap.parse_args()
 
     pieces = chains(args.isobath)
@@ -177,6 +183,18 @@ def main() -> int:
     gpd.GeoDataFrame(rows, crs=CRS).to_file(
         args.out, driver="FlatGeobuf", layer="land", engine="pyogrio"
     )
+
+    # Every part of the land boundary that has water on the other side, and nothing
+    # else. The world build needs this to know where the OSM land it carries is
+    # standing in the sea. It cannot read that off the mainland polygon, because three
+    # sides of that boundary are the two border cuts and the inland closure, and a
+    # build that mistakes those for shore erases OSM land 250 km into Aragon.
+    coast = [shore, *(p.exterior for p in polygons if p is not biggest)]
+    gpd.GeoDataFrame({"kind": ["coast"] * len(coast)}, geometry=coast, crs=CRS).to_file(
+        args.coast_out, driver="FlatGeobuf", layer="coast", engine="pyogrio"
+    )
+    print(f"coast              {len(coast)} lines, {sum(c.length for c in coast) / 1000:.0f} km")
+
     print(
         f"land               {len(polygons)} polygons, mainland {biggest.area / 1e6:.0f} km2, "
         f"islands {sum(p.area for p in polygons if p is not biggest) / 1e4:.1f} ha"

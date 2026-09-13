@@ -17,8 +17,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 RAW="$ROOT/data/raw/world"
 BUILD="$ROOT/data/build/world"
-OUT="$ROOT/static/tiles/world.pmtiles"
+# Overridable so a rebuild can be staged somewhere else and copied over the archive,
+# rather than deleting the archive first to get past the have-it check below.
+OUT="${WORLD_OUT:-$ROOT/static/tiles/world.pmtiles}"
 LAND="$ROOT/data/raw/coastline/land-4326.fgb"
+COAST="$ROOT/data/raw/coastline/coast-0m-4326.fgb"
 MAX_BYTES=104857600
 
 ZIP="$RAW/land-polygons-split-4326.zip"
@@ -72,18 +75,19 @@ if [ -f "$BUILD/world-coast.geojsonseq" ]; then
   printf 'skip difference\n'
 else
   [ -f "$LAND" ] || { printf 'missing %s, run fetch_coastline.sh first\n' "$LAND" >&2; exit 1; }
+  [ -f "$COAST" ] || { printf 'missing %s, run fetch_coastline.sh first\n' "$COAST" >&2; exit 1; }
   # shellcheck disable=SC2086
   env -u PYTHONPATH -u PYTHONHOME uv run --quiet --isolated --no-project -p 3.12 \
     --with 'shapely>=2.1' --with pyogrio --with geopandas - \
-    "$BUILD/clipped.fgb" "$LAND" "$BUILD" $BBOX <<'PY'
+    "$BUILD/clipped.fgb" "$LAND" "$COAST" "$BUILD" $BBOX <<'PY'
 import sys
 
 import geopandas as gpd
 from shapely.geometry import box
 from shapely.ops import unary_union
 
-clipped, icgc, outdir = sys.argv[1:4]
-west, south, east, north = (float(v) for v in sys.argv[4:8])
+clipped, icgc, drawn_coast, outdir = sys.argv[1:5]
+west, south, east, north = (float(v) for v in sys.argv[5:9])
 frame = box(west, south, east, north)
 
 world = unary_union(list(gpd.read_file(clipped, engine="pyogrio").geometry.values)).intersection(frame)
@@ -101,10 +105,47 @@ own = unary_union(list(gpd.read_file(icgc, engine="pyogrio").to_crs("EPSG:4326")
 #
 # So overlap rather than abut, by more than that tolerance. Eroding the ICGC land
 # before subtracting it leaves the world land running 4 km in underneath it all the
-# way round, which the ICGC fill covers completely. The overlap is always inland of
-# the coastline and never out to sea, so nothing of it can show.
+# way round, which the ICGC fill covers completely. That much is true of the inland
+# seam and it was wrongly written here as true of the whole boundary. It is not: the
+# erosion never touched the seaward side, which is what the two cuts below are for.
 OVERLAP = 0.04
-outside = world.difference(own.buffer(-OVERLAP))
+
+# Eroding the ICGC land is only half the cut, and shipping half of it is what put two
+# land fills on the same water. The erosion moves the inland seam 4 km under the ICGC
+# fill, where it cannot show. It does nothing to the seaward side, so the OSM polygon
+# kept its own coastline for the whole length of Catalonia, painting the 0 m isobath's
+# water wherever the two disagree. Measured over the Costa Brava that was 34.1 ha of
+# surveyed sea under OSM land, the groynes at Palamos among it.
+#
+# So cut the sea away too. The band follows the drawn coast, which build_shoreline.py
+# emits precisely because the mainland polygon cannot be asked: three sides of that
+# boundary are the border cuts and the inland closure, and banding those would erase
+# OSM land 250 km into Aragon. Flat caps, so the band stops at the border rather than
+# reaching round the end of the line. 2 km is many times the widest disagreement.
+SEAWARD = 0.02
+#
+# Cutting the sea away exactly is still not enough, because this archive stops at z11
+# and the map goes to z18.5. Tippecanoe simplifies at z11 and the overzoom magnifies
+# what it did: measured off Begur the world polygon draws its edge in 22.7 m segments,
+# 120 m at the 90th percentile, where the z16 coastline polygon turns every 1.3 m. A
+# cut made on the true coast comes back over the water in straight runs, which is what
+# the hard-cornered wedges on the shoreline were.
+#
+# So end the world land inland of the coast rather than on it, by more than any
+# simplification can move it back. 300 m is fifteen times the deviation seen, and the
+# ICGC fill covers that strip anyway. The cost is the same 300 m missing at the two
+# borders, which is 5 px at z11 and less below, the only zooms this archive is for.
+INSET = 0.003
+coast = unary_union(list(gpd.read_file(drawn_coast, engine="pyogrio").geometry.values))
+
+# Simplified before buffering, which is the difference between a build that takes half
+# an hour and one that takes minutes. The drawn coast carries about 835,000 vertices at
+# 1.3 m spacing, and buffering that twice is most of the cost. The bands are 2 km and
+# 300 m wide, so 20 m on their centreline is nothing: it moves the inset to somewhere
+# between 280 and 320 m, still twenty times the simplification it exists to outrun.
+edge = coast.simplify(0.0002)
+sea = edge.buffer(SEAWARD, cap_style=2).difference(own).union(edge.buffer(INSET, cap_style=2))
+outside = world.difference(own.buffer(-OVERLAP)).difference(sea)
 gpd.GeoDataFrame({"kind": ["land"]}, geometry=[outside], crs="EPSG:4326").to_file(
     f"{outdir}/world-land.geojsonseq", driver="GeoJSONSeq", engine="pyogrio"
 )

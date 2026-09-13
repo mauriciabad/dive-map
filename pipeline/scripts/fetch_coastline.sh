@@ -22,6 +22,8 @@ GPKG="$RAW/batimetria-v2r1-linia-costa-2021-2024.gpkg"
 ISO0="$RAW/iso0.fgb"
 LAND="$RAW/land-0m-25831.fgb"
 LAND_WGS="$RAW/land-4326.fgb"
+COAST="$RAW/coast-0m-25831.fgb"
+COAST_0M_WGS="$RAW/coast-0m-4326.fgb"
 COAST_WGS="$RAW/coastline-4326.fgb"
 SHORELINE="$ROOT/pipeline/scripts/build_shoreline.py"
 
@@ -62,16 +64,26 @@ else
   mv "$tmp" "$ISO0"
 fi
 
-if [ -f "$LAND" ]; then
+if [ -f "$LAND" ] && [ -f "$COAST" ]; then
   echo "skip land build: $LAND"
 else
   # Homebrew GDAL leaks an Anaconda site-packages onto PYTHONPATH here, which shadows
   # the isolated interpreter's numpy and breaks the pyogrio import.
   tmp="$(partial "$LAND")"
+  tmpcoast="$(partial "$COAST")"
   env -u PYTHONPATH -u PYTHONHOME uv run --quiet --isolated --no-project -p 3.12 \
     --with 'shapely>=2.1' --with pyogrio --with geopandas \
-    "$SHORELINE" --isobath "$ISO0" --ruler "$GPKG" --out "$tmp"
+    "$SHORELINE" --isobath "$ISO0" --ruler "$GPKG" --out "$tmp" --coast-out "$tmpcoast"
   mv "$tmp" "$LAND"
+  mv "$tmpcoast" "$COAST"
+fi
+
+if [ -f "$COAST_0M_WGS" ]; then
+  echo "skip reproject coast: $COAST_0M_WGS"
+else
+  tmp="$(partial "$COAST_0M_WGS")"
+  ogr2ogr -f FlatGeobuf "$tmp" "$COAST" -t_srs EPSG:4326 -nln coast
+  mv "$tmp" "$COAST_0M_WGS"
 fi
 
 if [ -f "$LAND_WGS" ]; then
