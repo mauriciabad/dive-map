@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import * as cacheNames from './cache-names.ts';
 import { clearCaches, formatBytes } from './maintenance.ts';
+import { OSM_CACHE } from './overpass-cache.ts';
 
 const held = new Set<string>();
 
@@ -69,13 +70,13 @@ describe('clearing by hand', () => {
 	 * The promise "everything" makes is only as good as the prefix, so this reads the
 	 * names out of the module rather than trusting the four written above.
 	 */
-	it('claims every cache name this app can open', () => {
+	it('claims every cache name this app can open, including the one declared elsewhere', () => {
 		const opened = Object.entries(cacheNames)
 			.filter(([key, value]) => typeof value === 'string' && key !== 'APP_CACHE_PREFIX')
 			.map(([, value]) => String(value));
 
 		expect(opened.length).toBeGreaterThan(0);
-		for (const name of opened) {
+		for (const name of [...opened, OSM_CACHE]) {
 			expect(cacheNames.inClearScope('everything', name)).toBe(true);
 		}
 	});
