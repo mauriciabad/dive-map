@@ -30,6 +30,7 @@
 		{ id: 'hillshade', icon: 'relief', key: 'relief' },
 		{ id: 'depth-tint', icon: 'depth', key: 'depthTint' },
 		{ id: 'coastline', icon: 'frame', key: 'coastline' },
+		{ id: 'flourishes', icon: 'flourish', key: 'flourishes' },
 		{ id: 'osm', icon: 'markerMooring', key: 'osmFeatures' },
 		{ id: 'annotations', icon: 'annotate', key: 'annotations' }
 	];

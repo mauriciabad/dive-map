@@ -4,6 +4,15 @@ export const PALETTE = {
 	void: '#03293b',
 	shallow: '#2ad9b4',
 	deepVeil: '#003850',
+
+	// The wave crests in the water the survey never reached. Measured on screen at
+	// zoom 10.6, the brightest crest pixel lands at luminance 63 against a
+	// background median of 32: present the way hatching on a paper chart is, and a
+	// long way under the isobaths at 150 to 230 and the 190 of sunlit sand, which
+	// has to stay the brightest thing in any frame. The pack ships these marks at
+	// 209 of its own, which would have made the decoration brighter than every
+	// dive site on the sheet.
+	seaFlourish: '#24677f',
 	terrainEdge: '#2a2119',
 	terrainEdgeSoft: 'rgba(42, 33, 25, 0.55)',
 	isobath: '#3d3227',

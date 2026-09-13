@@ -18,9 +18,15 @@
 	import { publishMap } from './controls';
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import { installMarkerImages } from './marker-images';
-	import { SATELLITE_SOURCE_ID, buildStyle } from './style';
+	import { PALETTE, SATELLITE_SOURCE_ID, buildStyle } from './style';
 	import { failedTileSource } from './tile-errors';
-	import { type LoadedTexture, loadTextures, sizeForScreen, texturePalette } from './textures';
+	import {
+		type LoadedTexture,
+		loadFlourish,
+		loadTextures,
+		sizeForScreen,
+		texturePalette
+	} from './textures';
 	import type { MapState } from '$lib/state/map-view.svelte';
 	import type { LngLat } from '$lib/domain/card';
 
@@ -77,10 +83,14 @@
 
 	const loadPatterns = async (m: MapLibre): Promise<void> => {
 		if (patterns.length > 0) return;
-		patterns = await loadTextures(
+		const seabed = await loadTextures(
 			texturePalette(),
 			sizeForScreen(window.devicePixelRatio, window.matchMedia('(pointer: coarse)').matches)
 		);
+		// A crest that will not load costs a decoration. It must never cost the seabed,
+		// so it is appended rather than awaited alongside.
+		const flourish = await loadFlourish(PALETTE.seaFlourish);
+		patterns = flourish === undefined ? seabed : [...seabed, flourish];
 		restorePatterns(m);
 		m.triggerRepaint();
 	};

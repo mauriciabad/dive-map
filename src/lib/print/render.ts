@@ -1,12 +1,13 @@
 import { Map as MapLibre, addProtocol } from 'maplibre-gl';
 import { Protocol } from 'pmtiles';
 import { installMarkerImages } from '$lib/map/marker-images';
-import { GROUND_FILL_LAYERS, type StyleOptions, buildStyle } from '$lib/map/style';
+import { GROUND_FILL_LAYERS, PALETTE, type StyleOptions, buildStyle } from '$lib/map/style';
 import { failedTileSource } from '$lib/map/tile-errors';
 import {
 	PATTERN_CSS_SIZE,
 	TEXTURE_SIZES,
 	type TextureSize,
+	loadFlourish,
 	loadTextures,
 	texturePalette
 } from '$lib/map/textures';
@@ -171,7 +172,11 @@ export const renderCard = async (
 	}
 
 	addProtocol('pmtiles', new Protocol().tile);
-	const textures = await loadTextures(texturePalette(), printTextureSize(pixelRatio));
+	const seabed = await loadTextures(texturePalette(), printTextureSize(pixelRatio));
+	// The sheet gets the same crests the screen showed, or none, and either way the
+	// seabed is already loaded before this can fail.
+	const flourish = await loadFlourish(PALETTE.seaFlourish);
+	const textures = flourish === undefined ? seabed : [...seabed, flourish];
 
 	const host = document.createElement('div');
 	host.style.cssText = [

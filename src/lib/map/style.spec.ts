@@ -76,3 +76,30 @@ describe('isobath contrast', () => {
 		expect(thinnest(width)).toBeGreaterThan(thinnest(line));
 	});
 });
+
+describe('the sea flourishes', () => {
+	const flourish = (visible: readonly LayerId[]) =>
+		buildStyle(options({ visible })).layers.find((l) => l.id === 'sea-flourish');
+
+	it('draws only on the water the survey never reached', () => {
+		const layer = flourish(DEFAULT_LAYERS);
+		if (layer?.type !== 'fill') throw new Error('no flourish fill');
+		expect(layer.filter).toEqual(['==', ['get', 'kind'], 'beyond']);
+		expect(layer.source).toBe('dem-edge');
+	});
+
+	it('goes out when the coastline does, because land is inside `beyond` too', () => {
+		const withoutCoast = DEFAULT_LAYERS.filter((id) => id !== 'coastline');
+		expect(flourish(withoutCoast)?.layout?.visibility).toBe('none');
+		expect(flourish(DEFAULT_LAYERS)?.layout?.visibility).toBe('visible');
+	});
+
+	it('has faded to nothing by the zoom a dive is briefed at', () => {
+		const layer = flourish(DEFAULT_LAYERS);
+		if (layer?.type !== 'fill') throw new Error('no flourish fill');
+		const opacity = layer.paint?.['fill-opacity'];
+		if (!Array.isArray(opacity)) throw new Error('flourish opacity is not an expression');
+		expect(opacity.at(-2)).toBeGreaterThanOrEqual(14);
+		expect(opacity.at(-1)).toBe(0);
+	});
+});

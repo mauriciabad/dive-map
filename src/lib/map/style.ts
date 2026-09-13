@@ -45,7 +45,7 @@ import {
 	landLayers,
 	worldLayers
 } from './land.ts';
-import { UNSURVEYED_TEXTURE } from './textures.ts';
+import { FLOURISH_TEXTURE, UNSURVEYED_TEXTURE } from './textures.ts';
 
 /**
  * The seabed drawn as painted terrain, in the grammar of the texture pack it is
@@ -864,6 +864,40 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			filter: ['==', ['get', 'kind'], 'beyond'],
 			layout: { visibility: vis(options, 'depth-tint') },
 			paint: { 'fill-color': BEYOND_WASH }
+		},
+		{
+			// Wave crests, the way a drawn chart carries them, in the only water this
+			// map has nothing to say about. `beyond` is the survey's own complement, so
+			// the marks cannot land on a habitat polygon, an isobath or a depth a diver
+			// could be briefed on: where there is data there is no decoration, and the
+			// boundary between the two is a dataset rather than a judgement.
+			//
+			// A pattern rather than scattered symbols because a pattern is anchored in
+			// world coordinates, so the same view draws the same crests every time and a
+			// card reprints identically, with no seed, no hash and no lattice to get
+			// wrong. One repeat is 1024 CSS px, which is wider than most screens.
+			//
+			// `beyond` also covers the land, which is why this rides the coastline
+			// switch as well as its own. The opaque land fills above are what keep the
+			// crests off Girona, exactly as they keep the wash above off it, and with
+			// the coastline off there is no land drawn to hide behind.
+			id: 'sea-flourish',
+			type: 'fill',
+			source: 'dem-edge',
+			filter: ['==', ['get', 'kind'], 'beyond'],
+			layout: {
+				visibility:
+					options.visible.includes('flourishes') && options.visible.includes('coastline')
+						? 'visible'
+						: 'none'
+			},
+			paint: {
+				'fill-pattern': FLOURISH_TEXTURE,
+				// Gone by the time anyone is briefing a dive. Decoration belongs to the
+				// zooms where the whole coast is the subject, not to the one where a diver
+				// is reading a wall off the contours.
+				'fill-opacity': ['interpolate', ['linear'], ['zoom'], 7, 0.85, 12.5, 0.85, 14.5, 0]
+			}
 		},
 		{
 			// The wash would still meet the veil on one pixel. This lays the same colour

@@ -85,6 +85,9 @@ export const ICONS = {
 		dots: [[8.2, 8.6, 1.5]]
 	},
 
+	/** Two crests and a trough: the wave marks an old chart scatters over open water. */
+	flourish: { d: ['M3 9q3-3 5 0t5 0 5 0 3 0', 'M3 15q3-3 5 0t5 0 5 0 3 0'] },
+
 	language: {
 		d: [
 			'M3 12h18',

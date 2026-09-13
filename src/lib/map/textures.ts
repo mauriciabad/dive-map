@@ -83,6 +83,57 @@ export const texturePalette = (): readonly string[] => [
 	...new Set([UNSURVEYED_TEXTURE, ...[...HABITATS, ...SUBSTRATES].map((c) => c.texture)])
 ];
 
+/**
+ * The wave crests the style scatters over water the survey never reached.
+ *
+ * Not in `texturePalette` and not in the size pyramid, because it is not a
+ * seabed class: nothing picks it, the legend never names it, and the texture
+ * picker must not offer it as something to paint a habitat with.
+ *
+ * It ships as a stencil, one 104 KB PNG carrying nothing but an alpha channel,
+ * and takes its colour here from the palette rather than from the file. The
+ * three crests it is built from came out of the pack flat: every opaque pixel in
+ * every one of the 57 wave and foam assets is a single colour, white at
+ * luminance 209 or teal at 175, with all the drawing in the alpha. So they were
+ * already stencils, and a stencil can carry a chart's ink instead of a
+ * battlemap's foam. Dropped in at their own 209 they would have been the
+ * brightest thing on a map whose brightest thing is meant to be sunlit sand.
+ */
+export const FLOURISH_TEXTURE = 'flourish-waves';
+
+/**
+ * How wide one repeat lands on screen. Four times the seabed's, because these are
+ * scattered marks rather than ground: at 256 the same ten crests came back every
+ * 256 px and read as wallpaper. At 1024 a 1440 px screen holds under one and a
+ * half repeats, so there is no grid to see.
+ */
+const FLOURISH_CSS_SIZE = 1024;
+
+export const loadFlourish = async (
+	ink: string,
+	signal?: AbortSignal
+): Promise<LoadedTexture | undefined> => {
+	const response = await fetch(asset(`/textures/${FLOURISH_TEXTURE}.png`), signal ? { signal } : {});
+	if (!response.ok) return undefined;
+	const stencil = await createImageBitmap(await response.blob());
+	const { width, height } = stencil;
+	const canvas = new OffscreenCanvas(width, height);
+	const context = canvas.getContext('2d');
+	if (context === null) return undefined;
+	context.drawImage(stencil, 0, 0);
+	stencil.close();
+	// The file is alpha and nothing else, so painting through it leaves the ink
+	// wherever a crest was drawn and nothing anywhere else.
+	context.globalCompositeOperation = 'source-in';
+	context.fillStyle = ink;
+	context.fillRect(0, 0, width, height);
+	return {
+		name: FLOURISH_TEXTURE,
+		bitmap: await createImageBitmap(canvas),
+		pixelRatio: width / FLOURISH_CSS_SIZE
+	};
+};
+
 export interface LoadedTexture {
 	readonly name: string;
 	readonly bitmap: ImageBitmap;
