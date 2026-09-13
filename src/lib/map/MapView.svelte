@@ -19,9 +19,9 @@
 	import { publishMap } from './controls';
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import { installMarkerImages } from './marker-images';
-	import { PALETTE, SATELLITE_SOURCE_ID, buildStyle } from './style';
+	import { PALETTE, buildStyle } from './style';
 	import { WORLD_SOURCE_ID } from './land';
-	import { failedTileSource } from './tile-errors';
+	import { failedSource } from './tile-errors';
 	import {
 		FLOURISH_TEXTURE,
 		type LoadedTexture,
@@ -202,11 +202,14 @@
 			onready?.(m);
 		});
 		m.on('error', (e) => {
-			// The ortophoto is the one source that is neither ours nor cached, so on a
-			// boat it fails once per tile. Nothing is broken and nothing is missing that
-			// the diver did not ask a network for, so it degrades to no photograph
-			// rather than to a banner over a map that is working.
-			if (failedTileSource(e) === SATELLITE_SOURCE_ID) return;
+			// A failure that names a source is a gap in the data, not a broken app. The
+			// ortophoto was the loud case, once per tile on a boat, but an archive that
+			// will not fetch offline is the same argument and a stronger one: the map
+			// draws what the caches held, which is what the diver is looking at, and
+			// three of the archives that fail on an offline reload back layers no
+			// control can even reach. The banner is for a style that will not parse,
+			// which names no source and is the one failure that means nothing is coming.
+			if (failedSource(e) !== undefined) return;
 			view.error = e.error.message;
 		});
 
