@@ -38,8 +38,8 @@
 	/** The coarsest interval offered, and what auto falls back to when zoomed out. */
 	const COARSEST_M = 20;
 
-	/** Deep enough for the whole survey, which bottoms out at 80.7 m. */
-	const DEEPEST_M = 100;
+	/** Deep enough for both surveys. The national one bottoms out at 250 m. */
+	const DEEPEST_M = 250;
 
 	const interval = $derived(view.isobaths.autoInterval ? AUTO : view.isobaths.intervalM);
 

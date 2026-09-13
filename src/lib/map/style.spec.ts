@@ -448,6 +448,60 @@ describe('the 0 m line the isobath panel can now ask for', () => {
 });
 
 /**
+ * The national contours arrived on their own layers with a ladder and a weight
+ * rule of their own, so the isobath panel described half the contours on screen.
+ * A diver setting an interval saw it ignored below 50 m. Both sets read one set
+ * of expressions now.
+ */
+describe('the isobath settings the national contours answer to', () => {
+	const draws = (id: string, style: StyleOptions, depth: number, zoom = 14): boolean => {
+		const layer = buildStyle(style).layers.find((l) => l.id === id);
+		const spec = layer !== undefined && 'filter' in layer ? layer.filter : undefined;
+		if (spec === undefined) throw new Error(`no filter on ${id}`);
+		const { filter } = featureFilter(spec, 'layers[0].filter');
+		return filter({ zoom }, { type: 2, properties: { depth } });
+	};
+
+	const cut = (extra: Partial<IsobathStyle>): StyleOptions =>
+		options({ isobaths: { ...DEFAULT_ISOBATHS, autoInterval: false, ...extra } });
+
+	it('cuts the deep lines to the interval the panel is set to', () => {
+		const every25 = cut({ intervalM: 25 });
+		expect(draws('isobath-deep', every25, 75)).toBe(true);
+		expect(draws('isobath-deep', every25, 65)).toBe(false);
+		expect(draws('isobath-deep', cut({ intervalM: 5 }), 65)).toBe(true);
+	});
+
+	it('stops the deep lines where the maximum depth stops', () => {
+		const shallow = cut({ maxDepthM: 60 });
+		expect(draws('isobath-deep', shallow, 55)).toBe(true);
+		expect(draws('isobath-deep', shallow, 65)).toBe(false);
+	});
+
+	it('keeps a marked depth past the interval, out there as well as inshore', () => {
+		const coarse = cut({ intervalM: 20, emphasised: [30, 175] });
+		expect(draws('isobath-deep', coarse, 175)).toBe(true);
+		expect(draws('isobath', coarse, 30)).toBe(true);
+	});
+
+	it('names the deep lines a diver marked and no others', () => {
+		const marked = cut({ emphasised: [50, 100], intervalM: 5 });
+		expect(draws('isobath-deep-label', marked, 100)).toBe(true);
+		expect(draws('isobath-deep-label', marked, 150)).toBe(false);
+	});
+
+	/**
+	 * The archive carries five metre steps on the shelf and fifty down the slope,
+	 * so an interval it has no line for draws nothing out there. That is the data
+	 * rather than the expression, and it is water past any scuba plan.
+	 */
+	it('ships reaching the national survey floor rather than the ICGC one', () => {
+		expect(DEFAULT_ISOBATHS.maxDepthM).toBe(250);
+		expect(draws('isobath-deep', options(), 250, 16)).toBe(true);
+	});
+});
+
+/**
  * The bug: at the whole-coast view every dive site on two hundred kilometres was
  * inside one frame, and 47 discs drew on top of each other around one headland.
  * Key marks now give way to each other out there, which is only safe while the
@@ -541,10 +595,12 @@ describe('pushing the isobath layers at a live map', () => {
 		const thin = withEmphasis(DEFAULT_ISOBATHS, 30, false);
 		// Not the colour. A tick coming off a line changes what the line weighs and
 		// whether it is labelled, and the band it governs keeps what it was painted.
-		// The deep casing rides the same halo and width helper as the shallow one, so
-		// it moves too. Its own line does not: nothing out past 50 m is ever ticked.
+		// Both contour sets move, because both read one list of marks now.
 		expect(pushes(options(), options({ isobaths: thin }))).toEqual([
 			'isobath-deep-glow line-width',
+			'isobath-deep line-opacity',
+			'isobath-deep line-width',
+			'isobath-deep-label filter',
 			'isobath-glow line-width',
 			'isobath line-opacity',
 			'isobath line-width',

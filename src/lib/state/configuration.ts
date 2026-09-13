@@ -265,8 +265,8 @@ const parseLayers = (value: unknown): readonly LayerId[] | undefined => {
 	return [...ids];
 };
 
-/** Deepest the survey goes, with room for a hand-edited number that still draws. */
-const DEPTH_LIMIT = 200;
+/** Deepest the surveys go. The national shelf archive stops at 250 m. */
+const DEPTH_LIMIT = 250;
 
 const parseIsobaths = (value: unknown): IsobathStyle => {
 	if (!isRecord(value)) return DEFAULT_ISOBATHS;

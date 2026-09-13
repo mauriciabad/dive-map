@@ -159,28 +159,30 @@ describe('switching which line names a band', () => {
 	 * upwards it governs no band, and `noBand` is what keeps it a drawn line.
 	 */
 	it('marks the end the method can paint from and never gives up the surface', () => {
+		const shipped = DEFAULT_ISOBATHS.emphasised;
 		const downwards = withMethod(DEFAULT_ISOBATHS, 'downwards');
-		expect(downwards.emphasised).toEqual([0, 5, 18, 30, 40, 50]);
+		// Downwards the deepest mark would name a band of one line, so it goes.
+		expect(downwards.emphasised).toEqual(shipped.filter((d) => d !== DEFAULT_ISOBATHS.maxDepthM));
 		const upwards = withMethod(downwards, 'upwards');
-		expect(upwards.emphasised).toEqual([0, 5, 18, 30, 40, 50, 80]);
+		expect(upwards.emphasised).toEqual([...shipped]);
 		expect(depthMarks(upwards).find((mark) => mark.depthM === 0)?.noBand).toBe(true);
 	});
 
 	it('carries the colour of both end bands across the switch', () => {
-		const painted = withColour(withMethod(DEFAULT_ISOBATHS, 'downwards'), 0, '#ff0000');
-		const shallow = colourAt(painted, 2);
-		const deep = colourAt(painted, 70);
+		const downwards = withMethod(DEFAULT_ISOBATHS, 'downwards');
+		const painted = withColour(withColour(downwards, 0, '#ff0000'), 50, '#00ff00');
+		expect(colourAt(painted, 2)).toBe('#ff0000');
+		expect(colourAt(painted, 70)).toBe('#00ff00');
 		const upwards = withMethod(painted, 'upwards');
-		expect(shallow).toBe('#ff0000');
-		expect(colourAt(upwards, 2)).toBe(shallow);
-		expect(colourAt(upwards, 70)).toBe(deep);
+		expect(colourAt(upwards, 2)).toBe('#ff0000');
+		expect(colourAt(upwards, 70)).toBe('#00ff00');
 	});
 });
 
 describe('marks', () => {
 	it('starts a new mark on its own depth band', () => {
 		const style = withMark(DEFAULT_ISOBATHS, 65);
-		expect(style.emphasised).toEqual([0, 5, 18, 30, 40, 50, 65]);
+		expect(style.emphasised).toEqual([0, 5, 18, 30, 40, 50, 65, 100, 150, 200, 250]);
 		expect(depthMarks(style).find((mark) => mark.depthM === 65)?.colour).toBe(defaultColour(65));
 	});
 
@@ -194,7 +196,7 @@ describe('marks', () => {
 
 	it('carries the colour to a depth a mark is moved to', () => {
 		const moved = withMarkAt(withColour(DEFAULT_ISOBATHS, 18, '#123456'), 18, 22);
-		expect(moved.emphasised).toEqual([0, 5, 22, 30, 40, 50]);
+		expect(moved.emphasised).toEqual([0, 5, 22, 30, 40, 50, 100, 150, 200, 250]);
 		expect(depthMarks(moved).find((mark) => mark.depthM === 22)?.colour).toBe('#123456');
 	});
 

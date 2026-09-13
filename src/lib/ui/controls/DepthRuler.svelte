@@ -49,7 +49,12 @@
 	 */
 	const PER_METRE_REM = 0.34;
 	const SHORTEST_REM = 16;
-	const TALLEST_REM = 40;
+	/**
+	 * Raised with the maximum depth when the national contours joined the ruler.
+	 * 250 m at the density above is 85 rem, and squashing it into the old 40 would
+	 * halve the row spacing at every depth, including the ones a diver plans on.
+	 */
+	const TALLEST_REM = 85;
 
 	let ruler = $state<HTMLElement | undefined>(undefined);
 	/** The row a press has raised, so it stays on top of the rows it overlaps. */

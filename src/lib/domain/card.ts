@@ -107,7 +107,13 @@ export interface IsobathStyle {
 	 * which used to.
 	 */
 	readonly emphasised: readonly number[];
-	/** Stop drawing below this. Nobody on this boat is going deeper. */
+	/**
+	 * Stop drawing below this, in both contour sets.
+	 *
+	 * It ships at 250, which is where the national survey stops rather than where a
+	 * diver stops. The ICGC set bottoms out at 80.73 m and a diver who only wants
+	 * the water they can dive drags this down to it.
+	 */
 	readonly maxDepthM: number;
 	readonly labels: boolean;
 	/**
@@ -121,8 +127,11 @@ export interface IsobathStyle {
 export const DEFAULT_ISOBATHS: IsobathStyle = {
 	intervalM: 5,
 	autoInterval: true,
-	emphasised: [0, 5, 18, 30, 40, 50],
-	maxDepthM: 80,
+	// The five a recreational plan turns on, the surface, and the national survey's
+	// own fifties, which used to be named by a rule inside the deep layer. They are
+	// marks like any other now, so a diver who does not want them can take them off.
+	emphasised: [0, 5, 18, 30, 40, 50, 100, 150, 200, 250],
+	maxDepthM: 250,
 	labels: true
 };
 

@@ -597,47 +597,14 @@ export const ISOBATH_LAYER_IDS: readonly string[] = [
 ];
 
 /**
- * How coarse the national contours go, which is not the ladder the ICGC ones use.
+ * How much wider the national contours are drawn than the ICGC ones.
  *
- * The national survey off this coast runs from 50 m to 250 m, five metre steps on
- * the shelf and fifty down the slope. So the diver's interval setting has nothing
- * to say about them: it tops out well above the shallowest line here, and every
- * step it offers would draw all of them or none. This is a fixed ladder instead,
- * cut to the archive's own zoom breaks, which hold the five metre contours back
- * to z13. Four lines at a coast-wide zoom, forty at a dive site.
+ * Those sit on painted habitat with hundreds of neighbours; these sit on the
+ * deep-water wash, which is the darkest thing on the map. Everything else about
+ * them is the shallow set's expression, unchanged.
  */
-const DEEP_INTERVAL: ExpressionSpecification = [
-	'step',
-	['zoom'],
-	100,
-	10,
-	50,
-	13,
-	10,
-	15,
-	5
-];
+const DEEP_WIDENING = 0.3;
 
-const deepIsobathFilter: ExpressionSpecification = [
-	'==',
-	['%', ['to-number', ['get', 'depth']], DEEP_INTERVAL],
-	0
-];
-
-/** The fifties, which carry the weight and the numbers out here. */
-const DEEP_HEAVY: ExpressionSpecification = ['==', ['%', ['to-number', ['get', 'depth']], 50], 0];
-
-const deepIsobathWidth: DataDrivenPropertyValueSpecification<number> = [
-	'interpolate',
-	['linear'],
-	['zoom'],
-	9,
-	['case', DEEP_HEAVY, 0.9, 0.5],
-	14,
-	['case', DEEP_HEAVY, 1.9, 1.0],
-	18,
-	['case', DEEP_HEAVY, 3.6, 1.7]
-];
 
 /**
  * The national shelf survey's contours, drawn in the water the ICGC one never
@@ -649,12 +616,17 @@ const deepIsobathWidth: DataDrivenPropertyValueSpecification<number> = [
  * agreement between two surveys that measured on different decades and different
  * echo sounders.
  *
- * Colour comes off the same ramp the ICGC contours use, so a diver who repaints
- * their 50 m line repaints these too, and everything past the deepest painted band
- * takes that band's colour. There is nothing to set beyond that and nothing worth
- * setting: the shallowest line out here is 50 m and the rest is past any scuba
- * plan, so these are a picture of the shape of the margin rather than a depth
- * anybody reads off a number.
+ * Every isobath setting reaches them, through the same expressions the ICGC set
+ * is drawn with: the interval, the maximum depth, the marks, the colours, the
+ * outline and the labels. They used to have a fixed ladder of their own and a
+ * fixed rule that the fifties carried the weight, so the panel described half the
+ * contours on screen and a diver setting an interval saw it ignored below 50 m.
+ *
+ * One limit is the archive rather than the expression. It carries five metre
+ * steps on the shelf and fifty down the slope, so an interval the archive has no
+ * line for draws nothing there. An interval of 2 m gets 50, 60, 70 out here and
+ * every metre inshore. That is the data, not a rule, and it is water past any
+ * scuba plan.
  */
 const deepIsobathLayers = (options: StyleOptions): readonly LayerSpecification[] => [
 	{
@@ -662,7 +634,7 @@ const deepIsobathLayers = (options: StyleOptions): readonly LayerSpecification[]
 		type: 'line',
 		source: 'isobaths-deep',
 		'source-layer': 'isobaths',
-		filter: deepIsobathFilter,
+		filter: isobathFilter(options.isobaths),
 		layout: { visibility: vis(options, 'isobaths'), 'line-join': 'round' },
 		paint: isobathCasing(options)
 	},
@@ -671,15 +643,20 @@ const deepIsobathLayers = (options: StyleOptions): readonly LayerSpecification[]
 		type: 'line',
 		source: 'isobaths-deep',
 		'source-layer': 'isobaths',
-		filter: deepIsobathFilter,
+		filter: isobathFilter(options.isobaths),
 		layout: { visibility: vis(options, 'isobaths'), 'line-join': 'round' },
 		paint: {
 			'line-color': isobathColour(options.isobaths),
-			// Heavier than the 0.45 the ICGC metre lines carry. Those sit on painted
-			// habitat and there are hundreds of them; these sit on the deep-water wash,
-			// which is the darkest thing on the map, and there are eleven.
-			'line-opacity': 0.8,
-			'line-width': deepIsobathWidth
+			// The lines between the marks stay louder than the ICGC ones do, for the
+			// same reason they are drawn wider.
+			'line-opacity': [
+				'match',
+				['to-number', ['get', 'depth']],
+				[...heavyDepths(options.isobaths)],
+				0.95,
+				0.8
+			],
+			'line-width': isobathWidth(heavyDepths(options.isobaths), DEEP_WIDENING)
 		}
 	},
 	{
@@ -688,7 +665,11 @@ const deepIsobathLayers = (options: StyleOptions): readonly LayerSpecification[]
 		source: 'isobaths-deep',
 		'source-layer': 'isobaths',
 		minzoom: 10,
-		filter: ['all', deepIsobathFilter, DEEP_HEAVY],
+		filter: [
+			'all',
+			isobathFilter(options.isobaths),
+			['in', ['to-number', ['get', 'depth']], ['literal', [...heavyDepths(options.isobaths)]]]
+		],
 		layout: {
 			visibility: options.isobaths.labels ? vis(options, 'isobaths') : 'none',
 			'symbol-placement': 'line',
