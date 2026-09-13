@@ -50,9 +50,18 @@ describe('the ortophoto and the paint over it', () => {
 		);
 	});
 
-	it('does not fade the land, whose two fills would band along their overlap', () => {
+	/**
+	 * This used to assert the opposite, on the theory that fading both land fills
+	 * would band along the four kilometre overlap the world tiles slide under the
+	 * ICGC polygon. It was also the reason the photograph never appeared. Fading
+	 * them is what makes it appear, and the band does not: checked at z9 over the
+	 * whole Barcelona coast at full strength, the seam is not visible, because both
+	 * fills carry the same colour and land is opaque under both of them.
+	 */
+	it('fades the land with the photograph, which is what makes it visible', () => {
 		const visible = withPhoto(DEFAULT_LAYERS);
-		expect(paintOf(options({ visible, photoStrength: 1 }), 'land')['fill-opacity']).toBeUndefined();
+		expect(paintOf(options({ visible, photoStrength: 1 }), 'land')['fill-opacity']).toBe(0);
+		expect(paintOf(options({ visible, photoStrength: 0.5 }), 'land')['fill-opacity']).toBe(0.5);
 	});
 });
 
@@ -161,5 +170,43 @@ describe('the hillshade over the DEM nodata plane', () => {
 		const without = DEFAULT_LAYERS.filter((id) => id !== 'hillshade');
 		expect(visibilityOf({ worldPainted: true, visible: without })).toBe('none');
 		expect(visibilityOf({ worldPainted: false, visible: without })).toBe('none');
+	});
+});
+
+describe('the ortophoto under the paint', () => {
+	const withPhotoAt = (photoStrength: 1 | 0.25): StyleOptions =>
+		options({ visible: withPhoto(DEFAULT_LAYERS), photoStrength });
+
+	const FLAT_WASHES = [
+		'land',
+		'land-texture',
+		'world-land',
+		'world-land-texture',
+		'land-sand',
+		'sea-beyond-dem'
+	];
+
+	it('paints the land solid while the photograph is off', () => {
+		for (const id of FLAT_WASHES) {
+			expect(paintOf(options(), id)['fill-opacity']).not.toBe(0);
+		}
+	});
+
+	it('clears every flat wash above the photograph at full strength', () => {
+		// Turning it on used to change nothing visible, because `sea-beyond-dem` and
+		// the two land fills buried it whatever the strength said.
+		for (const id of FLAT_WASHES) {
+			expect(paintOf(withPhotoAt(1), id)['fill-opacity']).toBe(0);
+		}
+	});
+
+	it('only steps them back at a quarter, so the paint is still the subject', () => {
+		expect(paintOf(withPhotoAt(0.25), 'land')['fill-opacity']).toBe(0.75);
+		expect(paintOf(withPhotoAt(0.25), 'sea-beyond-dem')['fill-opacity']).toBe(0.75);
+	});
+
+	it('keeps the lines a diver reads the photograph with', () => {
+		expect(paintOf(withPhotoAt(1), 'world-coast')['line-opacity']).toBe(0.8);
+		expect(paintOf(withPhotoAt(1), 'land-road')['line-opacity']).toBeDefined();
 	});
 });

@@ -66,12 +66,20 @@ const DETAIL_MINZOOM = 11;
 const colourByKind = (
 	cases: Readonly<Record<string, string>>,
 	fallback: string
-): ExpressionSpecification => ['coalesce', ['get', ['get', 'kind'], ['literal', { ...cases }]], fallback];
+): ExpressionSpecification => [
+	'coalesce',
+	['get', ['get', 'kind'], ['literal', { ...cases }]],
+	fallback
+];
 
 const numberByKind = (
 	cases: Readonly<Record<string, number>>,
 	fallback: number
-): ExpressionSpecification => ['coalesce', ['get', ['get', 'kind'], ['literal', { ...cases }]], fallback];
+): ExpressionSpecification => [
+	'coalesce',
+	['get', ['get', 'kind'], ['literal', { ...cases }]],
+	fallback
+];
 
 const isKind = (...kinds: readonly string[]): ExpressionSpecification => [
 	'in',
@@ -117,6 +125,13 @@ const ROAD_OPACITY: ExpressionSpecification = numberByKind(
 
 export interface LandOptions {
 	readonly visible: boolean;
+	/**
+	 * What a flat base fill is multiplied by so the ortophoto under it can be seen.
+	 * 1 with the photograph off, 0 at full strength. Only the fills that are a flat
+	 * colour take it: the shoreline, the roads and the rivers are what a diver reads
+	 * the photograph with, so they keep their weight.
+	 */
+	readonly photoFade: number;
 }
 
 const visibility = ({ visible }: LandOptions): 'visible' | 'none' => (visible ? 'visible' : 'none');
@@ -150,7 +165,11 @@ export const worldLayers = (options: LandOptions): LayerSpecification[] => {
 			// Same reason as the surveyed land: its outline pass runs along the seam
 			// under Catalonia as well as along the coast, and `world-coast` draws the
 			// only part of that boundary anybody should see.
-			paint: { 'fill-color': PALETTE.land, 'fill-antialias': false }
+			paint: {
+				'fill-color': PALETTE.land,
+				'fill-opacity': options.photoFade,
+				'fill-antialias': false
+			}
 		},
 		{
 			// The same whisper of rock as the surveyed land. A fill pattern is laid out
@@ -164,7 +183,11 @@ export const worldLayers = (options: LandOptions): LayerSpecification[] => {
 			// Antialias off for the same reason as the surveyed land's rock: the
 			// outline pass lays the pattern down a second time and draws a bright
 			// hairline round every edge of it.
-			paint: { 'fill-pattern': 'ch_rock', 'fill-opacity': 0.16, 'fill-antialias': false }
+			paint: {
+				'fill-pattern': 'ch_rock',
+				'fill-opacity': 0.16 * options.photoFade,
+				'fill-antialias': false
+			}
 		},
 		{
 			// Only the real coast: the pipeline drops the stretch of this boundary that
@@ -208,7 +231,11 @@ export const landSandLayers = (options: LandOptions): LayerSpecification[] => {
 		{
 			...base,
 			id: 'land-sand',
-			paint: { 'fill-color': PALETTE.landSand, 'fill-opacity': 0.85, 'fill-antialias': false }
+			paint: {
+				'fill-color': PALETTE.landSand,
+				'fill-opacity': 0.85 * options.photoFade,
+				'fill-antialias': false
+			}
 		},
 		{
 			...base,
@@ -217,7 +244,15 @@ export const landSandLayers = (options: LandOptions): LayerSpecification[] => {
 				'fill-pattern': 'ch_sand',
 				// Slight, as asked. Enough grain to read as sand rather than as a
 				// coloured patch, not enough to compete with the lit sand offshore.
-				'fill-opacity': ['interpolate', ['linear'], ['zoom'], 12, 0.26, 16, 0.42],
+				'fill-opacity': [
+					'interpolate',
+					['linear'],
+					['zoom'],
+					12,
+					0.26 * options.photoFade,
+					16,
+					0.42 * options.photoFade
+				],
 				'fill-antialias': false
 			}
 		}

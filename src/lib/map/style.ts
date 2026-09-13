@@ -333,6 +333,25 @@ export interface StyleOptions {
  */
 const GROUND_GIVEN_UP = 0.72;
 
+/**
+ * What the flat paint over the photograph is multiplied by.
+ *
+ * Turning the photograph on used to change nothing a diver could see, and the
+ * reason was that it sat under four opaque things at once. Measured at Tamariu
+ * z15 with the photo at half strength, a land pixel read 13,47,62 against the
+ * photograph's own 55,73,72: `sea-beyond-dem` washed it at 0.8 alpha first,
+ * because the survey's complement is the whole interior and not just open sea,
+ * and then `world-land` and `land` finished it at full opacity. Less than a
+ * fifteenth of the photograph survived.
+ *
+ * So everything above it that is only a flat colour fades with it, and reaches
+ * nothing at full strength, which is what makes 100% mean the photograph. The
+ * seabed paint keeps its own gentler curve in `groundOpacity`, because that one
+ * carries habitat meaning and the land fill does not.
+ */
+const photoFade = (options: StyleOptions): number =>
+	options.visible.includes('satellite') ? 1 - (options.photoStrength ?? DEFAULT_PHOTO_STRENGTH) : 1;
+
 const groundOpacity = (options: StyleOptions): DataDrivenPropertyValueSpecification<number> => {
 	const strength = options.visible.includes('satellite')
 		? (options.photoStrength ?? DEFAULT_PHOTO_STRENGTH)
@@ -884,7 +903,10 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			source: 'dem-edge',
 			filter: ['==', ['get', 'kind'], 'beyond'],
 			layout: { visibility: vis(options, 'depth-tint') },
-			paint: { 'fill-color': BEYOND_WASH }
+			// Fades with the photograph because this polygon is the survey's complement,
+			// which is open sea and the whole interior alike. Over land it is the first
+			// thing that buries the ortophoto.
+			paint: { 'fill-color': BEYOND_WASH, 'fill-opacity': photoFade(options) }
 		},
 		{
 			// Wave crests, the way a drawn chart carries them, in the only water this
@@ -1002,7 +1024,10 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 
 		// Before the surveyed land, so that where the two datasets disagree by a few
 		// metres along the Catalan shore the ICGC polygon is the one that wins.
-		...worldLayers({ visible: options.visible.includes('coastline') }),
+		...worldLayers({
+			visible: options.visible.includes('coastline'),
+			photoFade: photoFade(options)
+		}),
 
 		{
 			id: 'land',
@@ -1012,6 +1037,7 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			layout: { visibility: vis(options, 'coastline') },
 			paint: {
 				'fill-color': PALETTE.land,
+				'fill-opacity': photoFade(options),
 				// The outline pass draws this same dark fill one pixel wide along the
 				// whole polygon boundary, and three sides of that boundary are not coast:
 				// they are the cuts at the two borders and the synthetic inland closure.
@@ -1032,7 +1058,7 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			layout: { visibility: vis(options, 'coastline') },
 			paint: {
 				'fill-pattern': 'ch_rock',
-				'fill-opacity': 0.16,
+				'fill-opacity': 0.16 * photoFade(options),
 				// A fill antialiases by drawing its own outline as a second pass, which
 				// for a pattern fill lays the rock down twice along the edge. Measured
 				// at the minimum zoom that is 46 to 73 inside and 95 on the edge pixel,
@@ -1048,7 +1074,10 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 		// Land detail rides the coastline switch rather than one of its own. The
 		// land fill is what it is drawn on, so a river with the land turned off
 		// would hang over open water, and the two can only sensibly move together.
-		...landLayers({ visible: options.visible.includes('coastline') }),
+		...landLayers({
+			visible: options.visible.includes('coastline'),
+			photoFade: photoFade(options)
+		}),
 
 		{
 			// The real surveyed shoreline. Stroking the land polygon instead would draw
