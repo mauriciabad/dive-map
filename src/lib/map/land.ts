@@ -186,6 +186,45 @@ export const worldLayers = (options: LandOptions): LayerSpecification[] => {
 };
 
 /**
+ * The sandy parts of the shore, painted with the seabed's own sand.
+ *
+ * Borrowing a habitat texture is a category error everywhere else on this map,
+ * and here it is the point. The sand on the beach and the sand in the shallows
+ * are the same sand, and a diver walking a shore entry is watching one turn into
+ * the other. Painting them alike says so, and it is the only place the land and
+ * the seabed are allowed to share a mark.
+ *
+ * Starts at z12. A beach is a thin strip and at any wider view it is a smear.
+ */
+export const landSandLayers = (options: LandOptions): LayerSpecification[] => {
+	const base = {
+		type: 'fill',
+		source: LAND_SOURCE_ID,
+		'source-layer': 'sand',
+		minzoom: 12,
+		layout: { visibility: visibility(options) }
+	} as const;
+	return [
+		{
+			...base,
+			id: 'land-sand',
+			paint: { 'fill-color': PALETTE.landSand, 'fill-opacity': 0.85, 'fill-antialias': false }
+		},
+		{
+			...base,
+			id: 'land-sand-texture',
+			paint: {
+				'fill-pattern': 'ch_sand',
+				// Slight, as asked. Enough grain to read as sand rather than as a
+				// coloured patch, not enough to compete with the lit sand offshore.
+				'fill-opacity': ['interpolate', ['linear'], ['zoom'], 12, 0.26, 16, 0.42],
+				'fill-antialias': false
+			}
+		}
+	];
+};
+
+/**
  * Fresh water inside the coastline.
  *
  * This is the half of the land detail a diver reads for a reason rather than for
@@ -302,12 +341,15 @@ export const landRoadLayers = (options: LandOptions): LayerSpecification[] => {
 
 /** Every land layer, in the order a brush would lay them down. */
 export const landLayers = (options: LandOptions): LayerSpecification[] => [
+	...landSandLayers(options),
 	...landWaterLayers(options),
 	...landRoadLayers(options)
 ];
 
 /** For anything that wants to know whether the land tiles actually drew. */
 export const LAND_LAYER_IDS: readonly string[] = [
+	'land-sand',
+	'land-sand-texture',
 	'land-water',
 	'land-water-edge',
 	'land-waterway',

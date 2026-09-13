@@ -33,6 +33,8 @@ if (shotDir) mkdirSync(shotDir, { recursive: true });
 const at = (flag('--at') ?? '3.19,42.035,13').split(',').map(Number);
 
 const LAND_LAYERS = [
+	'land-sand',
+	'land-sand-texture',
 	'land-water',
 	'land-water-edge',
 	'land-waterway',

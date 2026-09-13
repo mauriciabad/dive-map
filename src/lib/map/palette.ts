@@ -33,6 +33,12 @@ export const PALETTE = {
 	// under the sunlit sand of the shallows, which has to stay the brightest thing
 	// in any frame.
 	landInk: '#7d6b50',
+
+	// The one thing on land allowed to be brighter than the ink, because it is the
+	// one thing on land a diver is going to walk on. Composited with the sand
+	// texture over it this lands near 120 against the land's 73, and still well
+	// under the 190 of the same sand lit through two metres of water.
+	landSand: '#5c4e38',
 	ink: '#1d1710',
 	paper: '#efe4cf',
 	brass: '#b8893f',
