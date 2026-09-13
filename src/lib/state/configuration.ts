@@ -256,6 +256,11 @@ const readBlob = (raw: string | undefined): Stored<Record<string, unknown>> => {
  * Names are the identity, so a duplicate can only come from a hand-edited blob.
  * The first one wins, which is the repair that surprises least: the list keeps
  * the order it was written in and the name still means one thing.
+ *
+ * `LIBRARY_LIMIT` is not applied here, only to saving. Reading past the limit and
+ * showing the rest would hide configurations that are on the device, and the next
+ * save would then write the list back without them. Refusing a new one is a
+ * nuisance; losing an old one behind a limit nobody mentioned is not.
  */
 export const readLibrary = (store: KeyValueStore, locale: Locale): Stored<Library> => {
 	const blob = readBlob(store.read(LIBRARY_KEY));
@@ -273,7 +278,6 @@ export const readLibrary = (store: KeyValueStore, locale: Locale): Stored<Librar
 		if (configuration === undefined) continue;
 		taken.add(name);
 		saved.push({ name, configuration });
-		if (saved.length === LIBRARY_LIMIT) break;
 	}
 
 	const openWith = parseName(blob.value['openWith']);

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { LIBRARY_KEY, STORAGE_VERSION, shippedConfiguration } from './configuration.ts';
+import {
+	LIBRARY_KEY,
+	LIBRARY_LIMIT,
+	STORAGE_VERSION,
+	shippedConfiguration
+} from './configuration.ts';
 import { Configurations } from './configurations.svelte.ts';
 import { type KeyValueStore, memoryStore } from './storage.ts';
 
@@ -36,6 +41,22 @@ describe('saving by hand', () => {
 			erase: () => undefined
 		};
 		expect(open(full).save('Nit', ca)).toEqual({ ok: false, why: 'refused' });
+	});
+});
+
+describe('the limit on how many one browser keeps', () => {
+	it('refuses a new one rather than pushing an old one out', () => {
+		const configs = open();
+		for (let i = 0; i < LIBRARY_LIMIT; i += 1) configs.save(`Setup ${i}`, ca);
+		expect(configs.save('One too many', ca)).toEqual({ ok: false, why: 'full' });
+		expect(configs.saved).toHaveLength(LIBRARY_LIMIT);
+	});
+
+	it('still lets a name already in the list be saved over', () => {
+		const configs = open();
+		for (let i = 0; i < LIBRARY_LIMIT; i += 1) configs.save(`Setup ${i}`, ca);
+		expect(configs.save('Setup 0', substrate).ok).toBe(true);
+		expect(configs.configurationNamed('Setup 0')?.ground).toBe('substrate');
 	});
 });
 

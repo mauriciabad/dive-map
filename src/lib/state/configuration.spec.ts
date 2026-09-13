@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	LIBRARY_KEY,
+	LIBRARY_LIMIT,
 	STORAGE_VERSION,
 	WORKING_KEY,
 	parseCamera,
@@ -97,6 +98,22 @@ describe('readLibrary', () => {
 		});
 		const back = readLibrary(store, 'ca');
 		expect(back.kind === 'ok' && back.value.openWith).toBeUndefined();
+	});
+
+	/**
+	 * The cap belongs to saving. Hiding what is past it would lose those entries
+	 * on the next save, which is the one thing this store must not do.
+	 */
+	it('reads back more than one browser is allowed to save', () => {
+		const store = stored({
+			version: 1,
+			saved: Array.from({ length: LIBRARY_LIMIT + 5 }, (_, i) => ({
+				name: `Setup ${i}`,
+				configuration: ca
+			}))
+		});
+		const back = readLibrary(store, 'ca');
+		expect(back.kind === 'ok' && back.value.saved.length).toBe(LIBRARY_LIMIT + 5);
 	});
 
 	it('skips an entry with no usable name rather than losing the rest', () => {

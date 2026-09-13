@@ -12,6 +12,11 @@
  * threshold and screenshots whatever is on screen at that moment, which is how
  * a half-loaded map passes a check that says it painted.
  *
+ * Run it against a server nobody is rebuilding. A `vite dev` that hot reloads
+ * under the browser detaches the element being clicked and takes `window.diveMap`
+ * with it, and every one of those reads as a race in here rather than as the
+ * rebuild it is. Against a settled tree the same run answers the same way.
+ *
  * Usage: node pipeline/scripts/verify-config.mjs <url> [--shot dir]
  */
 import { chromium } from 'playwright';
@@ -59,7 +64,12 @@ const watch = (page, tag) => {
 	page.on('console', (m) => {
 		if (m.type() === 'error') problems.push(`${tag} console: ${m.text().slice(0, 160)}`);
 	});
-	page.on('pageerror', (e) => problems.push(`${tag} pageerror: ${e.message.slice(0, 160)}`));
+	// The stack, not just the message. Six of the nine verify scripts could not see
+	// an uncaught exception at all until this session, and a bare message from
+	// inside a bundled dependency names nothing you can act on.
+	page.on('pageerror', (e) =>
+		problems.push(`${tag} pageerror: ${(e.stack ?? e.message).slice(0, 400)}`)
+	);
 	return page;
 };
 
@@ -74,7 +84,16 @@ const watch = (page, tag) => {
  * empty page a millisecond after the navigation.
  */
 const settle = async (page) => {
-	await page.waitForFunction(() => window.diveMap !== undefined, null, { timeout: 90_000 });
+	// `MapView.svelte` publishes the handle under import.meta.env.DEV only, so a
+	// preview of a production build looks exactly like a map that never loaded.
+	// Saying so beats ninety seconds and a stack from inside the poll.
+	await page
+		.waitForFunction(() => window.diveMap !== undefined, null, { timeout: 90_000 })
+		.catch(() => {
+			throw new Error(
+				`No map handle at ${url}. This needs a dev server: a production build does not expose window.diveMap.`
+			);
+		});
 	await page.waitForFunction(
 		() => document.querySelector('.booting') === null && window.diveMap.loaded(),
 		null,
@@ -313,13 +332,13 @@ await saveButton(a).click();
 await a.waitForFunction((key) => localStorage.getItem(key) !== null, LIBRARY_KEY, {
 	timeout: 5000
 });
-notes.library = JSON.parse(await stored(a, LIBRARY_KEY, 'local'));
+const library = JSON.parse(await stored(a, LIBRARY_KEY, 'local'));
 check(
 	'the saved configuration carries the settings and no camera',
-	notes.library.saved[0]?.name === NAME &&
-		notes.library.saved[0]?.configuration.ground === 'substrate' &&
-		!('camera' in notes.library.saved[0].configuration),
-	notes.library
+	library.saved[0]?.name === NAME &&
+		library.saved[0]?.configuration.ground === 'substrate' &&
+		!('camera' in library.saved[0].configuration),
+	library
 );
 if (shotDir) await a.screenshot({ path: `${shotDir}/config-panel.png` });
 await a.setViewportSize({ width: 390, height: 844 });
@@ -431,21 +450,38 @@ await later.close();
 // Blobs no version of this app wrote: hand-edited, half-written, or from a build
 // that has not shipped yet. None of them may stop the map opening.
 const broken = [
-	['damaged library', [['local', LIBRARY_KEY, '{ not json']]],
-	[
-		'library from a newer version',
-		[
+	{ name: 'a damaged library', seed: [['local', LIBRARY_KEY, '{ not json']] },
+	{
+		name: 'a library from a newer version',
+		seed: [
 			[
 				'local',
 				LIBRARY_KEY,
 				JSON.stringify({ version: 999, saved: [{ name: 'Future', configuration: {} }] })
 			]
-		]
-	],
-	['damaged working configuration', [['session', WORKING_KEY, '{"version":1,"configuration":']]],
-	[
-		'an entry written by an older shape',
-		[
+		],
+		andThen: async (page) => {
+			const before = await stored(page, LIBRARY_KEY, 'local');
+			await openSection(page, /configurations|configuracions|configuraciones/i);
+			check(
+				'a library from a newer version cannot be saved over',
+				await saveButton(page).isDisabled()
+			);
+			await nameField(page).fill('Should not land');
+			check(
+				'and the blob is exactly as it was found',
+				(await stored(page, LIBRARY_KEY, 'local')) === before
+			);
+			if (shotDir) await page.screenshot({ path: `${shotDir}/config-unreadable.png` });
+		}
+	},
+	{
+		name: 'a damaged working configuration',
+		seed: [['session', WORKING_KEY, '{"version":1,"configuration":']]
+	},
+	{
+		name: 'an entry written by an older shape',
+		seed: [
 			[
 				'local',
 				LIBRARY_KEY,
@@ -463,55 +499,49 @@ const broken = [
 					]
 				})
 			]
-		]
-	]
+		],
+		andThen: async (page) => {
+			await openSection(page, /configurations|configuracions|configuraciones/i);
+			const old = rowNamed(page, 'Old');
+			check(
+				'an entry from an older shape is offered rather than dropped',
+				(await old.count()) === 1
+			);
+			await old.click();
+			await settle(page);
+			const after = await look(page);
+			check(
+				'loading it leaves a map that still draws',
+				after.habitats > 0 && after.hillshade === 'visible',
+				after
+			);
+		}
+	}
 ];
 
-for (const [name, entries] of broken) {
-	const context = await seeded(entries);
+for (const { name, seed, andThen } of broken) {
+	const context = await seeded(seed);
 	const page = watch(await context.newPage(), name);
 	await page.goto(url, { waitUntil: 'domcontentloaded' });
 	await settle(page);
 	const state = await look(page);
 	check(
-		`the map still opens with a ${name}`,
+		`the map still opens with ${name}`,
 		sameCamera(state, START) && state.habitats + state.substrate > 0 && state.failure === undefined,
 		state
 	);
-
-	if (name === 'library from a newer version') {
-		const before = await stored(page, LIBRARY_KEY, 'local');
-		await openSection(page, /configurations|configuracions|configuraciones/i);
-		check(
-			'a library from a newer version cannot be saved over',
-			await saveButton(page).isDisabled()
-		);
-		await nameField(page).fill('Should not land');
-		check(
-			'and the blob is exactly as it was found',
-			(await stored(page, LIBRARY_KEY, 'local')) === before
-		);
-		if (shotDir) await page.screenshot({ path: `${shotDir}/config-unreadable.png` });
-	}
-
-	if (name === 'entry written by an older shape') {
-		await openSection(page, /configurations|configuracions|configuraciones/i);
-		const old = rowNamed(page, 'Old');
-		check('an entry from an older shape is offered rather than dropped', (await old.count()) === 1);
-		await old.click();
-		await settle(page);
-		const after = await look(page);
-		check(
-			'loading it leaves a map that still draws',
-			after.habitats > 0 && after.hillshade === 'visible',
-			after
-		);
-	}
-
+	await andThen?.(page);
 	await context.close();
 }
 
 await browser.close();
+
+/*
+ * A console error or an uncaught exception fails the run, so it belongs in the
+ * list of checks and not only in a field underneath it. Reporting `ok: false`
+ * over a page of checks that all say true is a report arguing with itself.
+ */
+check('nothing logged an error and nothing threw', problems.length === 0, undefined);
 
 const ok = failures.length === 0 && problems.length === 0;
 console.log(JSON.stringify({ url, ok, checks: notes, failures, problems, seen }, null, 2));
