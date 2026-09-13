@@ -374,9 +374,9 @@ const markerLayer = (
 });
 
 /**
- * OSM features, drawn as objects sitting on the painted ground rather than as
- * flat pins. Each carries its own drop shadow so it reads as a thing on a table,
- * which is also what makes it survive a busy texture underneath.
+ * OSM features, drawn as the objects they are rather than as pins. What makes a
+ * mark survive a busy texture underneath is the dark halo the distance field
+ * gives every glyph, not a plate: see markers.ts for which kind earns which.
  *
  * Restricted areas come first because they are the one thing a diver must see
  * even when everything else is off: a swimming zone is where you may not surface.
@@ -440,7 +440,9 @@ const osmLayers = (options: StyleOptions): LayerSpecification[] => {
 			id: 'osm-marker-shadow',
 			type: 'circle',
 			source: 'osm',
-			filter: isKind(...discs),
+			// Points only. A circle layer draws one circle per vertex, so a dive site
+			// mapped as an area would be ringed with shadows along its outline.
+			filter: ['all', ['==', ['geometry-type'], 'Point'], isKind(...discs)],
 			layout: { visibility },
 			paint: {
 				'circle-color': 'rgba(10, 8, 5, 0.45)',
