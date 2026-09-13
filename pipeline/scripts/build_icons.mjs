@@ -14,13 +14,13 @@
  * COAST moves the whole seabed with it, which is the only way the bands stay
  * parallel to a shore this jagged.
  *
- * The world is authored at 160 units and cropped twice. `any` takes a tight
- * crop and fills the tile. `maskable` takes the whole world, so the land and the
- * deep water run off every edge and a circular or squircle mask lands on paint
- * rather than on a border. The meaningful part, the cala and the dive site, sits
- * inside the centre circle of diameter 128 that the maskable spec guarantees.
- * The maskable icon is not the `any` icon with padding; it is a wider crop of a
- * drawing that keeps going.
+ * The world is authored at 160 units and cropped twice. `any` takes a tight crop
+ * and fills the tile. `maskable` takes a wider one, so land and open water run
+ * off every edge and a circular or squircle mask lands on paint rather than on a
+ * border. The cala and the dive site sit inside the centre circle of 80% of the
+ * canvas that the maskable spec guarantees. The maskable icon is not the `any`
+ * icon with padding; it is a wider crop of a drawing that keeps going, and
+ * `--contact` renders both against that circle so the claim can be checked.
  *
  * Usage: node pipeline/scripts/build_icons.mjs [--out static] [--contact <png>]
  */
@@ -174,7 +174,7 @@ const CROP = {
 	maskable: '-6 -46 172 172'
 };
 
-export const iconSvg = (purpose, size) =>
+const iconSvg = (purpose, size) =>
 	`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="${CROP[purpose]}">${body}</svg>`;
 
 const FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${CROP.any}">${body}</svg>\n`;
