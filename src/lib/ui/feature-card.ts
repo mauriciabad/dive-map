@@ -45,9 +45,10 @@ export interface FeaturePick {
 	/**
 	 * How deep it is where the diver tapped, in metres.
 	 *
-	 * One number, off the contour nearest the point. The habitat polygon carries a
-	 * range and that is the range of the whole polygon, which is how a card about
-	 * one spot came to say "the bottom here: 0 to 42 m". See `depthAt`.
+	 * One number, off the contour nearest the point in the archives, so it does not
+	 * move with the zoom. The habitat polygon carries a range and that is the range
+	 * of the whole polygon, which is how a card about one spot came to say "the
+	 * bottom here: 0 to 42 m". See `depthAt`.
 	 */
 	readonly depth: number | undefined;
 }
@@ -159,7 +160,10 @@ export const pickFrom = (
 		const classes = seabedFrom(codes[ground], ground);
 		return classes.length === 0 ? [] : [{ ground, classes }];
 	});
-	if (best === undefined && seabed.length === 0) return undefined;
+	// A depth on its own is an answer. Out past the habitat survey there is no class
+	// and no OSM feature under the tap, and the panel used to stay shut over water
+	// whose depth the archives know perfectly well.
+	if (best === undefined && seabed.length === 0 && depth === undefined) return undefined;
 
 	return { feature: best, seabed, position, depth };
 };

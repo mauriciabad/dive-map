@@ -316,8 +316,12 @@ describe('a tap on open seabed still answers', () => {
 		expect(pickFrom([], ground, AT, undefined)?.position).toEqual(AT);
 	});
 
-	it('still answers nothing where there is neither a feature nor a seabed', () => {
+	it('still answers nothing where there is neither a feature, a seabed nor a depth', () => {
 		expect(pickFrom([], [], AT, undefined)).toBeUndefined();
+	});
+
+	it('answers on a depth alone, out past the habitat survey', () => {
+		expect(pickFrom([], [], AT, 64)?.depth).toBe(64);
 	});
 
 	it('leaves the depth out where no contour was close enough to read', () => {

@@ -1,135 +1,113 @@
-import type { IControl, MapGeoJSONFeature, Map as MapLibre, MapMouseEvent } from 'maplibre-gl';
+import type { IControl, Map as MapLibre, MapMouseEvent } from 'maplibre-gl';
 
 /**
- * The depth under a precise pointer, read off the contours already on screen.
+ * How deep it is at one point, read off the contour archives rather than off the
+ * lines the map happens to be drawing.
  *
  * There is no cheap way to sample the DEM in the browser: it ships as Terrain-RGB
- * tiles the GPU reads and nothing else does. The isobaths are the same survey at
- * one metre, they are already loaded, and reading them means the number always
- * agrees with the lines the diver can see. Between two contours the honest answer
- * is the pair, not an interpolation, so that is what this reports.
+ * tiles the GPU reads and nothing else does. The contours are the same surveys,
+ * they are already loaded, and reading them means the number never disagrees with
+ * a line a diver can see.
  *
- * Touch is excluded on purpose. A finger has no hover, so a readout that follows
- * it would only ever repeat what the tap already opened, over the seabed the
- * finger is covering.
+ * Read from the source and not from what is rendered, which is the whole point.
+ * The drawn interval is a function of the zoom, 20 m out at z11 and 1 m at z16,
+ * so a reading taken off the drawn lines answered in multiples of 20 when the
+ * camera was pulled back. Measured over the same spot on the Roses shelf, the
+ * rendered reading gave 60 m at z10 and 70 m at z14; the source gives 70 m at
+ * both, and at z12, because every metre is in the tiles at every zoom.
+ *
+ * What is left is the archives' own spacing, which varies by where the tap lands
+ * rather than by the camera: one metre inshore where the ICGC survey reaches,
+ * five on the national shelf and fifty down the slope past it. And the tap's own
+ * precision, which is a pixel of ground wherever the diver is zoomed to.
  */
+
+/** The contour archives, both read, nearest line wins. */
+const CONTOUR_SOURCES: readonly { readonly id: string; readonly layer: string }[] = [
+	{ id: 'isobaths', layer: 'isobaths' },
+	{ id: 'isobaths-deep', layer: 'isobaths' }
+];
 
 /**
- * Screen radii searched for contours, tried in order. The first is tight enough
- * that the bracket means "here"; the wider ones exist because over a flat sand
- * plain the one metre contours are hundreds of metres apart and a fixed tight box
- * would just blink the readout off where the seabed is least interesting.
+ * How far out a contour still counts, in metres of seabed.
+ *
+ * Past this the tap was over land, over water no survey reached, or over a plain
+ * so flat that the nearest line says nothing about the spot. A kilometre is well
+ * past the widest gap the ICGC survey leaves inshore.
  */
-const SEARCH_PX = [16, 48, 128];
+const REACH_M = 1000;
 
-const CONTOUR_LAYERS = ['isobath', 'zero-isobath'];
+/** Metres per degree of latitude. A search radius on this coast needs no more. */
+const M_PER_DEGREE = 111_320;
 
-export interface DepthReading {
-	readonly shallowestM: number;
-	readonly deepestM: number;
+export interface LngLat {
+	readonly lng: number;
+	readonly lat: number;
 }
 
-interface Contour {
-	readonly depthM: number;
-	readonly line: GeoJSON.Geometry;
-}
+/** Every vertex of a line or multi-line, in the order they were drawn. */
+const verticesOf = (geometry: GeoJSON.Geometry): readonly (readonly GeoJSON.Position[])[] => {
+	if (geometry.type === 'LineString') return [geometry.coordinates];
+	if (geometry.type === 'MultiLineString') return geometry.coordinates;
+	return [];
+};
 
-const contoursWithin = (map: MapLibre, x: number, y: number, radius: number): readonly Contour[] => {
-	const found: Contour[] = [];
-	for (const layer of CONTOUR_LAYERS) {
-		let hits: readonly MapGeoJSONFeature[];
+/**
+ * The depth of the contour nearest one point, and nothing about any other.
+ *
+ * Vertices rather than segments. The archives carry a contour as a dense
+ * polyline, so the nearest vertex is within a few metres of the nearest point on
+ * the line, and a segment projection would buy that back at the cost of the
+ * arithmetic to get it wrong in.
+ *
+ * Degrees rather than screen pixels, and squared rather than rooted, because this
+ * walks about 200,000 vertices at a coast-wide zoom and the answer has to be the
+ * same one whatever the camera is doing. Measured at 22 ms at z10 and 40 ms at
+ * z12, which is a tap and not a frame; see `showDepthUnderCursor` for what that
+ * costs the readout.
+ */
+export const depthAt = (map: MapLibre, at: LngLat): number | undefined => {
+	const lngScale = Math.cos((at.lat * Math.PI) / 180);
+	const reach = (REACH_M / M_PER_DEGREE) ** 2;
+	let best: number | undefined;
+	let bestAway = reach;
+	for (const source of CONTOUR_SOURCES) {
+		let hits: readonly { readonly properties: Record<string, unknown>; readonly geometry: GeoJSON.Geometry }[];
 		try {
-			hits = map.queryRenderedFeatures(
-				[
-					[x - radius, y - radius],
-					[x + radius, y + radius]
-				],
-				{ layers: [layer] }
-			);
+			hits = map.querySourceFeatures(source.id, { sourceLayer: source.layer });
 		} catch {
 			continue;
 		}
 		for (const feature of hits) {
 			const depthM = Number(feature.properties['depth']);
-			if (Number.isFinite(depthM)) found.push({ depthM, line: feature.geometry });
-		}
-	}
-	return found;
-};
-
-export const depthUnder = (map: MapLibre, x: number, y: number): DepthReading | undefined => {
-	for (const radius of SEARCH_PX) {
-		const found = contoursWithin(map, x, y, radius);
-		if (found.length > 0) {
-			const depths = found.map((contour) => contour.depthM);
-			return { shallowestM: Math.min(...depths), deepestM: Math.max(...depths) };
-		}
-	}
-	return undefined;
-};
-
-/** Every vertex of a line or multi-line, in the order they were drawn. */
-const verticesOf = (geometry: GeoJSON.Geometry): readonly GeoJSON.Position[] => {
-	if (geometry.type === 'LineString') return geometry.coordinates;
-	if (geometry.type === 'MultiLineString') return geometry.coordinates.flat();
-	return [];
-};
-
-/**
- * Screen distance from a point to the nearest vertex of one contour.
- *
- * Vertices rather than segments. The tiles carry a metre contour as a dense
- * polyline, so the nearest vertex is within a pixel or two of the nearest point
- * on the line, and a segment projection would buy that back at the cost of the
- * arithmetic to get it wrong in.
- */
-const pixelsAway = (map: MapLibre, geometry: GeoJSON.Geometry, x: number, y: number): number => {
-	let nearest = Number.POSITIVE_INFINITY;
-	for (const [lng, lat] of verticesOf(geometry)) {
-		if (lng === undefined || lat === undefined) continue;
-		const at = map.project([lng, lat]);
-		nearest = Math.min(nearest, Math.hypot(at.x - x, at.y - y));
-	}
-	return nearest;
-};
-
-/**
- * How deep it is at one point, to the nearest contour drawn through it.
- *
- * The bracket `depthUnder` reports is right for a readout that follows a moving
- * cursor, and wrong for a card that says "the bottom here". A tap near a steep
- * shore has the 0 m coastline and the 8 m contour in the same search box, and
- * the card printed "0 to 8 m" off that: two contours the tap happened to be
- * between, not a depth. So this asks which single contour is closest and says
- * what that one reads, which is the depth at the point to within one interval.
- *
- * The tiles carry every metre, and the drawn interval is 1 m from zoom 16, so a
- * diver reading a site gets the metre. Zoomed out they get the coarse interval,
- * which is the only thing there is to read at that zoom anyway.
- */
-export const depthAt = (map: MapLibre, x: number, y: number): number | undefined => {
-	for (const radius of SEARCH_PX) {
-		const found = contoursWithin(map, x, y, radius);
-		if (found.length === 0) continue;
-		let best = found[0];
-		if (best === undefined) continue;
-		let bestAway = pixelsAway(map, best.line, x, y);
-		for (const contour of found.slice(1)) {
-			const away = pixelsAway(map, contour.line, x, y);
-			if (away < bestAway) {
-				best = contour;
-				bestAway = away;
+			if (!Number.isFinite(depthM)) continue;
+			for (const line of verticesOf(feature.geometry)) {
+				for (const [lng, lat] of line) {
+					if (lng === undefined || lat === undefined) continue;
+					const east = (lng - at.lng) * lngScale;
+					const north = lat - at.lat;
+					const away = east * east + north * north;
+					if (away < bestAway) {
+						bestAway = away;
+						best = depthM;
+					}
+				}
 			}
 		}
-		return best.depthM;
 	}
-	return undefined;
+	return best;
 };
 
-export const formatDepth = (reading: DepthReading): string =>
-	reading.shallowestM === reading.deepestM
-		? `${reading.shallowestM} m`
-		: `${reading.shallowestM}–${reading.deepestM} m`;
+/**
+ * How long the pointer has to stop before the readout reads.
+ *
+ * The scan costs tens of milliseconds, which is nothing on a tap and would be a
+ * dropped frame on every mousemove. So it runs when the pointer settles instead
+ * of chasing it, which also stops the number flickering through every contour a
+ * sweep crosses. Long enough not to fire mid-sweep, short enough to feel like an
+ * answer rather than a wait.
+ */
+const SETTLE_MS = 140;
 
 const READOUT_STYLE = [
 	'display: none',
@@ -144,6 +122,13 @@ const READOUT_STYLE = [
 	'white-space: nowrap'
 ].join(';');
 
+/**
+ * The depth under a resting pointer, in the corner.
+ *
+ * Touch is excluded on purpose. A finger has no hover, so a readout that followed
+ * it would only ever repeat what the tap already opened, over the seabed the
+ * finger is covering.
+ */
 export const showDepthUnderCursor = (map: MapLibre): (() => void) | undefined => {
 	if (!window.matchMedia('(pointer: fine)').matches) return undefined;
 
@@ -160,25 +145,33 @@ export const showDepthUnderCursor = (map: MapLibre): (() => void) | undefined =>
 	};
 	map.addControl(control, 'bottom-left');
 
-	let pending = 0;
+	let settling: ReturnType<typeof setTimeout> | undefined;
+
+	const hide = (): void => {
+		element.style.display = 'none';
+	};
+
 	const read = (event: MapMouseEvent): void => {
-		if (pending !== 0) return;
-		pending = requestAnimationFrame(() => {
-			pending = 0;
-			const reading = depthUnder(map, event.point.x, event.point.y);
-			element.textContent = reading === undefined ? '' : formatDepth(reading);
-			element.style.display = reading === undefined ? 'none' : 'block';
-		});
+		if (settling !== undefined) clearTimeout(settling);
+		hide();
+		const at = { lng: event.lngLat.lng, lat: event.lngLat.lat };
+		settling = setTimeout(() => {
+			const depthM = depthAt(map, at);
+			if (depthM === undefined) return;
+			element.textContent = `${depthM} m`;
+			element.style.display = 'block';
+		}, SETTLE_MS);
 	};
 
 	const clear = (): void => {
-		element.style.display = 'none';
+		if (settling !== undefined) clearTimeout(settling);
+		hide();
 	};
 
 	map.on('mousemove', read);
 	map.on('mouseout', clear);
 	return () => {
-		if (pending !== 0) cancelAnimationFrame(pending);
+		if (settling !== undefined) clearTimeout(settling);
 		map.off('mousemove', read);
 		map.off('mouseout', clear);
 		map.removeControl(control);

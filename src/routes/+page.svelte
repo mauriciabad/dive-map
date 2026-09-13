@@ -218,8 +218,9 @@
 	 * arrives naming a feature, so both get the same card rather than two answers
 	 * built from different queries.
 	 *
-	 * The depth is the contour nearest the point, off the lines already on screen.
-	 * The habitat polygon carries a range as well and it is the range of the whole
+	 * The depth is the contour nearest the point, read out of the archives rather
+	 * than off the lines being drawn, so it is the same number at every zoom. The
+	 * habitat polygon carries a range as well and it is the range of the whole
 	 * polygon, which is how a card about one spot came to say "0 to 42 m".
 	 */
 	const inspect = (
@@ -244,7 +245,7 @@
 				osm.map((f) => f.properties),
 				ground.map((f) => ({ layer: f.layer.id, props: f.properties })),
 				{ lng: at.lng, lat: at.lat },
-				depthAt(map, point.x, point.y)
+				depthAt(map, at)
 			)
 		);
 	};
