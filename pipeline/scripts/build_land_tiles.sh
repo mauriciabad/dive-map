@@ -27,9 +27,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 RAW="$ROOT/data/raw/osm-land"
 BUILD="$ROOT/data/build/land"
-OUT="$ROOT/static/tiles/land.pmtiles"
+# Overridable so a rebuild can be staged elsewhere and copied over the archive,
+# rather than deleting the archive first to get past the have-it check below.
+OUT="${LAND_OUT:-$ROOT/static/tiles/land.pmtiles}"
 NORMALISE="$ROOT/pipeline/scripts/osm_land.py"
 COASTLINE="$ROOT/data/raw/coastline/coastline-4326.fgb"
+LAND_0M="$ROOT/data/raw/coastline/land-4326.fgb"
 MAX_BYTES=104857600
 
 PBF="$RAW/cataluna-latest.osm.pbf"
@@ -134,6 +137,77 @@ normalise waterway  lines-wide lines-mid
 normalise water     water-wide
 normalise sand      shore-near
 
+# OSM draws a beach to its own waterline. This map's shoreline is the 0 m isobath,
+# which is what the habitat and substrate polygons were cut against, so the two
+# disagree and the sand paints over surveyed seabed. Sampled in the browser at z16
+# that was 61 to 92 points per view at Palamos, Roses and Platja d'Aro.
+#
+# Taking the beach from ICGC vector instead does not fix it. `icgc_mapa_estandard`
+# serves beaches on the OpenMapTiles `landcover` layer, and measured against the
+# same 0 m land over the same four beaches that edge oversteps by 0.16 to 0.96 ha,
+# 30 m at its worst, where OSM's oversteps by 0.17 to 1.19 ha and 29 m. Better at
+# Roses, worse at Platja d'Aro, the same order everywhere. Both are topographic
+# products and neither is the bathymetry survey, so neither lines up with it.
+#
+# So keep OSM's beach and cut it to the 0 m land, which is the same cut everything
+# else on this map already carries. Unlike the world archive, this one does not need
+# an inset off the coast to survive its own simplification: it tiles to z15 where a
+# tile unit is 0.22 m, against the world archive's z11 where it is 3.6 m.
+if [ -e "$BUILD/sand-clipped.geojsonseq" ]; then
+  printf 'have sand-clipped\n'
+else
+  [ -f "$LAND_0M" ] || { printf 'missing %s, run fetch_coastline.sh first\n' "$LAND_0M" >&2; exit 1; }
+  env -u PYTHONPATH -u PYTHONHOME uv run --quiet --isolated --no-project -p 3.12 \
+    --with 'shapely>=2.1' --with pyogrio --with geopandas - \
+    "$BUILD/sand.geojsonseq" "$LAND_0M" "$BUILD/sand-clipped.part.geojsonseq" <<'PY'
+import json
+import sys
+
+import geopandas as gpd
+from shapely.geometry import MultiPolygon, Polygon, mapping, shape
+from shapely.ops import unary_union
+
+src, landpath, out = sys.argv[1:4]
+land = unary_union(list(gpd.read_file(landpath, engine="pyogrio").geometry.values)).buffer(0)
+
+
+def solid(geom):
+    """Only the polygonal part. A beach that merely touches the contour yields a
+    line or a point from the intersection, and tippecanoe would carry it as one."""
+    if isinstance(geom, (Polygon, MultiPolygon)):
+        return geom
+    parts = [g for g in getattr(geom, "geoms", []) if isinstance(g, (Polygon, MultiPolygon))]
+    return unary_union(parts) if parts else None
+
+
+kept = dropped = 0
+before = after = 0.0
+with open(src) as fh, open(out, "w") as wh:
+    for line in fh:
+        line = line.strip()
+        if not line:
+            continue
+        feature = json.loads(line)
+        whole = shape(feature["geometry"]).buffer(0)
+        clipped = solid(whole.intersection(land))
+        before += whole.area
+        if clipped is None or clipped.is_empty:
+            dropped += 1
+            continue
+        after += clipped.area
+        feature["geometry"] = mapping(clipped)
+        wh.write(json.dumps(feature, ensure_ascii=False, separators=(",", ":"), sort_keys=True))
+        wh.write("\n")
+        kept += 1
+
+# Degrees squared is not an area anyone reads, so scale it at the latitude it came
+# from. Good to a few percent, which is all a build log needs.
+ha = (111_320.0 * 110_540.0 * 0.7443) / 1e4
+print(f"sand {kept} kept, {dropped} entirely seaward, {(before - after) * ha:.1f} ha of sea cut away")
+PY
+  mv "$BUILD/sand-clipped.part.geojsonseq" "$BUILD/sand-clipped.geojsonseq"
+fi
+
 # tippecanoe picks its output format from the extension, so the half-written file
 # has to keep it. Appending .part silently produced an mbtiles archive that the app
 # fetched, accepted and rendered as nothing at all.
@@ -149,7 +223,7 @@ tippecanoe -o "$PART" -f -q -Z9 -z15 -pk \
   --attribution="OpenStreetMap contributors, ODbL" \
   -L "water:$BUILD/water.geojsonseq" \
   -L "waterway:$BUILD/waterway.geojsonseq" \
-  -L "sand:$BUILD/sand.geojsonseq" \
+  -L "sand:$BUILD/sand-clipped.geojsonseq" \
   -L "road:$BUILD/road.geojsonseq"
 mv "$PART" "$OUT"
 
