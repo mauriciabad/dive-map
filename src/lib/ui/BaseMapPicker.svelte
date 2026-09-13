@@ -1,15 +1,10 @@
 <script lang="ts">
 	import Chip from './controls/Chip.svelte';
 	import ChipGroup from './controls/ChipGroup.svelte';
-	import {
-		BASE_MAPS,
-		BASE_MAP_KINDS,
-		type BaseMapId,
-		type BaseMapKind,
-		NO_BASE_MAP
-	} from '$lib/domain/basemaps';
+	import { baseMapKindName } from './basemap-name';
+	import { BASE_MAPS, BASE_MAP_KINDS, type BaseMapId, NO_BASE_MAP } from '$lib/domain/basemaps';
 	import type { Locale } from '$lib/i18n/locale';
-	import { type MessageKey, t } from '$lib/i18n/messages';
+	import { t } from '$lib/i18n/messages';
 
 	/**
 	 * The ten base maps, grouped by the shelf each sits on.
@@ -34,12 +29,6 @@
 
 	const { locale, chosen, onpick }: Props = $props();
 
-	const KIND_KEY: Record<BaseMapKind, MessageKey> = {
-		satellite: 'baseMapSatellite',
-		standard: 'baseMapStandard',
-		classic: 'baseMapClassic'
-	};
-
 	/** The best of its shelf, marked the way issue #40 marks it. */
 	const label = (name: string, recommended: boolean): string => (recommended ? `${name} ★` : name);
 </script>
@@ -56,7 +45,7 @@
 	</ChipGroup>
 	{#each BASE_MAP_KINDS as kind (kind)}
 		<div class="shelf">
-			<span class="kind">{t(locale, KIND_KEY[kind])}</span>
+			<span class="kind">{baseMapKindName(kind, locale)}</span>
 			<ChipGroup>
 				{#each BASE_MAPS.filter((map) => map.kind === kind) as map (map.id)}
 					<Chip

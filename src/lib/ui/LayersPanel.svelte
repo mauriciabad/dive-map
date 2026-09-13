@@ -3,11 +3,13 @@
 	import Panel from './Panel.svelte';
 	import Action from './controls/Action.svelte';
 	import Field from './controls/Field.svelte';
+	import Fold from './controls/Fold.svelte';
 	import Note from './controls/Note.svelte';
 	import Segmented from './controls/Segmented.svelte';
 	import Slider from './controls/Slider.svelte';
 	import Toggle from './controls/Toggle.svelte';
 	import type { Choice } from './controls/types';
+	import { quickPairName } from './basemap-name';
 	import type { IconName } from './icons';
 	import { PANEL_ID } from './panel';
 	import { type BaseMapId, NO_BASE_MAP } from '$lib/domain/basemaps';
@@ -123,8 +125,16 @@
 		same ten. Picking one pushes the resting map into the other slot, so any pair
 		is two taps, no tap can leave a slot empty and no tap can put the same map in
 		both. That rule is `withQuickChoice` in the catalogue.
+
+		Folded away, because a diver sets this pair once and then uses the corner
+		button for the rest of the season. Naming the pair on the head is what makes
+		that safe: the whole answer this section holds is which two maps, and that
+		fits on one line.
 	-->
-	<Field label={t(view.locale, 'quickToggle')}>
+	<Fold
+		label={t(view.locale, 'quickToggle')}
+		summary={quickPairName(view.quickToggle, view.locale)}
+	>
 		<BaseMapPicker
 			locale={view.locale}
 			chosen={view.quickToggle}
@@ -133,7 +143,7 @@
 			}}
 		/>
 		<Note>{t(view.locale, 'quickToggleNote')}</Note>
-	</Field>
+	</Fold>
 
 	<div class="rows">
 		<!--

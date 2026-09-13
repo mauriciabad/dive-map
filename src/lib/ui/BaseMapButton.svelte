@@ -1,8 +1,8 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
+	import { baseMapName } from './basemap-name';
 	import type { IconName } from './icons';
 	import { NO_BASE_MAP, type BaseMapId, baseMapOf, quickNext } from '$lib/domain/basemaps';
-	import { type MessageKey, t } from '$lib/i18n/messages';
 	import type { MapState } from '$lib/state/map-view.svelte';
 
 	/**
@@ -24,24 +24,6 @@
 
 	const { view }: Props = $props();
 
-	const KIND_KEY: Record<'satellite' | 'standard' | 'classic', MessageKey> = {
-		satellite: 'baseMapSatellite',
-		standard: 'baseMapStandard',
-		classic: 'baseMapClassic'
-	};
-
-	/**
-	 * The archive's own name after the shelf it sits on, which is how the picker
-	 * names them too. The names are proper nouns and are never translated; only
-	 * the shelf is.
-	 */
-	const nameOf = (id: BaseMapId): string => {
-		if (id === NO_BASE_MAP) return t(view.locale, 'baseMapNone');
-		const map = baseMapOf(id);
-		if (map === undefined) return t(view.locale, 'baseMapNone');
-		return `${t(view.locale, KIND_KEY[map.kind])} ${map.name}`;
-	};
-
 	/**
 	 * The chart's own mark for going back to the chart, the photograph's for a
 	 * photograph, and the stack for a borrowed map of any other kind.
@@ -52,7 +34,7 @@
 	};
 
 	const next = $derived(quickNext(view.quickToggle, view.baseMap));
-	const label = $derived(nameOf(next));
+	const label = $derived(baseMapName(next, view.locale));
 </script>
 
 <button
