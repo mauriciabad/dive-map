@@ -14,10 +14,12 @@ export {
 } from './areas.ts';
 export { assetPolicy, type AssetPolicy } from './assets.ts';
 export {
+	MAX_BASE_AGE_MS,
 	OSM_CACHE,
 	OSM_CACHE_KEY,
 	OSM_TTL_MS,
 	OVERPASS_MIRRORS,
+	RETRY_MS,
 	cacheStorageOsmStore,
 	liveDiveFeatures,
 	memoryOsmStore,
@@ -25,6 +27,7 @@ export {
 	type LiveOsm,
 	type LiveOsmOptions,
 	type OsmOrigin,
+	type OsmRecord,
 	type OsmStore
 } from './overpass-cache.ts';
 export { cachedRangeSource } from './pmtiles-source.ts';

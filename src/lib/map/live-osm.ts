@@ -35,7 +35,21 @@ export const liveOsmFeatures: MapAttachment = (map) => {
 
 	map.on('styledata', apply);
 
-	void (async () => {
+	/**
+	 * A page that closes inside this never asks Overpass at all.
+	 *
+	 * The print harness opens eleven pages and closes each one as soon as it has its
+	 * PDF, and every one of them was firing a query that nobody was left to receive.
+	 * An aborted request still costs Overpass the whole server side of the work. A
+	 * diver's page is open for the length of a dive briefing, so waiting is free
+	 * there: the map is already painted from the shipped file by now, and this is an
+	 * upgrade to it, not the thing anybody is waiting on.
+	 */
+	const settle = setTimeout(() => {
+		void start();
+	}, 5000);
+
+	async function start(): Promise<void> {
 		const live = await liveDiveFeatures({
 			store: cacheStorageOsmStore(),
 			fetch: (input, init) => fetch(input, init),
@@ -54,9 +68,10 @@ export const liveOsmFeatures: MapAttachment = (map) => {
 				features: live.collection.features.length
 			});
 		}
-	})();
+	}
 
 	return () => {
+		clearTimeout(settle);
 		map.off('styledata', apply);
 	};
 };

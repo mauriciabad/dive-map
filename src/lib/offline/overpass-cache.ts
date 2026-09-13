@@ -37,6 +37,20 @@ const TIMEOUT_MS = 75_000;
 /** Overpass's own budget for the query, which it enforces server side. */
 const QUERY_TIMEOUT_S = 90;
 
+/**
+ * How far behind the OSM database a mirror may be and still be worth taking. The
+ * same fourteen days `OSM_MAX_AGE_DAYS` allows the build-time fetch.
+ */
+export const MAX_BASE_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+
+/**
+ * The soonest this device asks the mirrors again after an attempt that came back
+ * with nothing usable. Half an hour is long enough that a marina full of reloads
+ * costs Overpass one round of requests, and short enough that a boat which finds
+ * signal mid-morning has today's buoys by the second dive.
+ */
+export const RETRY_MS = 30 * 60 * 1000;
+
 export const OSM_CACHE = 'divemap-osm-live';
 
 /**
@@ -60,9 +74,20 @@ export interface CachedOsm {
 	readonly collection: DiveCollection;
 }
 
+/**
+ * What this device knows, which is two separate facts. `entry` is the last good
+ * answer and can be absent forever. `triedAt` is the last time the mirrors were
+ * asked at all, and it is what stops a device whose mirrors are all down from
+ * asking again on every single page load.
+ */
+export interface OsmRecord {
+	readonly triedAt: number;
+	readonly entry: CachedOsm | undefined;
+}
+
 export interface OsmStore {
-	read(): Promise<CachedOsm | undefined>;
-	write(entry: CachedOsm): Promise<void>;
+	read(): Promise<OsmRecord | undefined>;
+	write(record: OsmRecord): Promise<void>;
 }
 
 /** Where the answer came from, which is the only thing a caller needs to log. */
@@ -84,6 +109,14 @@ const isCachedOsm = (value: unknown): value is CachedOsm => {
 	);
 };
 
+const isOsmRecord = (value: unknown): value is OsmRecord => {
+	if (typeof value !== 'object' || value === null) return false;
+	const record = value as Partial<OsmRecord>;
+	return (
+		typeof record.triedAt === 'number' && (record.entry === undefined || isCachedOsm(record.entry))
+	);
+};
+
 export function cacheStorageOsmStore(cacheName: string = OSM_CACHE): OsmStore {
 	return {
 		async read() {
@@ -91,13 +124,13 @@ export function cacheStorageOsmStore(cacheName: string = OSM_CACHE): OsmStore {
 			const hit = await cache.match(OSM_CACHE_KEY);
 			if (hit === undefined) return undefined;
 			const parsed: unknown = await hit.json();
-			return isCachedOsm(parsed) ? parsed : undefined;
+			return isOsmRecord(parsed) ? parsed : undefined;
 		},
-		async write(entry) {
+		async write(record) {
 			const cache = await caches.open(cacheName);
 			await cache.put(
 				OSM_CACHE_KEY,
-				new Response(JSON.stringify(entry), {
+				new Response(JSON.stringify(record), {
 					headers: { 'content-type': 'application/json' }
 				})
 			);
@@ -107,11 +140,11 @@ export function cacheStorageOsmStore(cacheName: string = OSM_CACHE): OsmStore {
 
 /** For tests, and for a browser that refuses Cache Storage in a private window. */
 export function memoryOsmStore(): OsmStore {
-	let held: CachedOsm | undefined;
+	let held: OsmRecord | undefined;
 	return {
 		read: () => Promise.resolve(held),
-		write: (entry) => {
-			held = entry;
+		write: (record) => {
+			held = record;
 			return Promise.resolve();
 		}
 	};
@@ -126,6 +159,8 @@ export interface LiveOsmOptions {
 	readonly bbox?: readonly [number, number, number, number];
 	readonly mirrors?: readonly string[];
 	readonly ttlMs?: number;
+	readonly retryMs?: number;
+	readonly maxBaseAgeMs?: number;
 	readonly timeoutMs?: number;
 }
 
@@ -153,32 +188,77 @@ async function askOverpass(
 	return { fetchedAt: options.now(), base: answer.base, collection };
 }
 
+const baseAge = (entry: CachedOsm, now: number): number => {
+	const at = Date.parse(entry.base);
+	return Number.isFinite(at) ? now - at : Number.POSITIVE_INFINITY;
+};
+
 /**
- * The freshest dive features this device can get to, or undefined when it has
- * never had any. Never throws: every failure is a reason to keep what is already
- * on the map.
+ * Ask the mirrors in order and take the first one that is caught up.
+ *
+ * The mirrors replicate at wildly different rates, and a lagging one answers a
+ * valid query with a valid-looking short result: no error, no remark, just fewer
+ * features. This is not theoretical. Measured from a browser on one afternoon,
+ * overpass-api.de refused the request outright, kumi.systems did not answer inside
+ * forty seconds, and private.coffee answered in five from a database forty-seven
+ * days behind, which was missing features the shipped file already had.
+ *
+ * So a lagging answer is refused rather than kept as a fallback. The fallback here
+ * is `static/data/osm.geojson`, which is itself an Overpass answer that was current
+ * when it was built, and replacing it with something older would make the map worse
+ * while looking like an update.
+ */
+async function askTheMirrors(options: LiveOsmOptions): Promise<CachedOsm | undefined> {
+	const maxBaseAgeMs = options.maxBaseAgeMs ?? MAX_BASE_AGE_MS;
+	const query = overpassQuery(options.bbox ?? DIVE_BBOX, QUERY_TIMEOUT_S);
+	for (const mirror of options.mirrors ?? OVERPASS_MIRRORS) {
+		try {
+			const fetched = await askOverpass(mirror, query, options);
+			if (baseAge(fetched, fetched.fetchedAt) <= maxBaseAgeMs) return fetched;
+		} catch {
+			// The next mirror, then whatever is already on the map. A diver does not
+			// need to hear about either and could do nothing about it from a boat.
+		}
+	}
+	return undefined;
+}
+
+const served = (entry: CachedOsm, now: number, ttlMs: number): LiveOsm => ({
+	...entry,
+	origin: 'cache',
+	stale: !isFresh(entry, now, ttlMs)
+});
+
+/**
+ * The freshest dive features this device can get to, or undefined when it has never
+ * had any. Never throws: every failure is a reason to keep what is already on the
+ * map.
+ *
+ * Overpass is asked only when both clocks say so. The TTL says the copy in hand is
+ * old enough to be worth replacing, and the retry floor says the last attempt was
+ * long enough ago to be worth repeating. The second one is what a boat notices: two
+ * of the three mirrors are usually refusing or timing out, and without it every page
+ * load would spend three failed requests to learn that again.
  */
 export async function liveDiveFeatures(options: LiveOsmOptions): Promise<LiveOsm | undefined> {
 	const ttlMs = options.ttlMs ?? OSM_TTL_MS;
-	const cached = await options.store.read().catch(() => undefined);
+	const record = await options.store.read().catch(() => undefined);
+	const held = record?.entry;
 	const now = options.now();
-	if (cached !== undefined && isFresh(cached, now, ttlMs)) {
-		return { ...cached, origin: 'cache', stale: false };
+
+	const expired = held === undefined || !isFresh(held, now, ttlMs);
+	const rested = record === undefined || now - record.triedAt >= (options.retryMs ?? RETRY_MS);
+	if (!expired || !rested || !(options.online ?? true)) {
+		return held === undefined ? undefined : served(held, now, ttlMs);
 	}
 
-	if (options.online ?? true) {
-		const query = overpassQuery(options.bbox ?? DIVE_BBOX, QUERY_TIMEOUT_S);
-		for (const mirror of options.mirrors ?? OVERPASS_MIRRORS) {
-			try {
-				const fetched = await askOverpass(mirror, query, options);
-				await options.store.write(fetched).catch(() => undefined);
-				return { ...fetched, origin: 'network', stale: false };
-			} catch {
-				// The next mirror, then the cache. A diver does not need to hear about
-				// either, and there is nothing on this path they could do about it.
-			}
-		}
-	}
-
-	return cached === undefined ? undefined : { ...cached, origin: 'cache', stale: true };
+	const fetched = await askTheMirrors(options);
+	// Never trade a copy for one built from an older database, and stamp the attempt
+	// either way so a device behind a broken mirror asks again on the retry floor
+	// rather than on every reload.
+	const keep = fetched !== undefined && (held === undefined || fetched.base >= held.base);
+	const entry = keep ? fetched : held;
+	await options.store.write({ triedAt: now, entry }).catch(() => undefined);
+	if (entry === undefined) return undefined;
+	return keep ? { ...entry, origin: 'network', stale: false } : served(entry, now, ttlMs);
 }
