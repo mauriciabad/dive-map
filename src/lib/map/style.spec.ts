@@ -9,9 +9,20 @@ import {
 	buildStyle,
 	isobathLayersOf
 } from './style.ts';
-import { DEFAULT_ISOBATHS, DEFAULT_LAYERS, type LayerId } from '$lib/domain/card';
+import {
+	DEFAULT_ISOBATHS,
+	DEFAULT_LAYERS,
+	type IsobathStyle,
+	type LayerId
+} from '$lib/domain/card';
 import type { Ground } from '$lib/domain/habitat';
-import { withColour, withEmphasis } from '$lib/domain/isobaths';
+import {
+	DEFAULT_HALO,
+	DEFAULT_PAINT,
+	type IsobathHalo,
+	withColour,
+	withEmphasis
+} from '$lib/domain/isobaths';
 import { DANGER_TAG_PREFIX, DIVE_NUMBER_KEYS, DIVE_TAG_KEYS } from '$lib/domain/osm';
 import { MARKER_CLOSE } from './markers.ts';
 
@@ -26,6 +37,11 @@ const options = (extra: Partial<StyleOptions> = {}): StyleOptions => ({
 });
 
 const withPhoto = (visible: readonly LayerId[]): readonly LayerId[] => [...visible, 'satellite'];
+
+const withHalo = (halo: Partial<IsobathHalo>): IsobathStyle => ({
+	...DEFAULT_ISOBATHS,
+	paint: { ...DEFAULT_PAINT, halo: { ...DEFAULT_HALO, ...halo } }
+});
 
 const paintOf = (style: StyleOptions, id: string): Record<string, unknown> => {
 	const layer = buildStyle(style).layers.find((l) => l.id === id);
@@ -133,6 +149,46 @@ describe('the ortophoto and the paint over it', () => {
 			const layer = buildStyle(options()).layers.find((l) => l.id === photo.id);
 			expect(layer?.layout?.visibility).toBe('none');
 		}
+	});
+
+	/**
+	 * The halo exists because a photograph puts the contours over ground nobody
+	 * chose. It started near-opaque black, which fixed the pale bands over bright
+	 * sand and lost every line over dark water. White at part opacity is the
+	 * owner's call, and it is the default a diver lands on.
+	 */
+	it('carries a white part-opacity halo under the contours over a photograph', () => {
+		const paint = paintOf(withSatellite(), 'isobath-glow');
+		expect(paint['line-color']).toBe('#ffffff');
+		expect(paint['line-opacity']).toBe(0.55);
+	});
+
+	it('draws the contours the chart way when the halo is switched off', () => {
+		const off = paintOf(withSatellite({ isobaths: withHalo({ on: false }) }), 'isobath-glow');
+		const chart = paintOf(options(), 'isobath-glow');
+		expect(off['line-color']).toEqual(chart['line-color']);
+		expect(off['line-opacity']).toEqual(chart['line-opacity']);
+		expect(off['line-translate']).toEqual(chart['line-translate']);
+		expect(off['line-blur']).toEqual(chart['line-blur']);
+	});
+
+	it('takes the colour and the strength a diver picked', () => {
+		const paint = paintOf(
+			withSatellite({ isobaths: withHalo({ colour: '#02090e', opacity: 0.92 }) }),
+			'isobath-glow'
+		);
+		expect(paint['line-color']).toBe('#02090e');
+		expect(paint['line-opacity']).toBe(0.92);
+	});
+
+	/**
+	 * The halo is the photograph's problem alone. Over the chart the contours keep
+	 * the soft dropped shadow they have always had, whatever the halo is set to.
+	 */
+	it('leaves the chart alone whatever the halo says', () => {
+		const loud = paintOf(options({ isobaths: withHalo({ colour: '#ffffff', opacity: 1 }) }), 'isobath-glow');
+		expect(loud['line-color']).toBe('rgba(4, 16, 24, 0.55)');
+		expect(loud['line-opacity']).toBe(1);
 	});
 
 	/**

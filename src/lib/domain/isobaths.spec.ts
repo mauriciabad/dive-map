@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ISOBATHS, type IsobathStyle } from './card.ts';
 import {
+	DEFAULT_HALO,
 	DEFAULT_PAINT,
 	type PaintMethod,
 	contourColour,
@@ -228,6 +229,38 @@ describe('reading back what the ruler wrote', () => {
 	it('keeps a blob without paint on the map original behaviour', () => {
 		expect(parseIsobathPaint(undefined)).toEqual({});
 		expect(parseIsobathPaint('upwards')).toEqual({});
+	});
+
+	it('keeps the default halo where a blob carries none', () => {
+		const read = parseIsobathPaint({ method: 'upwards', marks: {} });
+		expect(read.paint?.halo).toEqual(DEFAULT_HALO);
+	});
+
+	/**
+	 * A hand-edited blob asking for `opacity: 4` gets the default strength rather
+	 * than an outline four times as opaque as the picture under it, the same line
+	 * a mark whose colour cannot be painted takes.
+	 */
+	it('drops a halo colour it cannot paint and a strength off the scale', () => {
+		const read = parseIsobathPaint({
+			method: 'upwards',
+			marks: {},
+			halo: { on: false, colour: 'white', opacity: 4 }
+		});
+		expect(read.paint?.halo).toEqual({
+			on: false,
+			colour: DEFAULT_HALO.colour,
+			opacity: DEFAULT_HALO.opacity
+		});
+	});
+
+	it('takes a halo a diver actually picked', () => {
+		const read = parseIsobathPaint({
+			method: 'upwards',
+			marks: {},
+			halo: { on: true, colour: '#02090e', opacity: 0.92 }
+		});
+		expect(read.paint?.halo).toEqual({ on: true, colour: '#02090e', opacity: 0.92 });
 	});
 
 	it('drops a colour it cannot paint and a depth it cannot mark', () => {

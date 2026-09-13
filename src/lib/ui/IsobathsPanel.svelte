@@ -9,7 +9,15 @@
 	import type { Choice } from './controls/types';
 	import { PANEL_ID } from './panel';
 	import type { IsobathStyle } from '$lib/domain/card';
-	import { type PaintMethod, metresLabel, paintOf, withMethod } from '$lib/domain/isobaths';
+	import {
+		DEFAULT_HALO,
+		type IsobathHalo,
+		type PaintMethod,
+		haloOf,
+		metresLabel,
+		paintOf,
+		withMethod
+	} from '$lib/domain/isobaths';
 	import { t } from '$lib/i18n/messages';
 	import type { MapState } from '$lib/state/map-view.svelte';
 
@@ -43,6 +51,29 @@
 		{ value: 'upwards', label: t(view.locale, 'paintUpwards'), icon: 'paintUp' },
 		{ value: 'downwards', label: t(view.locale, 'paintDownwards'), icon: 'paintDown' }
 	]);
+
+	/**
+	 * The two that mean anything against a photograph. The domain takes any hex, so
+	 * a hand-edited configuration keeps whatever it carries and this picker simply
+	 * shows neither as selected until the diver touches it.
+	 */
+	const HALO_DARK = '#02090e';
+
+	const halo = $derived(haloOf(view.isobaths));
+
+	const haloColours = $derived<readonly Choice<string>[]>([
+		{ value: DEFAULT_HALO.colour, label: t(view.locale, 'haloLight') },
+		{ value: HALO_DARK, label: t(view.locale, 'haloDark') }
+	]);
+
+	const setHalo = (next: Partial<IsobathHalo>): void => {
+		view.isobaths = {
+			...view.isobaths,
+			paint: { ...paintOf(view.isobaths), halo: { ...halo, ...next } }
+		};
+	};
+
+	const PER_CENT = 100;
 </script>
 
 <Panel
@@ -93,6 +124,38 @@
 			}}
 		/>
 		<Note>{t(view.locale, 'paintMethodHint')}</Note>
+	</Field>
+
+	<Field label={t(view.locale, 'halo')}>
+		<Toggle
+			label={t(view.locale, 'haloOn')}
+			icon="isobath"
+			pressed={halo.on}
+			onchange={() => {
+				setHalo({ on: !halo.on });
+			}}
+		/>
+		{#if halo.on}
+			<Segmented
+				options={haloColours}
+				value={halo.colour}
+				label={t(view.locale, 'halo')}
+				onselect={(next: string) => {
+					setHalo({ colour: next });
+				}}
+			/>
+			<Range
+				label={t(view.locale, 'haloStrength')}
+				value={Math.round(halo.opacity * PER_CENT)}
+				min={0}
+				max={PER_CENT}
+				format={(value: number) => `${value}%`}
+				onchange={(next: number) => {
+					setHalo({ opacity: next / PER_CENT });
+				}}
+			/>
+		{/if}
+		<Note>{t(view.locale, 'haloHint')}</Note>
 	</Field>
 
 	<Field label={t(view.locale, 'emphasised')}>

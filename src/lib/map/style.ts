@@ -34,6 +34,7 @@ import {
 	DEPTH_BANDS,
 	type PaintedBand,
 	depthMarks,
+	haloOf,
 	paintedBands
 } from '$lib/domain/isobaths';
 import type { DiveFeatureKind } from '$lib/domain/osm';
@@ -436,41 +437,44 @@ const isobathWidth = (
 ];
 
 /**
- * The dark stroke under every contour, and what the ortophoto does to it.
+ * The stroke under every contour, and what the ortophoto does to it.
  *
- * Over the painted seabed it is a soft shadow dropped a pixel and a half, and
- * that is all the separation the palette needs. The depth bands run from #93e9c0
- * to #ff7a6b, luminance 150 to 210, over ground that measures around 60.
+ * Over the painted seabed it is a soft dark shadow dropped a pixel and a half,
+ * and that is all the separation the palette needs. The depth bands run from
+ * #93e9c0 to #ff7a6b, luminance 150 to 210, over ground that measures around 60.
  *
- * A photograph puts the same lines over different ground. Sunlit sand in three
- * metres of water is the brightest thing PNOA returns, and the two bands a
- * recreational plan reads most are the palest two in the ramp: 0 to 4 m cream at
- * luminance 230 and 5 to 17 m mint at 213. Those are the contours that vanish.
+ * A photograph puts the same lines over ground nobody chose. Repainting the
+ * bands to suit it was the other option and it is the wrong one, because the
+ * band colour is what says which depth a diver is looking at without reading a
+ * number. So the shadow becomes a halo instead: centred rather than dropped, and
+ * 0.7 px proud of the line on each side at every zoom.
  *
- * Repainting the bands was the other option and it is the wrong one, because the
- * band colour is the thing that says which depth a diver is looking at without
- * reading a number, and it would change the map for everyone to fix a layer that
- * is off by default. So the shadow becomes a casing instead: centred rather than
- * dropped, near-opaque, and 0.7 px of black proud of the line on each side at
- * every zoom. Every band keeps its own colour and reads it against black.
+ * 0.7 and not more. At 1.2 the thin metre contours came out as threads of halo
+ * with a hint of colour in them, because the halo was then wider than the 0.7 px
+ * line it was carrying. Compared side by side over the photograph at zoom 16.4,
+ * 0.7 is the widest halo that still leaves the band colour readable on the lines
+ * between the emphasised ones.
  *
- * 0.7 and not more. At 1.2 the thin metre contours came out as black threads
- * with a hint of colour in them, because the casing was then wider than the 0.7
- * px line it was carrying. Compared side by side over the photograph at zoom
- * 16.4, 0.7 is the widest casing that still leaves the band colour readable on
- * the lines between the emphasised ones.
+ * The colour and strength are the diver's, and `DEFAULT_HALO` says why white at
+ * part opacity beat the near-opaque black this started as.
  */
-const CASING_WIDENING_OVER_PHOTO = 1.4;
+const HALO_WIDENING_OVER_PHOTO = 1.4;
 
 const isobathCasing = (options: StyleOptions): NonNullable<LineLayerSpecification['paint']> => {
-	const overPhoto = options.visible.includes('satellite');
+	const halo = haloOf(options.isobaths);
+	const overPhoto = options.visible.includes('satellite') && halo.on;
 	return {
-		'line-color': overPhoto ? 'rgba(2, 9, 14, 0.92)' : 'rgba(4, 16, 24, 0.55)',
+		// Opacity as its own property over the photograph, so a diver dragging the
+		// strength slider changes one number rather than the map rebuilding a colour
+		// string. The chart branch keeps its alpha in the colour, so it asks for 1
+		// here: MapLibre multiplies the two.
+		'line-color': overPhoto ? halo.colour : 'rgba(4, 16, 24, 0.55)',
+		'line-opacity': overPhoto ? halo.opacity : 1,
 		'line-blur': overPhoto ? 0.6 : 2.2,
 		'line-translate': overPhoto ? [0, 0] : [0, 1.6],
 		'line-width': isobathWidth(
 			heavyDepths(options.isobaths),
-			overPhoto ? CASING_WIDENING_OVER_PHOTO : 0
+			overPhoto ? HALO_WIDENING_OVER_PHOTO : 0
 		)
 	};
 };

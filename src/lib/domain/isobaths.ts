@@ -32,6 +32,36 @@ export interface MarkPaint {
 }
 
 /**
+ * The outline carried under every contour where it crosses the photograph.
+ *
+ * Over the painted seabed the contours need nothing but a soft shadow: the
+ * palette is a known quantity, bands at luminance 150 to 210 over ground around
+ * 60. A photograph is not a known quantity. It puts the same lines over sunlit
+ * sand, over weed, over deep water, and the two bands a recreational plan reads
+ * most are the palest in the ramp, so those are the ones that disappear.
+ *
+ * The first answer was near-opaque black, which fixed the pale bands over bright
+ * sand and lost the lines over everything dark. White at part opacity is the
+ * owner's call and the better one: most of the water a diver is reading is dark,
+ * and a white outline separates the line from the picture without turning the
+ * contour into a black thread with a hint of colour in it.
+ *
+ * Off draws the contours over a photograph exactly as they are drawn over the
+ * chart, which is what a diver who dislikes the whole treatment wants. Keeping
+ * `on` separate from `opacity` means turning it off and back on does not cost
+ * them the colour and strength they had picked.
+ */
+export interface IsobathHalo {
+	readonly on: boolean;
+	/** `#rrggbb`. */
+	readonly colour: string;
+	/** 0 to 1. How much of the picture the outline covers. */
+	readonly opacity: number;
+}
+
+export const DEFAULT_HALO: IsobathHalo = { on: true, colour: '#ffffff', opacity: 0.55 };
+
+/**
  * Everything the depth ruler writes, keyed by depth rather than held beside
  * `IsobathStyle.emphasised` in the same order, so that moving a mark up the
  * ruler or dropping one out of the middle cannot slide every colour by one.
@@ -43,6 +73,8 @@ export interface MarkPaint {
 export interface IsobathPaint {
 	readonly method: PaintMethod;
 	readonly marks: Readonly<Record<number, MarkPaint>>;
+	/** What the contours carry under them over a photograph. */
+	readonly halo: IsobathHalo;
 	/**
 	 * Whether a marked line that no band reaches keeps a colour of its own.
 	 *
@@ -58,6 +90,7 @@ export interface IsobathPaint {
 export const DEFAULT_PAINT: IsobathPaint = {
 	method: 'upwards',
 	marks: {},
+	halo: DEFAULT_HALO,
 	edgeOwnColour: true
 };
 
@@ -139,6 +172,8 @@ export const defaultColour = (depthM: number): string =>
 export const metresLabel = (depthM: number): string => `${depthM}\u2009m`;
 
 export const paintOf = (style: IsobathStyle): IsobathPaint => style.paint ?? DEFAULT_PAINT;
+
+export const haloOf = (style: IsobathStyle): IsobathHalo => paintOf(style).halo;
 
 /**
  * What a marked depth is painted in before anybody paints it.
@@ -414,6 +449,26 @@ const HEX = /^#[0-9a-f]{6}$/i;
  * show, it reads as no paint at all, which is the map's original behaviour rather
  * than a colour nobody picked.
  */
+/**
+ * A halo field this version cannot honour is dropped and that field keeps the
+ * default, the same line `parseIsobathPaint` takes with a mark whose colour it
+ * cannot paint. A blob hand-edited to `opacity: 4` gets the default strength
+ * rather than a line four times as opaque as the picture under it.
+ */
+const parseHalo = (value: unknown): IsobathHalo => {
+	if (!isRecord(value)) return DEFAULT_HALO;
+	const colour = value['colour'];
+	const opacity = value['opacity'];
+	return {
+		on: value['on'] !== false,
+		colour: typeof colour === 'string' && HEX.test(colour) ? colour : DEFAULT_HALO.colour,
+		opacity:
+			typeof opacity === 'number' && Number.isFinite(opacity) && opacity >= 0 && opacity <= 1
+				? opacity
+				: DEFAULT_HALO.opacity
+	};
+};
+
 export const parseIsobathPaint = (value: unknown): Pick<IsobathStyle, 'paint'> => {
 	if (!isRecord(value)) return {};
 	const method = value['method'];
@@ -434,6 +489,7 @@ export const parseIsobathPaint = (value: unknown): Pick<IsobathStyle, 'paint'> =
 		paint: {
 			method: method === 'upwards' ? 'upwards' : 'downwards',
 			marks,
+			halo: parseHalo(value['halo']),
 			edgeOwnColour: value['edgeOwnColour'] !== false
 		}
 	};

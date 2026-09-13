@@ -48,6 +48,13 @@ const ca = {
 	paintDownwards: 'Cap avall',
 	paintMethodHint:
 		'Cap amunt, cada franja pren el color de la seva línia més fonda. Cap avall, el de la més somera.',
+	halo: 'Contorn sobre la foto',
+	haloOn: 'Dibuixa el contorn',
+	haloLight: 'Blanc',
+	haloDark: 'Fosc',
+	haloStrength: 'Força del contorn',
+	haloHint:
+		'Les isòbates només porten contorn on hi ha foto a sota. Apaga’l i es dibuixen igual que sobre la carta.',
 	markAdd: 'Destacar {depth} m',
 	markRemove: 'Treure {depth} m',
 	markMove: 'Moure la línia de {depth} m',
@@ -331,6 +338,13 @@ const es: Catalogue = {
 	paintDownwards: 'Hacia abajo',
 	paintMethodHint:
 		'Hacia arriba, cada franja toma el color de su línea más profunda. Hacia abajo, el de la más somera.',
+	halo: 'Contorno sobre la foto',
+	haloOn: 'Dibujar el contorno',
+	haloLight: 'Blanco',
+	haloDark: 'Oscuro',
+	haloStrength: 'Fuerza del contorno',
+	haloHint:
+		'Las isóbatas solo llevan contorno donde hay foto debajo. Apágalo y se dibujan igual que sobre la carta.',
 	markAdd: 'Destacar {depth} m',
 	markRemove: 'Quitar {depth} m',
 	markMove: 'Mover la línea de {depth} m',
@@ -613,6 +627,13 @@ const en: Catalogue = {
 	paintDownwards: 'Downwards',
 	paintMethodHint:
 		'Upwards, a band takes the colour of its deepest line. Downwards, the colour of its shallowest.',
+	halo: 'Outline over the photograph',
+	haloOn: 'Draw the outline',
+	haloLight: 'White',
+	haloDark: 'Dark',
+	haloStrength: 'Outline strength',
+	haloHint:
+		'The contours carry an outline only where a photograph is underneath. Off draws them the way they are drawn over the chart.',
 	markAdd: 'Emphasise {depth} m',
 	markRemove: 'Remove {depth} m',
 	markMove: 'Move the {depth} m line',
