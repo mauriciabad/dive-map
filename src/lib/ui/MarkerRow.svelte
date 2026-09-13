@@ -29,7 +29,7 @@
 </script>
 
 <button type="button" class="row" aria-pressed={on} onclick={onchange}>
-	<span class="mark" data-plate={style.disc} style:color={style.colour}>
+	<span class="mark" data-plate={style.plate} style:color={style.colour}>
 		{#if style.icon !== undefined}
 			<Icon name={style.icon} size={24} />
 		{/if}

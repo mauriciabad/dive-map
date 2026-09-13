@@ -55,7 +55,7 @@ export interface GroundHit {
 export const OSM_PICK_LAYERS = [
 	'osm-marker-key',
 	'osm-marker-minor',
-	'osm-marker-disc',
+	'osm-marker-plate',
 	'osm-dive-site-label',
 	'osm-harbour-label',
 	'osm-site-area',
@@ -101,8 +101,11 @@ const KIND_PRIORITY: Record<DiveFeatureKind, number> = {
 	'dive-centre': 7,
 	harbour: 8,
 	buoy: 9,
-	'swimming-area': 10,
-	'restricted-area': 11
+	// A reserve forbids the dive outright, so it outranks a zone that only asks
+	// boats to keep their distance.
+	'marine-reserve': 10,
+	'swimming-area': 11,
+	'restricted-area': 12
 };
 
 /** Habitats first: it is the layer the map opens on and the one a diver asks for. */
@@ -186,6 +189,7 @@ export const KIND_LABEL: Record<DiveFeatureKind, MessageKey> = {
 	wreck: 'kindWreck',
 	rock: 'kindRock',
 	'restricted-area': 'kindRestrictedArea',
+	'marine-reserve': 'kindMarineReserve',
 	'swimming-area': 'kindSwimmingArea',
 	buoy: 'kindBuoy',
 	light: 'kindLight',
@@ -215,6 +219,7 @@ export const heroDepthOf = (feature: DiveFeature): HeroDepth | undefined => {
 		case 'buoy':
 		case 'rock':
 		case 'restricted-area':
+		case 'marine-reserve':
 		case 'swimming-area':
 		case 'light':
 		case 'harbour':
@@ -336,6 +341,7 @@ export const detailRowsOf = (feature: DiveFeature, locale: Locale): readonly Det
 		case 'mooring':
 		case 'buoy':
 		case 'restricted-area':
+		case 'marine-reserve':
 		case 'swimming-area':
 		case 'harbour':
 		case 'slipway':
@@ -355,6 +361,7 @@ const categoryText = (feature: DiveFeature, locale: Locale): string | undefined 
 		case 'buoy':
 			return labelled(BUOY_LABEL, locale, feature.category);
 		case 'dive-site':
+		case 'marine-reserve':
 		case 'wreck':
 		case 'rock':
 		case 'light':

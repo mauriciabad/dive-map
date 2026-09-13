@@ -4,7 +4,7 @@ import { DIVE_FEATURE_KINDS } from '$lib/domain/osm';
 import { KIND_LABEL } from '$lib/ui/feature-card';
 import { ICONS } from '$lib/ui/icons';
 import {
-	DISC_KINDS,
+	PLATE_KINDS,
 	KEY_KINDS,
 	LABEL_ONLY_KINDS,
 	MARKERS,
@@ -53,7 +53,7 @@ describe('the marker table', () => {
 	});
 
 	it('keeps the plate for the dive site alone, which is what makes it findable', () => {
-		expect(DISC_KINDS).toEqual(['dive-site']);
+		expect(PLATE_KINDS).toEqual(['dive-site']);
 	});
 
 	it('draws the dive at the opening view and holds the furniture back', () => {

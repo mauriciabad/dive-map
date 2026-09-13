@@ -262,6 +262,21 @@ export const ICONS = {
 	},
 
 	/**
+	 * A fish, solid, filling the box. What a marine reserve protects, in the
+	 * regulation magenta that says the protection is a rule: the same ink the
+	 * no-entry sign takes, so the two read as the same kind of thing.
+	 *
+	 * No ring round it and no eye in it. Two strokes closer than twice the halo
+	 * merge at marker size, which over a 24 unit box leaves no room for a ring that
+	 * is not touching the fish, and a hole punched in a glyph coloured by
+	 * `icon-color` is the same colour as the glyph.
+	 */
+	markerReserve: {
+		d: [],
+		fill: ['M2.6 12q6.2-6.4 12.6 0-6.4 6.4-12.6 0z', 'M14 12 21.4 7.2v9.6z']
+	},
+
+	/**
 	 * Somebody swimming at the surface, which is what a bathing zone is. The same
 	 * wave the rock and the slipway are drawn against, so the three read as one set.
 	 *

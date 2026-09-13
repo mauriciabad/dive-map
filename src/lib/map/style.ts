@@ -38,12 +38,12 @@ import {
 import type { DiveFeatureKind } from '$lib/domain/osm';
 import type { Locale } from '$lib/i18n/locale';
 import {
-	DISC_KINDS,
+	PLATE_KINDS,
 	KEY_KINDS,
 	LABEL_ONLY_KINDS,
 	MARKERS,
 	MARKER_CLOSE,
-	MARKER_DISC_IMAGE,
+	MARKER_PLATE_IMAGE,
 	MARKER_HALO,
 	MARKER_INK,
 	MARKER_PLATE,
@@ -781,7 +781,7 @@ const markerLayer = (
 	],
 	layout: {
 		visibility: vis(options, 'osm'),
-		'icon-image': byKind(kinds, markerImageId, MARKER_DISC_IMAGE),
+		'icon-image': byKind(kinds, markerImageId, MARKER_PLATE_IMAGE),
 		'icon-size': MARKER_SIZE,
 		'icon-allow-overlap': crowds ? false : KEY_OVERLAP,
 		'icon-ignore-placement': false,
@@ -824,10 +824,10 @@ const osmLayers = (options: StyleOptions): LayerSpecification[] => {
 		['get', 'alt_name'],
 		''
 	];
-	const discs = shown(options, DISC_KINDS);
+	const plates = shown(options, PLATE_KINDS);
 	// Both kinds of zone have an outline worth drawing and they do not mean the
 	// same thing, so each takes its own family colour rather than sharing a paint.
-	const zones = shown(options, ['restricted-area', 'swimming-area']);
+	const zones = shown(options, ['restricted-area', 'marine-reserve', 'swimming-area']);
 	return [
 		{
 			id: 'osm-restricted',
@@ -880,7 +880,7 @@ const osmLayers = (options: StyleOptions): LayerSpecification[] => {
 			minzoom: MARKER_CLOSE,
 			// Points only. A circle layer draws one circle per vertex, so a dive site
 			// mapped as an area would be ringed with shadows along its outline.
-			filter: ['all', ['==', ['geometry-type'], 'Point'], isKind(...discs)],
+			filter: ['all', ['==', ['geometry-type'], 'Point'], isKind(...plates)],
 			layout: { visibility },
 			paint: {
 				'circle-color': 'rgba(10, 8, 5, 0.45)',
@@ -890,17 +890,18 @@ const osmLayers = (options: StyleOptions): LayerSpecification[] => {
 			}
 		},
 		{
-			// The one circle left on this map. It is an affordance, not a colour
-			// carrier: it says this is the thing you came for and you can tap it.
-			// Every other kind is its own silhouette on bare ground.
-			id: 'osm-marker-disc',
+			// The red field of the diver-down flag, under the stripe that crosses it.
+			// The only kind on this map with anything behind its glyph: it says this
+			// is the thing you came for and you can tap it. Every other kind is its
+			// own silhouette on bare ground.
+			id: 'osm-marker-plate',
 			type: 'symbol',
 			source: 'osm',
 			minzoom: MARKER_CLOSE,
-			filter: isKind(...discs),
+			filter: isKind(...plates),
 			layout: {
 				visibility,
-				'icon-image': MARKER_DISC_IMAGE,
+				'icon-image': MARKER_PLATE_IMAGE,
 				'icon-size': MARKER_SIZE,
 				'icon-allow-overlap': true,
 				'icon-ignore-placement': false

@@ -110,10 +110,10 @@ describe('picking a feature off the map', () => {
 	it('prefers the dive site over the zone it sits inside, whichever was hit first', () => {
 		const site = namedFeature('Canons de Tamariu');
 		const zone = namedFeature(ZONE_NAME);
-		// OSM tags this reserve seamark:restricted_area:category=swimming, so the
-		// parser reads it as a bathing zone. Wrong about Ses Negres, right about the
-		// tag, and the tag is what a mapper can fix.
-		expect(pickFrom([zone], [], AT)?.feature?.kind).toBe('swimming-area');
+		// Ses Negres is tagged seamark:restricted_area:category=swimming and is a
+		// marine reserve. The protection tags are what say so, and they outrank the
+		// seamark category: see `isProtected` in osm.ts.
+		expect(pickFrom([zone], [], AT)?.feature?.kind).toBe('marine-reserve');
 		expect(pickFrom([zone, site], [], AT)?.feature?.name).toBe('Canons de Tamariu');
 		expect(pickFrom([site, zone], [], AT)?.feature?.name).toBe('Canons de Tamariu');
 	});

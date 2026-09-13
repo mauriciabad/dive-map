@@ -82,7 +82,6 @@ describe('the reduction', () => {
 				'mooring',
 				'buoy',
 				'light',
-				'swimming-area',
 				'wreck',
 				'dive-site',
 				'dive-centre',

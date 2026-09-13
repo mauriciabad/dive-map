@@ -28,6 +28,11 @@ import type { IconName } from '$lib/ui/icons';
  * carries. It is water people are in, so it goes with the ladder and the slipway
  * in teal, and the special marks strung around it go with the lights in yellow,
  * because a buoy is something you navigate by rather than something you avoid.
+ *
+ * A marine reserve takes the regulation magenta rather than the bathing zone's
+ * teal. Ses Negres forbids diving, anchoring and fishing, so it belongs with the
+ * rules and not with the water people swim in, which is the distinction the
+ * swimmer on it used to destroy.
  */
 
 export interface MarkerStyle {
@@ -41,7 +46,7 @@ export interface MarkerStyle {
 	 * in a frame full of chart furniture. On everything else the plate added
 	 * weight and said nothing, which is what made ten kinds look like one.
 	 */
-	readonly disc: boolean;
+	readonly plate: boolean;
 	/** Drawn on top and never dropped in a crowd: the dive, and what threatens it. */
 	readonly key: boolean;
 	/**
@@ -69,7 +74,7 @@ export interface MarkerStyle {
  * The `from` column above answers when a kind is worth drawing at all. This
  * answers a different question for the three kinds whose answer is always. Out
  * where the whole survey is on screen, every dive site on two hundred kilometres
- * of coast is inside one frame, which drew 47 discs on top of each other around
+ * of coast is inside one frame, which drew 47 plates on top of each other around
  * one headland and told a diver nothing. So out there a key mark is a bare glyph
  * that gives way to its neighbour, and what survives is spread across the coast:
  * where the diving is, rather than how much of it there is.
@@ -104,7 +109,7 @@ export const MARKER_CLOSE = 10;
  */
 export const MARKER_HALO = 2.2;
 
-export const markerHalo = (style: MarkerStyle): number => (style.disc ? 0.8 : MARKER_HALO);
+export const markerHalo = (style: MarkerStyle): number => (style.plate ? 0.8 : MARKER_HALO);
 
 /** The ink every marker is outlined in, and the plate the dive site sits on. */
 export const MARKER_INK = '#14100c';
@@ -113,11 +118,10 @@ export const MARKER_INK = '#14100c';
 export const MARKER_RIM = '#cfa25a';
 
 /**
- * The plate itself, under the dive site alone. Diver-down red, because the glyph
- * on it is the diver-down flag and the plate is that flag's field: the two
- * triangles the drawing leaves open are where this shows through, so the mark
- * comes out red with a white stripe, which is what the owner asked for and what
- * every boat on this coast already reads.
+ * The plate itself, under the dive site alone. Diver-down red, because the plate
+ * is that flag's field: a rectangle of this, with the stripe drawn over it in
+ * cream, so the mark is the flag rather than a picture of one. Every boat on this
+ * coast reads it already.
  */
 export const MARKER_PLATE = '#c2352f';
 
@@ -129,37 +133,49 @@ const BEACON = '#f5dd93';
 const SHORE = '#4ecfae';
 
 export const MARKERS: Record<DiveFeatureKind, MarkerStyle> = {
-	'dive-site': { icon: 'markerDiveSite', colour: CREAM, disc: true, key: true, from: 0 },
-	wreck: { icon: 'markerWreck', colour: CREAM, disc: false, key: true, from: 0 },
-	rock: { icon: 'markerRock', colour: HAZARD, disc: false, key: true, from: 0 },
+	'dive-site': { icon: 'markerDiveSite', colour: CREAM, plate: true, key: true, from: 0 },
+	wreck: { icon: 'markerWreck', colour: CREAM, plate: false, key: true, from: 0 },
+	rock: { icon: 'markerRock', colour: HAZARD, plate: false, key: true, from: 0 },
 	'restricted-area': {
 		icon: 'markerRestricted',
 		colour: REGULATION,
-		disc: false,
+		plate: false,
 		key: false,
 		from: 11
 	},
-	'swimming-area': { icon: 'markerSwimmer', colour: SHORE, disc: false, key: false, from: 11 },
-	mooring: { icon: 'markerMooring', colour: AMBER, disc: false, key: false, from: 12 },
-	buoy: { icon: 'markerBuoy', colour: BEACON, disc: false, key: false, from: 12 },
-	light: { icon: 'markerLight', colour: BEACON, disc: false, key: false, from: 11 },
-	'dive-centre': { icon: 'markerDiveCentre', colour: SHORE, disc: false, key: false, from: 11 },
-	slipway: { icon: 'markerSlipway', colour: SHORE, disc: false, key: false, from: 12 },
-	ladder: { icon: 'markerLadder', colour: SHORE, disc: false, key: false, from: 13 },
+	'marine-reserve': {
+		icon: 'markerReserve',
+		colour: REGULATION,
+		plate: false,
+		/*
+		 * Drawn from the start and never dropped, because it is the one mark that can
+		 * call the dive off. Choosing a coast is the question the opening view is for,
+		 * and where you may not dive is part of that answer.
+		 */
+		key: true,
+		from: 0
+	},
+	'swimming-area': { icon: 'markerSwimmer', colour: SHORE, plate: false, key: false, from: 11 },
+	mooring: { icon: 'markerMooring', colour: AMBER, plate: false, key: false, from: 12 },
+	buoy: { icon: 'markerBuoy', colour: BEACON, plate: false, key: false, from: 12 },
+	light: { icon: 'markerLight', colour: BEACON, plate: false, key: false, from: 11 },
+	'dive-centre': { icon: 'markerDiveCentre', colour: SHORE, plate: false, key: false, from: 11 },
+	slipway: { icon: 'markerSlipway', colour: SHORE, plate: false, key: false, from: 12 },
+	ladder: { icon: 'markerLadder', colour: SHORE, plate: false, key: false, from: 13 },
 	/*
 	 * A harbour is an area with a name on it, and the name is how anyone finds it:
 	 * nobody looks for Port de l'Estartit by spotting a symbol. A pin would also
 	 * land in the middle of the basin, which is the one part of a harbour with
 	 * nothing in it.
 	 */
-	harbour: { icon: undefined, colour: CREAM, disc: false, key: false, from: 11 }
+	harbour: { icon: undefined, colour: CREAM, plate: false, key: false, from: 11 }
 };
 
 /** MapLibre image id for a kind's glyph. */
 export const markerImageId = (kind: DiveFeatureKind): string => `marker-${kind}`;
 
 /** MapLibre image id for the plate under a glyph. */
-export const MARKER_DISC_IMAGE = 'marker-disc';
+export const MARKER_PLATE_IMAGE = 'marker-plate';
 
 const kindsWhere = (pick: (style: MarkerStyle) => boolean): readonly DiveFeatureKind[] =>
 	DIVE_FEATURE_KINDS.filter((kind) => pick(MARKERS[kind]));
@@ -173,7 +189,7 @@ export const KEY_KINDS = kindsWhere((style) => style.key && drawn(style));
 export const MINOR_KINDS = kindsWhere((style) => !style.key && drawn(style));
 
 /** Kinds that take a plate under the glyph. */
-export const DISC_KINDS = kindsWhere((style) => style.disc);
+export const PLATE_KINDS = kindsWhere((style) => style.plate);
 
 /** Kinds the map names rather than draws. */
 export const LABEL_ONLY_KINDS = kindsWhere((style) => !drawn(style));
@@ -192,7 +208,7 @@ export const markerFrom = (kinds: readonly DiveFeatureKind[]): Record<string, nu
 
 /** Every image the style asks for by name, plate first. */
 export const MARKER_IMAGES: readonly { readonly id: string; readonly icon: IconName }[] = [
-	{ id: MARKER_DISC_IMAGE, icon: 'markerDisc' },
+	{ id: MARKER_PLATE_IMAGE, icon: 'markerPlate' },
 	...DIVE_FEATURE_KINDS.flatMap((kind) => {
 		const { icon } = MARKERS[kind];
 		return icon === undefined ? [] : [{ id: markerImageId(kind), icon }];

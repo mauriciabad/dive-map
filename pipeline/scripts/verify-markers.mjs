@@ -128,7 +128,7 @@ const state = () =>
 			),
 			key: count('osm-marker-key'),
 			minor: count('osm-marker-minor'),
-			disc: count('osm-marker-disc'),
+			disc: count('osm-marker-plate'),
 			harbourLabel: count('osm-harbour-label'),
 			zoom: Number(m.getZoom().toFixed(2)),
 			lng: Number(m.getCenter().lng.toFixed(4))

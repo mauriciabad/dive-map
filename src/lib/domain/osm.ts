@@ -47,6 +47,7 @@ export type DiveFeature =
 	  })
 	| (Base & { readonly kind: 'rock'; readonly waterLevel: string | undefined })
 	| (Base & { readonly kind: 'restricted-area'; readonly category: string | undefined })
+	| (Base & { readonly kind: 'marine-reserve' })
 	| (Base & { readonly kind: 'swimming-area'; readonly category: string | undefined })
 	| (Base & { readonly kind: 'buoy'; readonly category: string | undefined })
 	| (Base & {
@@ -75,6 +76,7 @@ export const DIVE_FEATURE_KINDS = [
 	'wreck',
 	'rock',
 	'restricted-area',
+	'marine-reserve',
 	'swimming-area',
 	'mooring',
 	'buoy',
@@ -118,6 +120,19 @@ const entries = (raw: string | undefined): readonly DiveEntry[] =>
  */
 const SWIMMING_ZONES: ReadonlySet<string> = new Set(['swimming', 'recreation_zone']);
 
+/**
+ * Whether an element is somewhere with a protection order on it.
+ *
+ * Ses Negres is tagged `seamark:restricted_area:category=swimming` and is a
+ * marine reserve that forbids diving, anchoring and fishing. Reading the seamark
+ * category alone drew it with a swimmer, which told a diver the opposite of what
+ * the rule says. The protection is carried by the tags OSM uses for it
+ * everywhere, so those are what this reads, and they answer for a reserve that
+ * carries no seamark tag at all.
+ */
+const isProtected = (tags: OsmTags): boolean =>
+	tags['leisure'] === 'nature_reserve' || tags['boundary'] === 'protected_area';
+
 /** Prefix on the per-site hazard flags, one tag per danger. */
 export const DANGER_TAG_PREFIX = 'scuba_diving:dangers:';
 
@@ -133,10 +148,12 @@ export const DANGER_TAG_PREFIX = 'scuba_diving:dangers:';
 export const DIVE_TAG_KEYS = [
 	'alt_name',
 	'amenity',
+	'boundary',
 	'depth',
 	'description',
 	'highway',
 	'historic:civilization',
+	'leisure',
 	'location',
 	'name',
 	'name:ca',
@@ -207,6 +224,10 @@ export function parseDiveFeature(ref: OsmRef, tags: OsmTags): DiveFeature | unde
 		return { ...base, kind: 'dive-centre' };
 	}
 
+	// Ahead of the seamark switch, because a reserve is a reserve whether or not
+	// anybody has given it seamark tags as well.
+	if (isProtected(tags)) return { ...base, kind: 'marine-reserve' };
+
 	switch (seamark) {
 		case 'mooring':
 			return { ...base, kind: 'mooring', category: tags['seamark:mooring:category'] };
@@ -221,6 +242,11 @@ export function parseDiveFeature(ref: OsmRef, tags: OsmTags): DiveFeature | unde
 		case 'rock':
 			return { ...base, kind: 'rock', waterLevel: tags['seamark:rock:water_level'] };
 		case 'restricted_area': {
+			// The marks strung around a bathing zone carry the zone's own tags as well
+			// as their own, and the zone's tag is the one the switch reached first: 28
+			// of the 33 zones on this coast were the buoys, drawn with a swimmer.
+			const buoy = tags['seamark:buoy_special_purpose:category'];
+			if (buoy !== undefined) return { ...base, kind: 'buoy', category: buoy };
 			const category = tags['seamark:restricted_area:category'];
 			return category !== undefined && SWIMMING_ZONES.has(category)
 				? { ...base, kind: 'swimming-area', category }

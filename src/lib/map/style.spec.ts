@@ -360,7 +360,7 @@ describe('the dive site out where the whole coast is on screen', () => {
 	};
 
 	it('draws nothing that cannot be dropped until the marks stop dropping', () => {
-		for (const id of ['osm-marker-shadow', 'osm-marker-disc', 'osm-dive-site-label']) {
+		for (const id of ['osm-marker-shadow', 'osm-marker-plate', 'osm-dive-site-label']) {
 			expect(layerAt(id).minzoom).toBe(MARKER_CLOSE);
 		}
 	});
