@@ -55,7 +55,7 @@ export interface IsobathPaint {
 }
 
 export const DEFAULT_PAINT: IsobathPaint = {
-	method: 'downwards',
+	method: 'upwards',
 	marks: {},
 	edgeOwnColour: true
 };
@@ -126,7 +126,7 @@ export const readableInk = (colour: string): string => {
 	return (red * 0.299 + green * 0.587 + blue * 0.114) / 255 > 0.55 ? '#14100c' : '#efe4cf';
 };
 
-/** What a depth is painted in before anybody paints it: its own band, at full strength. */
+/** The colour of the band a depth falls in, at full strength. */
 export const defaultColour = (depthM: number): string =>
 	DEPTH_BANDS.find((b) => depthM >= b.from && depthM <= b.to)?.dark ?? rampColour(depthM);
 
@@ -139,8 +139,22 @@ export const metresLabel = (depthM: number): string => `${depthM}\u2009m`;
 
 export const paintOf = (style: IsobathStyle): IsobathPaint => style.paint ?? DEFAULT_PAINT;
 
+/**
+ * What a marked depth is painted in before anybody paints it.
+ *
+ * The band a mark governs is the one above it going upwards and the one below it
+ * going downwards, so one mark has two answers and both of them are the depth
+ * ramp the map has always drawn. That is what lets the method be switched on a
+ * ruler nobody has painted and leave the map exactly as it was.
+ */
+export const defaultColourFor = (method: PaintMethod, depthM: number): string =>
+	defaultColour(method === 'upwards' ? Math.max(0, depthM - 1) : depthM);
+
 export const markPaint = (style: IsobathStyle, depthM: number): MarkPaint =>
-	paintOf(style).marks[depthM] ?? { colour: defaultColour(depthM), plain: false };
+	paintOf(style).marks[depthM] ?? {
+		colour: defaultColourFor(paintOf(style).method, depthM),
+		plain: false
+	};
 
 /** One marked depth, as the ruler and the map both need it. */
 export interface DepthMark {
@@ -280,8 +294,35 @@ export const contourDepths = (style: IsobathStyle, zoom: number): readonly numbe
 
 const withPaint = (style: IsobathStyle, paint: IsobathPaint): IsobathStyle => ({ ...style, paint });
 
-export const withMethod = (style: IsobathStyle, method: PaintMethod): IsobathStyle =>
-	withPaint(style, { ...paintOf(style), method });
+/**
+ * Switching the method hands every colour to the mark that now governs its band,
+ * so the water keeps the colour it was painted and the swatches move instead.
+ * Upwards a band is named by the line under it and downwards by the line over it,
+ * which is a shift of exactly one mark in one direction or the other.
+ *
+ * The mark left without a source is the one whose band the other method leaves on
+ * the depth ramp, at the shallow end going upwards and the deep end going
+ * downwards, so it takes the ramp's own colour there. A colour set by hand on that
+ * one mark is the only thing a switch and a switch back does not give you back.
+ *
+ * The weight stays where it is. A tick belongs to a line, not to a band.
+ */
+export const withMethod = (style: IsobathStyle, method: PaintMethod): IsobathStyle => {
+	const current = paintOf(style);
+	if (current.method === method) return style;
+	const depths = [...style.emphasised].sort(ascending);
+	const towards = method === 'upwards' ? -1 : 1;
+	const moved: Record<number, MarkPaint> = {};
+	depths.forEach((depthM, index) => {
+		const source = depths[index + towards];
+		moved[depthM] = {
+			colour:
+				source === undefined ? defaultColourFor(method, depthM) : markPaint(style, source).colour,
+			plain: markPaint(style, depthM).plain
+		};
+	});
+	return withPaint(style, { ...current, method, marks: { ...current.marks, ...moved } });
+};
 
 export const withEdgeOwnColour = (style: IsobathStyle, edgeOwnColour: boolean): IsobathStyle =>
 	withPaint(style, { ...paintOf(style), edgeOwnColour });

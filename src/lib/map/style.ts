@@ -2,7 +2,9 @@ import { asset } from '$app/paths';
 import type {
 	DataDrivenPropertyValueSpecification,
 	ExpressionSpecification,
+	FilterSpecification,
 	LayerSpecification,
+	Map as MapLibre,
 	LineLayerSpecification,
 	PropertyValueSpecification,
 	StyleSpecification
@@ -127,10 +129,10 @@ const DEPTH_VEIL: ExpressionSpecification = [
  * An object lookup rather than a 60-branch match: one literal instead of a
  * variadic tuple, and it types without a cast.
  *
- * Both catalogues go in, with the layer's own winning on a collision. The
- * substrate layer returns 30509, 30512 and 30513 for 37% of its features, and
- * those seagrass classes exist only in the habitat catalogue; without the
- * fallback every Posidonia and Cymodocea bed would render as bare sand.
+ * Both catalogues go in, with the layer's own winning on a collision. Each returns
+ * a few codes only the other defines, and 30509, 30512 and 30513 are published by
+ * both: seagrass on habitats, and on substrate the ground the survey reads under
+ * the meadow. The order is what keeps each layer answering its own question.
  */
 const patternFor = (
 	ground: 'habitats' | 'substrate',
@@ -369,6 +371,147 @@ const isobathFilter = ({
 		]
 	]
 ];
+
+/**
+ * The three layers the isobath settings own, and the only ones any of those
+ * settings can touch.
+ *
+ * Kept as one function because they are also pushed to a live map on their own,
+ * without the style around them. See `applyIsobathLayers`: a diver dragging the
+ * interval slider changes these and nothing else, and a rebuild of the whole
+ * style for each frame of a drag measured at 100 ms a frame against 0.7 ms for
+ * pushing these three.
+ */
+export const ISOBATH_LAYER_IDS: readonly string[] = ['isobath-glow', 'isobath', 'isobath-label'];
+
+const isobathLayers = (options: StyleOptions): readonly LayerSpecification[] => [
+	{
+		id: 'isobath-glow',
+		type: 'line',
+		source: 'isobaths',
+		'source-layer': 'isobaths',
+		filter: isobathFilter(options.isobaths),
+		layout: { visibility: vis(options, 'isobaths'), 'line-join': 'round' },
+		paint: isobathCasing(options)
+	},
+	{
+		id: 'isobath',
+		type: 'line',
+		source: 'isobaths',
+		'source-layer': 'isobaths',
+		filter: isobathFilter(options.isobaths),
+		layout: { visibility: vis(options, 'isobaths'), 'line-join': 'round' },
+		paint: {
+			'line-color': isobathColour(options.isobaths),
+			// The heavy lines carry their band's full strength; the metre lines
+			// between them stay quiet enough not to become a mat.
+			'line-opacity': [
+				'match',
+				['to-number', ['get', 'depth']],
+				[...heavyDepths(options.isobaths)],
+				0.95,
+				0.45
+			],
+			'line-width': isobathWidth(heavyDepths(options.isobaths))
+		}
+	},
+	{
+		id: 'isobath-label',
+		type: 'symbol',
+		source: 'isobaths',
+		'source-layer': 'isobaths',
+		minzoom: 13,
+		filter: [
+			'all',
+			isobathFilter(options.isobaths),
+			['in', ['to-number', ['get', 'depth']], ['literal', [...heavyDepths(options.isobaths)]]]
+		],
+		layout: {
+			visibility: options.isobaths.labels ? vis(options, 'isobaths') : 'none',
+			'symbol-placement': 'line',
+			'text-field': ['concat', ['to-string', ['get', 'depth']], ' m'],
+			'text-font': ['Alegreya Sans Bold'],
+			'text-size': ['interpolate', ['linear'], ['zoom'], 13, 10, 18, 13],
+			'text-letter-spacing': 0.06,
+			// A seabed contour is far more sinuous than a road. Measured over Tamariu,
+			// 25 degrees places nothing at all out of 408 candidate contours and 90
+			// places labels on four of the five emphasised depths.
+			'text-max-angle': 90,
+			'symbol-spacing': 140
+		},
+		paint: {
+			'text-color': PALETTE.paper,
+			'text-halo-color': PALETTE.isobathMajor,
+			'text-halo-width': 1.6
+		}
+	}
+];
+
+/** Where the isobath layers are pushed when the style itself is not being replaced. */
+type PaintProperty = Parameters<MapLibre['setPaintProperty']>[1];
+type PaintValue = Parameters<MapLibre['setPaintProperty']>[2];
+type LayoutProperty = Parameters<MapLibre['setLayoutProperty']>[1];
+type LayoutValue = Parameters<MapLibre['setLayoutProperty']>[2];
+
+export interface LayerWriter {
+	readonly filter: (id: string, filter: FilterSpecification | undefined) => void;
+	readonly paint: (id: string, property: PaintProperty, value: PaintValue) => void;
+	readonly layout: (id: string, property: LayoutProperty, value: LayoutValue) => void;
+}
+
+const properties = (
+	layer: LayerSpecification
+): {
+	readonly filter: FilterSpecification | undefined;
+	readonly paint: Readonly<Record<string, unknown>>;
+	readonly layout: Readonly<Record<string, unknown>>;
+} => ({
+	filter: 'filter' in layer ? layer.filter : undefined,
+	paint: layer.paint ?? {},
+	layout: layer.layout ?? {}
+});
+
+/** The isobath layers of a built style, which is what a live push works from. */
+export const isobathLayersOf = (style: StyleSpecification): readonly LayerSpecification[] =>
+	style.layers.filter((layer) => ISOBATH_LAYER_IDS.includes(layer.id));
+
+/**
+ * Push what the isobath settings changed straight at the layers, instead of
+ * handing MapLibre a whole new style to diff.
+ *
+ * Only what actually moved is written. A diver dragging the colour picker
+ * changes one line colour, and repainting a filter the map already has would
+ * throw away every parsed tile in the viewport for nothing. `before` is what was
+ * pushed last, or the layers of the style the map was built with; the return
+ * value is the new baseline.
+ */
+export const applyIsobathLayers = (
+	into: LayerWriter,
+	style: StyleSpecification,
+	before: readonly LayerSpecification[] | undefined
+): readonly LayerSpecification[] => {
+	const layers = isobathLayersOf(style);
+	for (const layer of layers) {
+		const next = properties(layer);
+		const last = before?.find((candidate) => candidate.id === layer.id);
+		const old = last === undefined ? undefined : properties(last);
+		const changed = (a: unknown, b: unknown): boolean => JSON.stringify(a) !== JSON.stringify(b);
+		if (changed(next.filter, old?.filter)) into.filter(layer.id, next.filter);
+		// A name and a value read back off a layer MapLibre built are by construction
+		// ones its own setters accept. `Object.entries` is what loses that, not the data.
+		for (const [property, value] of Object.entries(next.paint)) {
+			if (changed(value, old?.paint[property])) {
+				into.paint(layer.id, property as PaintProperty, value as PaintValue);
+			}
+		}
+		for (const [property, value] of Object.entries(next.layout)) {
+			if (changed(value, old?.layout[property])) {
+				into.layout(layer.id, property as LayoutProperty, value as LayoutValue);
+			}
+		}
+	}
+	return layers;
+};
 
 export interface StyleOptions {
 	readonly locale: Locale;
@@ -1131,66 +1274,7 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			}
 		},
 
-		{
-			id: 'isobath-glow',
-			type: 'line',
-			source: 'isobaths',
-			'source-layer': 'isobaths',
-			filter: isobathFilter(options.isobaths),
-			layout: { visibility: vis(options, 'isobaths'), 'line-join': 'round' },
-			paint: isobathCasing(options)
-		},
-		{
-			id: 'isobath',
-			type: 'line',
-			source: 'isobaths',
-			'source-layer': 'isobaths',
-			filter: isobathFilter(options.isobaths),
-			layout: { visibility: vis(options, 'isobaths'), 'line-join': 'round' },
-			paint: {
-				'line-color': isobathColour(options.isobaths),
-				// The heavy lines carry their band's full strength; the metre lines
-				// between them stay quiet enough not to become a mat.
-				'line-opacity': [
-					'match',
-					['to-number', ['get', 'depth']],
-					[...heavyDepths(options.isobaths)],
-					0.95,
-					0.45
-				],
-				'line-width': isobathWidth(heavyDepths(options.isobaths))
-			}
-		},
-		{
-			id: 'isobath-label',
-			type: 'symbol',
-			source: 'isobaths',
-			'source-layer': 'isobaths',
-			minzoom: 13,
-			filter: [
-				'all',
-				isobathFilter(options.isobaths),
-				['in', ['to-number', ['get', 'depth']], ['literal', [...heavyDepths(options.isobaths)]]]
-			],
-			layout: {
-				visibility: options.isobaths.labels ? vis(options, 'isobaths') : 'none',
-				'symbol-placement': 'line',
-				'text-field': ['concat', ['to-string', ['get', 'depth']], ' m'],
-				'text-font': ['Alegreya Sans Bold'],
-				'text-size': ['interpolate', ['linear'], ['zoom'], 13, 10, 18, 13],
-				'text-letter-spacing': 0.06,
-				// A seabed contour is far more sinuous than a road. Measured over Tamariu,
-				// 25 degrees places nothing at all out of 408 candidate contours and 90
-				// places labels on four of the five emphasised depths.
-				'text-max-angle': 90,
-				'symbol-spacing': 140
-			},
-			paint: {
-				'text-color': PALETTE.paper,
-				'text-halo-color': PALETTE.isobathMajor,
-				'text-halo-width': 1.6
-			}
-		},
+		...isobathLayers(options),
 
 		// Before the surveyed land, so that where the two datasets disagree by a few
 		// metres along the Catalan shore the ICGC polygon is the one that wins.

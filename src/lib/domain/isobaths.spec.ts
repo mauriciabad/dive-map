@@ -50,12 +50,12 @@ describe('painted bands', () => {
 
 	it('leaves the water no mark governs on the depth ramp', () => {
 		const shallow = { ...DEFAULT_ISOBATHS, emphasised: [30], maxDepthM: 80 };
-		// Downwards, nothing reaches up past 30 m.
-		expect(paintedBands(shallow)[0]).toEqual({ fromM: 0, toM: 29, colour: undefined });
-		// Upwards, nothing reaches down past it.
-		expect(paintedBands(withMethod(shallow, 'upwards')).at(-1)).toEqual({
-			fromM: 31,
-			toM: 80,
+		// Upwards, nothing reaches down past 30 m.
+		expect(paintedBands(shallow).at(-1)).toEqual({ fromM: 31, toM: 80, colour: undefined });
+		// Downwards, nothing reaches up past it.
+		expect(paintedBands(withMethod(shallow, 'downwards'))[0]).toEqual({
+			fromM: 0,
+			toM: 29,
 			colour: undefined
 		});
 	});
@@ -102,6 +102,46 @@ describe('the line no band reaches', () => {
 	});
 });
 
+describe('switching which line names a band', () => {
+	it('ships painting upwards, in the colours the depth ramp has always given', () => {
+		// [0, 5] is the shallow gold band and (5, 18] the green one, which is what
+		// the map drew before any of this was a diver's to change.
+		expect(colourAt(DEFAULT_ISOBATHS, 0)).toBe(defaultColour(4));
+		expect(colourAt(DEFAULT_ISOBATHS, 4)).toBe(defaultColour(4));
+		expect(colourAt(DEFAULT_ISOBATHS, 6)).toBe(defaultColour(17));
+		expect(colourAt(DEFAULT_ISOBATHS, 18)).toBe(defaultColour(17));
+	});
+
+	/**
+	 * The contours between the marks, which is what a diver is looking at. A marked
+	 * line itself belongs to the band above it going upwards and the band below it
+	 * going downwards, so that one line changes colour by definition of the switch.
+	 */
+	it('leaves the water between two marks looking the same either way', () => {
+		const downwards = withMethod(DEFAULT_ISOBATHS, 'downwards');
+		for (const depth of [6, 10, 17, 19, 25, 29, 31, 39, 41, 49]) {
+			expect(colourAt(downwards, depth)).toBe(colourAt(DEFAULT_ISOBATHS, depth));
+		}
+	});
+
+	it('moves a painted colour to the mark that now governs its band', () => {
+		const painted = withColour(withColour(DEFAULT_ISOBATHS, 18, '#112233'), 30, '#445566');
+		const downwards = withMethod(painted, 'downwards');
+		// The same water, the same two colours, one mark further up the ruler.
+		for (const depth of [6, 10, 17, 19, 25, 29]) {
+			expect(colourAt(downwards, depth)).toBe(colourAt(painted, depth));
+		}
+		expect(depthMarks(downwards).find((mark) => mark.depthM === 5)?.colour).toBe('#112233');
+		expect(depthMarks(downwards).find((mark) => mark.depthM === 18)?.colour).toBe('#445566');
+	});
+
+	it('leaves the weight of a line where the line is', () => {
+		const thin = withEmphasis(DEFAULT_ISOBATHS, 30, false);
+		const marks = depthMarks(withMethod(thin, 'downwards'));
+		expect(marks.filter((mark) => !mark.emphasised).map((mark) => mark.depthM)).toEqual([30]);
+	});
+});
+
 describe('marks', () => {
 	it('starts a new mark on its own depth band', () => {
 		const style = withMark(DEFAULT_ISOBATHS, 65);
@@ -113,7 +153,8 @@ describe('marks', () => {
 		const style = withEmphasis(withColour(DEFAULT_ISOBATHS, 18, '#123456'), 18, false);
 		const mark = depthMarks(style).find((m) => m.depthM === 18);
 		expect(mark).toEqual({ depthM: 18, colour: '#123456', emphasised: false, noBand: false });
-		expect(colourAt(style, 20)).toBe('#123456');
+		// Upwards, 18 m governs the water above it, up to the mark at 5 m.
+		expect(colourAt(style, 10)).toBe('#123456');
 	});
 
 	it('carries the colour to a depth a mark is moved to', () => {

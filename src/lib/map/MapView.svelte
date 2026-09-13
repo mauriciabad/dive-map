@@ -1,10 +1,12 @@
 <script lang="ts">
 	import {
 		AttributionControl,
+		type LayerSpecification,
 		Map as MapLibre,
 		Marker,
 		NavigationControl,
 		ScaleControl,
+		type StyleSpecification,
 		addProtocol,
 		setWorkerUrl
 	} from 'maplibre-gl';
@@ -20,7 +22,14 @@
 	import { publishMap } from './controls';
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import { installMarkerImages } from './marker-images';
-	import { PALETTE, buildStyle } from './style';
+	import {
+		ISOBATH_LAYER_IDS,
+		type LayerWriter,
+		PALETTE,
+		applyIsobathLayers,
+		buildStyle,
+		isobathLayersOf
+	} from './style';
 	import { WORLD_SOURCE_ID } from './land';
 	import { failedSource } from './tile-errors';
 	import {
@@ -49,7 +58,10 @@
 	const { view, centre, zoom, bearing = 0, onready }: Props = $props();
 
 	let map: MapLibre | undefined;
-	let applied: unknown;
+	/** The shell of the style the map is running, so a rebuild happens only when it moves. */
+	let applied: string | undefined;
+	/** The isobath layers as last pushed, which is the baseline the next push diffs against. */
+	let pushed: readonly LayerSpecification[] | undefined;
 
 	// MapLibre renders attribution as HTML, so these are real links rather than the
 	// names of places you cannot get to.
@@ -112,6 +124,20 @@
 		navigation._setButtonTitle(navigation._zoomOutButton, 'ZoomOut');
 		navigation._setButtonTitle(navigation._compass, 'ResetBearing');
 	};
+
+	/**
+	 * The style with its isobath layers taken out.
+	 *
+	 * Everything a live push cannot express, and therefore the thing worth
+	 * comparing. Derived from the built style rather than from a list of the
+	 * inputs typed out again, so a new option cannot be added to the style and
+	 * forgotten here.
+	 */
+	const shellOf = (built: StyleSpecification): string =>
+		JSON.stringify({
+			...built,
+			layers: built.layers.filter((layer) => !ISOBATH_LAYER_IDS.includes(layer.id))
+		});
 
 	const style = $derived(
 		buildStyle({
@@ -311,7 +337,8 @@
 
 		if (import.meta.env.DEV) Reflect.set(window, 'diveMap', m);
 
-		applied = first;
+		applied = shellOf(first);
+		pushed = isobathLayersOf(first);
 		map = m;
 		return () => {
 			clearTimeout(patience);
@@ -380,14 +407,44 @@
 		}
 	});
 
+	const writer = (m: MapLibre): LayerWriter => ({
+		filter: (id, filter) => {
+			m.setFilter(id, filter);
+		},
+		paint: (id, property, value) => {
+			m.setPaintProperty(id, property, value);
+		},
+		layout: (id, property, value) => {
+			m.setLayoutProperty(id, property, value);
+		}
+	});
+
+	/**
+	 * The map is constructed with the first style already. Pushing it again here
+	 * arrives before the style has finished loading, which makes MapLibre discard
+	 * the in-flight load and rebuild from scratch, and `load` never fires.
+	 *
+	 * An isobath setting never adds or removes a layer, so it goes straight at the
+	 * three layers it owns instead of through a style MapLibre has to diff.
+	 * Measured over Tamariu at z15.2, a slider dragged through a rebuild a frame
+	 * held a 100 ms frame gap, a fifth of which was the diff and the rest the tiles
+	 * it invalidated; the same drag pushed at the layers holds 17 ms. A style with
+	 * no `isobath` layer in it is a diff MapLibre gave up on and replaced whole, so
+	 * that falls back to a rebuild rather than writing into a layer that is gone.
+	 */
 	$effect(() => {
-		// The map is constructed with the first style already. Pushing it again here
-		// arrives before the style has finished loading, which makes MapLibre discard
-		// the in-flight load and rebuild from scratch, and `load` never fires.
-		if (map === undefined || style === applied) return;
-		applied = style;
-		// setStyle diffs, so toggling a layer does not tear down the loaded tiles.
-		map.setStyle(style, { diff: true });
+		const built = style;
+		const shell = shellOf(built);
+		const m = map;
+		if (m === undefined) return;
+		if (shell !== applied || m.getLayer('isobath') === undefined) {
+			applied = shell;
+			pushed = isobathLayersOf(built);
+			// setStyle diffs, so toggling a layer does not tear down the loaded tiles.
+			m.setStyle(built, { diff: true });
+			return;
+		}
+		pushed = applyIsobathLayers(writer(m), built, pushed);
 	});
 </script>
 

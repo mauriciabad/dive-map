@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { featureFilter } from '@maplibre/maplibre-gl-style-spec';
-import { GROUND_DEPTH_LAYER, type StyleOptions, buildStyle } from './style.ts';
+import {
+	GROUND_DEPTH_LAYER,
+	type LayerWriter,
+	type StyleOptions,
+	applyIsobathLayers,
+	buildStyle,
+	isobathLayersOf
+} from './style.ts';
 import { DEFAULT_ISOBATHS, DEFAULT_LAYERS, type LayerId } from '$lib/domain/card';
+import { withColour, withEmphasis } from '$lib/domain/isobaths';
 import { DANGER_TAG_PREFIX, DIVE_NUMBER_KEYS, DIVE_TAG_KEYS } from '$lib/domain/osm';
 import { MARKER_CLOSE } from './markers.ts';
 
@@ -292,9 +300,7 @@ describe('the surveyed depth the card reads', () => {
 
 	it('stays off with the ground switched off, rather than fetching tiles for nothing', () => {
 		const noGround = DEFAULT_LAYERS.filter((id) => id !== 'habitats');
-		expect(probe({ groundLayer: 'substrate', visible: noGround })?.layout?.visibility).toBe(
-			'none'
-		);
+		expect(probe({ groundLayer: 'substrate', visible: noGround })?.layout?.visibility).toBe('none');
 	});
 });
 
@@ -364,5 +370,81 @@ describe('the dive site out where the whole coast is on screen', () => {
 		const layer = layerAt('osm-marker-minor');
 		if (layer.type !== 'symbol') throw new Error('the minor markers are not a symbol layer');
 		expect(layer.layout?.['icon-allow-overlap']).toBe(false);
+	});
+});
+
+// Issue #33. The substrate layer returns 30509, 30512 and 30513 for 41% of its
+// features, and the map painted all of them with grass, because only the habitat
+// catalogue defined them. Seafloor type asks what the bottom is made of, so it
+// now paints what the survey's own TEXTURA field says is under the meadow.
+describe('what each ground paints a seagrass code with', () => {
+	const nth = (of: unknown, at: number): unknown =>
+		Array.isArray(of) ? (of as unknown[])[at] : of;
+	const patternOf = (groundLayer: 'habitats' | 'substrate', code: string): unknown => {
+		const paint = paintOf(options({ groundLayer }), `ground-${groundLayer}-fill`);
+		const lookup = nth(nth(nth(paint['fill-pattern'], 1), 2), 1);
+		if (typeof lookup !== 'object' || lookup === null) throw new Error('no code lookup');
+		return Object.entries(lookup).find(([at]) => at === code)?.[1];
+	};
+
+	it('paints Posidonia as grass on habitats and as rock under sediment on seafloor type', () => {
+		expect(patternOf('habitats', '30512')).toBe('ch_grass');
+		expect(patternOf('substrate', '30512')).toBe('ch_stone_pattern');
+	});
+
+	it('paints the two Cymodocea codes on the fine sediment the survey reads under them', () => {
+		for (const code of ['30509', '30513']) {
+			expect(patternOf('substrate', code)).toBe('ch_dirt_lines_02');
+		}
+	});
+});
+
+// The isobath settings reach a live map through their own three layers rather
+// than through a style MapLibre has to diff, so that a dragged slider repaints at
+// the frame rate. What must hold is that nothing else moves with them.
+describe('pushing the isobath layers at a live map', () => {
+	const pushes = (from: StyleOptions, to: StyleOptions): readonly string[] => {
+		const written: string[] = [];
+		const writer: LayerWriter = {
+			filter: (id) => written.push(`${id} filter`),
+			paint: (id, property) => written.push(`${id} ${property}`),
+			layout: (id, property) => written.push(`${id} ${property}`)
+		};
+		applyIsobathLayers(writer, buildStyle(to), isobathLayersOf(buildStyle(from)));
+		return written;
+	};
+
+	it('writes only the colour when only a colour was painted', () => {
+		const painted = { ...DEFAULT_ISOBATHS, ...withColour(DEFAULT_ISOBATHS, 18, '#123456') };
+		expect(pushes(options(), options({ isobaths: painted }))).toEqual(['isobath line-color']);
+	});
+
+	it('writes the weight and the labels a line loses when its tick comes off', () => {
+		const thin = withEmphasis(DEFAULT_ISOBATHS, 30, false);
+		// Not the colour. A tick coming off a line changes what the line weighs and
+		// whether it is labelled, and the band it governs keeps what it was painted.
+		expect(pushes(options(), options({ isobaths: thin }))).toEqual([
+			'isobath-glow line-width',
+			'isobath line-opacity',
+			'isobath line-width',
+			'isobath-label filter'
+		]);
+	});
+
+	it('writes nothing at all when nothing about the isobaths moved', () => {
+		expect(pushes(options(), options({ groundLayer: 'substrate' }))).toEqual([]);
+	});
+
+	it('writes every property when there is no baseline to compare against', () => {
+		const written: string[] = [];
+		const writer: LayerWriter = {
+			filter: (id) => written.push(`${id} filter`),
+			paint: (id, property) => written.push(`${id} ${property}`),
+			layout: (id, property) => written.push(`${id} ${property}`)
+		};
+		applyIsobathLayers(writer, buildStyle(options()), undefined);
+		expect(written.filter((at) => at.endsWith('filter'))).toHaveLength(3);
+		expect(written.some((at) => at === 'isobath line-color')).toBe(true);
+		expect(written.some((at) => at === 'isobath-label visibility')).toBe(true);
 	});
 });

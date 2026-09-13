@@ -52,41 +52,31 @@
 	const TALLEST_REM = 40;
 
 	let ruler = $state<HTMLElement | undefined>(undefined);
-	/** The row a press has raised, so the tools on it survive on a screen with no hover. */
+	/** The row a press has raised, so it stays on top of the rows it overlaps. */
 	let raised = $state<number | undefined>(undefined);
-	/**
-	 * Where a line is being dragged to. Held here rather than written straight
-	 * through, so the map is rebuilt once on release instead of once a pixel.
-	 */
-	let dragging = $state<{ readonly fromM: number; readonly toM: number } | undefined>(undefined);
 	/** A mark moved by the keyboard is a new element. Put the focus back on it. */
 	let refocus = $state<number | undefined>(undefined);
 
-	/** What the ruler draws: the real settings, or the drag as it would land. */
-	const shown = $derived(
-		dragging === undefined ? style : withMarkAt(style, dragging.fromM, dragging.toM)
-	);
-
-	const bands = $derived(paintedBands(shown));
-	const marks = $derived(new Map(depthMarks(shown).map((mark) => [mark.depthM, mark])));
+	const bands = $derived(paintedBands(style));
+	const marks = $derived(new Map(depthMarks(style).map((mark) => [mark.depthM, mark])));
 	/**
 	 * The surface is always on the ruler, whether or not it is marked, because it
 	 * is the top of the thing. The map draws the shoreline there under its own
 	 * switch, and pressing this line is the only way 0 m ever becomes a mark.
 	 */
 	const contours = $derived.by(() => {
-		const drawn = contourDepths(shown, zoom);
+		const drawn = contourDepths(style, zoom);
 		return drawn.includes(0) ? drawn : [0, ...drawn];
 	});
-	const edge = $derived(depthMarks(shown).find((mark) => mark.noBand));
-	const ownEdge = $derived(paintOf(shown).edgeOwnColour);
+	const edge = $derived(depthMarks(style).find((mark) => mark.noBand));
+	const ownEdge = $derived(paintOf(style).edgeOwnColour);
 
 	const height = $derived(
-		Math.min(TALLEST_REM, Math.max(SHORTEST_REM, shown.maxDepthM * PER_METRE_REM))
+		Math.min(TALLEST_REM, Math.max(SHORTEST_REM, style.maxDepthM * PER_METRE_REM))
 	);
 
 	const at = (depthM: number): number =>
-		shown.maxDepthM <= 0 ? 0 : (depthM / shown.maxDepthM) * 100;
+		style.maxDepthM <= 0 ? 0 : (depthM / style.maxDepthM) * 100;
 
 	const taken = (depthM: number): boolean => style.emphasised.includes(depthM);
 
@@ -96,24 +86,22 @@
 	const startDrag = (event: PointerEvent, depthM: number): void => {
 		if (event.button !== 0 || ruler === undefined) return;
 		const box = ruler.getBoundingClientRect();
-		dragging = { fromM: depthM, toM: depthM };
+		// Where the line is now, which is not where it started once it has moved.
+		let held = depthM;
 		const move = (moved: PointerEvent): void => {
 			const wanted = Math.round(((moved.clientY - box.top) / box.height) * style.maxDepthM);
 			const to = Math.min(style.maxDepthM, Math.max(0, wanted));
-			if (to !== depthM && taken(to)) return;
-			dragging = { fromM: depthM, toM: to };
+			if (to === held || taken(to)) return;
+			const from = held;
+			held = to;
+			raised = to;
+			onchange(withMarkAt(style, from, to));
 		};
 		const stop = (): void => {
 			window.removeEventListener('pointermove', move);
 			window.removeEventListener('pointerup', stop);
 			window.removeEventListener('pointercancel', stop);
 			release = undefined;
-			const settled = dragging;
-			dragging = undefined;
-			if (settled !== undefined && settled.toM !== settled.fromM) {
-				raised = settled.toM;
-				onchange(withMarkAt(style, settled.fromM, settled.toM));
-			}
 		};
 		window.addEventListener('pointermove', move);
 		window.addEventListener('pointerup', stop);
@@ -190,7 +178,7 @@
 						data-grip={depth}
 						aria-label={t(locale, 'markMove', { depth })}
 						aria-valuemin={0}
-						aria-valuemax={shown.maxDepthM}
+						aria-valuemax={style.maxDepthM}
 						aria-valuenow={depth}
 						aria-valuetext={metresLabel(depth)}
 						onpointerdown={(event: PointerEvent) => {
@@ -211,7 +199,7 @@
 						type="color"
 						value={mark.colour}
 						aria-label={t(locale, 'markColour', { depth })}
-						onchange={(event) => {
+						oninput={(event) => {
 							const picked = event.currentTarget.value;
 							raised = depth;
 							onchange(
@@ -464,29 +452,15 @@
 		color: var(--control-ink-dim);
 	}
 
+	/*
+	 * Always on show. They were revealed on hover, which is a gesture a boat does
+	 * not have: on a phone the tick and the bin were there and nothing said so.
+	 */
 	.tools {
 		display: flex;
 		align-items: center;
 		gap: 0.1rem;
 		flex: none;
-		opacity: 0;
-		pointer-events: none;
-		transition: opacity var(--control-ease);
-	}
-
-	.line:hover .tools,
-	.line:focus-within .tools,
-	.line.raised .tools {
-		opacity: 1;
-		pointer-events: auto;
-	}
-
-	/* No hover on a boat. The tools are simply there, and the row raises on a tap. */
-	@media (pointer: coarse) {
-		.tools {
-			opacity: 1;
-			pointer-events: auto;
-		}
 	}
 
 	.tick,
