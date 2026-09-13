@@ -75,6 +75,23 @@ export const textureUrl = (name: string, size: TextureSize, format: TextureForma
 export { UNSURVEYED_TEXTURE } from '$lib/domain/habitat';
 
 /**
+ * The two textures the style paints with that no class names.
+ *
+ * The first is the whisper of rock under the coastline, on the surveyed land
+ * and on the world beyond it. The second is what a ground polygon falls back to
+ * when its code is in neither catalogue, which the live codes say never happens
+ * and which would be a hole in the seabed if it did.
+ *
+ * Both are `fill-pattern` names like any other, so both have to be in the
+ * registry on their own account. Both rode on the habitat catalogue instead,
+ * unnoticed, because a class happened to name each of them. Repaint that class
+ * and the style asks for an image nobody registered, which MapLibre answers by
+ * drawing nothing at all rather than by complaining.
+ */
+export const LAND_TEXTURE = 'ch_rock';
+export const GROUND_FALLBACK_TEXTURE = 'ch_sand';
+
+/**
  * Exactly the textures the style names, and nothing else, deduplicated.
  *
  * Following the choices rather than the catalogues is what lets the picker offer
@@ -88,6 +105,8 @@ export { UNSURVEYED_TEXTURE } from '$lib/domain/habitat';
 export const texturePalette = (chosen: TextureChoices): readonly string[] => [
 	...new Set([
 		UNSURVEYED_TEXTURE,
+		LAND_TEXTURE,
+		GROUND_FALLBACK_TEXTURE,
 		...[...HABITATS, ...SUBSTRATES].map((seabed) => textureOf(seabed, chosen))
 	])
 ];

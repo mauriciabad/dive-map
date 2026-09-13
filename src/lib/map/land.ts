@@ -6,6 +6,7 @@ import type {
 } from 'maplibre-gl';
 import { asset } from '$app/paths';
 import { PALETTE } from './palette.ts';
+import { LAND_TEXTURE } from './textures.ts';
 
 /**
  * What is drawn inside the coastline, and how quiet it stays.
@@ -184,7 +185,7 @@ export const worldLayers = (options: LandOptions): LayerSpecification[] => {
 			// outline pass lays the pattern down a second time and draws a bright
 			// hairline round every edge of it.
 			paint: {
-				'fill-pattern': 'ch_rock',
+				'fill-pattern': LAND_TEXTURE,
 				'fill-opacity': 0.16 * options.photoFade,
 				'fill-antialias': false
 			}

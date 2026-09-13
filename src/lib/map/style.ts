@@ -48,7 +48,12 @@ import {
 	landLayers,
 	worldLayers
 } from './land.ts';
-import { FLOURISH_TEXTURE, UNSURVEYED_TEXTURE } from './textures.ts';
+import {
+	FLOURISH_TEXTURE,
+	GROUND_FALLBACK_TEXTURE,
+	LAND_TEXTURE,
+	UNSURVEYED_TEXTURE
+} from './textures.ts';
 
 /**
  * The seabed drawn as painted terrain, in the grammar of the texture pack it is
@@ -126,7 +131,7 @@ const patternFor = (
 	for (const catalogue of ordered) {
 		for (const c of catalogue) lookup[c.code] = textureOf(c, chosen);
 	}
-	return ['coalesce', ['get', ['get', 'code'], ['literal', lookup]], 'ch_sand'];
+	return ['coalesce', ['get', ['get', 'code'], ['literal', lookup]], GROUND_FALLBACK_TEXTURE];
 };
 
 /**
@@ -1162,7 +1167,7 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			'source-layer': 'land',
 			layout: { visibility: vis(options, 'coastline') },
 			paint: {
-				'fill-pattern': 'ch_rock',
+				'fill-pattern': LAND_TEXTURE,
 				'fill-opacity': 0.16 * photoFade(options),
 				// A fill antialiases by drawing its own outline as a second pass, which
 				// for a pattern fill lays the rock down twice along the edge. Measured
