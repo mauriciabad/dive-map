@@ -56,6 +56,7 @@
 		titleTone="name"
 		icon={mark?.icon}
 		iconTint={mark?.colour}
+		iconPlate={mark?.plate ?? false}
 		{onclose}
 	>
 		{#if feature !== undefined}

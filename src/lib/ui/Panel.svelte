@@ -41,11 +41,13 @@
 		readonly titleTone?: 'label' | 'name';
 		/**
 		 * The mark the map draws for what the panel is about, in the map's own colour
-		 * for it. A diver who tapped a yellow can buoy should see that buoy on the
-		 * card, not read the word for it.
+		 * for it, and on its plate where the map gives it one. A diver who tapped a
+		 * yellow can buoy should see that buoy on the card rather than read the word
+		 * for it, and it has to be the same drawing they just tapped.
 		 */
 		readonly icon?: IconName | undefined;
 		readonly iconTint?: string | undefined;
+		readonly iconPlate?: boolean;
 		/**
 		 * Names what the panel is showing, for a panel that swaps its whole contents.
 		 * Changing it puts the scroll back to the top, because arriving halfway down a
@@ -68,6 +70,7 @@
 		titleTone = 'label',
 		icon,
 		iconTint,
+		iconPlate = false,
 		showing,
 		id,
 		footer,
@@ -222,8 +225,8 @@
 			onclick={press}
 		></button>
 		{#if icon !== undefined}
-			<span class="mark" style:color={iconTint ?? 'var(--color-brass-300)'}>
-				<Icon name={icon} size={26} />
+			<span class="mark" data-plate={iconPlate} style:color={iconTint ?? 'var(--color-brass-300)'}>
+				<Icon name={icon} size={24} />
 			</span>
 		{/if}
 		<h2 data-tone={titleTone}>{title}</h2>
@@ -352,13 +355,22 @@
 		cursor: grabbing;
 	}
 
-	/* Over the grab handle, and letting the drag through it. */
+	/* Over the grab handle, and letting the drag through it. The plate is the
+	   legend's, so a mark reads the same wherever it is shown off the map. */
 	.mark {
 		position: relative;
 		display: grid;
 		place-items: center;
 		flex: none;
+		width: 1.9rem;
+		height: 1.9rem;
+		border-radius: 999px;
 		pointer-events: none;
+	}
+
+	.mark[data-plate='true'] {
+		background: var(--color-table-900);
+		box-shadow: inset 0 0 0 1px var(--color-brass-400);
 	}
 
 	h2 {
