@@ -124,9 +124,11 @@ Real data already fetched and verified against the live services:
 Two facts about the data that the design must not paper over. The habitat specification
 accepts 40% per-class accuracy by its own confusion matrix, and a polygon only has to be
 75% pure, so a habitat boundary is an estimate and must not be drawn as a hard line. And
-ICGC's bathymetry metadata states it may not be used for maritime navigation, so every
-screen and every printed sheet carries a line saying this is for scuba orientation and not
-for navigation.
+ICGC's bathymetry metadata states it may not be used for maritime navigation. The app
+carried a not-for-navigation line on every screen and every printed sheet until the owner
+asked for it to go, on the grounds that a diver reading a seabed map is not navigating a
+vessel. The attribution stays, because the data licence requires it, and the print panel
+still warns before it is switched off.
 
 No testimonials, no usage numbers, no customers. Do not invent any.
 
