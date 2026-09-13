@@ -121,6 +121,17 @@ export class MapState {
 	tilesLoading = $state(false);
 
 	/**
+	 * Whether an archive the patch on screen is drawn from would not open.
+	 *
+	 * The badge above answers "is it still coming". This is the same question one
+	 * step on, and the answer a diver cannot get anywhere else: water the survey
+	 * never reached and water whose archive failed are drawn identically, and they
+	 * mean opposite things. Written by `watchArchives` from what the map says about
+	 * its own sources, so an archive nothing on screen draws from stays silent.
+	 */
+	archiveUnreadable = $state(false);
+
+	/**
 	 * Set once the `world` source has painted. The hillshade waits on it, because
 	 * before the land is down it lights the DEM's nodata plane. See `style.ts`.
 	 */

@@ -7,6 +7,7 @@
 	import FeatureCard from '$lib/ui/FeatureCard.svelte';
 	import { GROUND_PICK_LAYERS, OSM_PICK_LAYERS, pickFrom } from '$lib/ui/feature-card';
 	import { whenMapReady } from '$lib/map/controls';
+	import { watchArchives } from '$lib/map/tile-errors';
 	import type { LngLat, MapMouseEvent, MapTouchEvent } from 'maplibre-gl';
 	import { MapState } from '$lib/state/map-view.svelte';
 	import { Configurations } from '$lib/state/configurations.svelte';
@@ -124,6 +125,13 @@
 			};
 		})
 	);
+
+	/*
+	 * Blank water is two opposite answers wearing the same face: nobody surveyed
+	 * here, or the archive that covers here would not open. The map cannot tell the
+	 * diver which without being asked, so it is asked.
+	 */
+	$effect(() => whenMapReady((map) => watchArchives(map, view)));
 
 	/*
 	 * The document's language. `app.html` can only carry a guess, because the page
@@ -257,10 +265,21 @@
 
 	<!-- After the boot indicator has gone, and never under the failure banner it
 	     would sit on top of. -->
-	{#if view.ready && view.tilesLoading && view.error === undefined}
+	{#if view.ready && view.tilesLoading && !view.archiveUnreadable && view.error === undefined}
 		<div class="fetching" role="status">
 			<span class="ping" aria-hidden="true"></span>
 			{t(view.locale, 'loadingHere')}
+		</div>
+	{/if}
+
+	<!-- The same pill in the same strip, because it answers the same question one
+	     step on. An archive that will not open never finishes loading either, so it
+	     takes the badge's place rather than sitting under a sounder that would ping
+	     until the battery went. -->
+	{#if view.ready && view.archiveUnreadable && view.error === undefined}
+		<div class="fetching unreadable" role="status">
+			<span class="gap" aria-hidden="true"></span>
+			{t(view.locale, 'loadFailedHere')}
 		</div>
 	{/if}
 
@@ -391,6 +410,20 @@
 		letter-spacing: 0.05em;
 		text-transform: uppercase;
 		pointer-events: none;
+	}
+
+	/* The hazard edge of the failure banner, on the badge's own pill. A diver
+	   glancing at the strip sees which of the two it is before reading it. */
+	.unreadable {
+		border: 1px solid var(--color-hazard);
+	}
+
+	.gap {
+		flex: none;
+		width: 0.45rem;
+		height: 0.45rem;
+		border-radius: 50%;
+		background: var(--color-hazard);
 	}
 
 	/* A sounder pinging, the same brass as the line that drops on a cold start. */
