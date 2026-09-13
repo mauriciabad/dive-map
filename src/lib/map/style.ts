@@ -36,11 +36,20 @@ import { UNSURVEYED_TEXTURE } from './textures.ts';
  * cut that to 27.8, which is where the ground stops reading as ground. Divers
  * spend their dive between 5 and 40 m, so that band keeps its texture and the
  * veil does its receding work below 40.
+ *
+ * The -95 stop is what stops the veil drawing where there is no DEM. An absent
+ * texel is read as RGB 0,0,0, and under the Mapbox encoding that decodes to
+ * -10000 m, which used to clamp to the deepest colour on the ramp. Harbour
+ * basins, river mouths and every other hole the bathymetry skips came out as
+ * near-black water beside the shore because of it. The survey bottoms out at
+ * -80.73 m over the whole coast, so anything past -95 is missing, not deep.
  */
 const DEPTH_VEIL: ExpressionSpecification = [
 	'interpolate',
 	['linear'],
 	['elevation'],
+	-95,
+	'rgba(0, 0, 0, 0)',
 	-90,
 	'rgba(0, 42, 62, 0.84)',
 	-80,

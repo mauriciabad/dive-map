@@ -6,9 +6,12 @@ at a median -52 m, so everything past that boundary loses its shading and its
 water column in one step: habitat that carries on out there suddenly paints bare
 and bright against veiled deep water. Neither layer takes a per-pixel mask.
 
-Three features come out of here. `covered` is the footprint itself, which the
-style paints with the unsurveyed hatch under the habitat layers, so water the
-survey classified nothing in still reads as seabed. `beyond` is everything outside the footprint,
+Three features come out of here. `covered` is the footprint, widened by a band
+along the shore, which the style paints with the unsurveyed hatch under the
+habitat layers, so water the survey classified nothing in still reads as seabed.
+The band is what puts harbour basins and river mouths inside it: the bathymetry
+skips them too, and left to the wash below they read as dark holes cut into the
+land. `beyond` is everything outside that,
 which the style washes in the deep-water colour so open sea reads as open sea
 whatever the survey did. `edge` is the footprint boundary, which the style draws
 as a wide blurred line offset inwards so the wash meets the veil over a few
@@ -35,6 +38,17 @@ from shapely.geometry.polygon import orient
 from shapely.ops import transform, unary_union
 
 
+def oriented(geom):
+    """Exterior rings counter-clockwise, holes clockwise, which is what GeoJSON means by a hole.
+
+    Shapely's difference returns whatever winding the operation happened to produce,
+    and the tiler reads holes off the winding: left alone, the harbour basins cut
+    out of the offshore wash came back filled and painted over the hatch under them.
+    """
+    parts = list(geom.geoms) if geom.geom_type == "MultiPolygon" else [geom]
+    return unary_union([orient(p, sign=1.0) for p in parts])
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dem", required=True)
@@ -47,6 +61,8 @@ def main() -> int:
     ap.add_argument("--extent-out")
     ap.add_argument("--extent-simplify-m", type=float, default=200.0)
     ap.add_argument("--extent-buffer-m", type=float, default=5000.0)
+    ap.add_argument("--land")
+    ap.add_argument("--nearshore-m", type=float, default=1200.0)
     args = ap.parse_args()
 
     with rasterio.open(args.dem) as ds:
@@ -87,14 +103,20 @@ def main() -> int:
         return transform_geom(crs, "EPSG:4326", mapping(geom), precision=5)
 
     kept = unary_union([orient(p, sign=1.0).simplify(args.simplify_m) for p in (region.geoms if region.geom_type == "MultiPolygon" else [region])])
+    hatched = kept
+    if args.land:
+        land = gpd.read_file(args.land, engine="pyogrio").to_crs(crs)
+        solid = unary_union(land.geometry.values)
+        hatched = unary_union([kept, solid.boundary.buffer(args.nearshore_m).difference(solid)])
+        print(f"nearshore band adds {(hatched.area - kept.area) / 1e6:.0f} km2")
     west, south, east, north = (float(v) for v in args.beyond_bbox.split(","))
     frame = gpd.GeoSeries([box(west, south, east, north)], crs=4326).to_crs(crs).iloc[0]
-    beyond = frame.difference(kept)
-    print(f"beyond {beyond.area / 1e6:.0f} km2, covered {kept.area / 1e6:.0f} km2")
+    beyond = frame.difference(hatched)
+    print(f"beyond {beyond.area / 1e6:.0f} km2, hatched {hatched.area / 1e6:.0f} km2")
 
     features_out = [
-        {"type": "Feature", "properties": {"kind": "covered"}, "geometry": to_wgs84(kept)},
-        {"type": "Feature", "properties": {"kind": "beyond"}, "geometry": to_wgs84(beyond)},
+        {"type": "Feature", "properties": {"kind": "covered"}, "geometry": to_wgs84(oriented(hatched))},
+        {"type": "Feature", "properties": {"kind": "beyond"}, "geometry": to_wgs84(oriented(beyond))},
     ]
     features_out += [
         {"type": "Feature", "properties": {"kind": "edge"}, "geometry": to_wgs84(ring)} for ring in rings
