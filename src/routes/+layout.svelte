@@ -1,42 +1,56 @@
 <script lang="ts">
 	import './layout.css';
 	import './theme.css';
-	import favicon from '$lib/assets/favicon.svg';
+	import { serviceWorkerContainer } from '$lib/offline/support';
 	import type { Snippet } from 'svelte';
 
 	const { children }: { children: Snippet } = $props();
 
-	/*
-	 * A new worker taking over means the archives on the server have moved. The
-	 * running page is still holding modules and tiles from the old deploy, so it
-	 * reloads once rather than mixing the two, which is what produced the ETag
-	 * mismatch that needed site data cleared by hand.
-	 */
 	$effect(() => {
-		if (!('serviceWorker' in navigator)) return;
+		const sw = serviceWorkerContainer(navigator);
+		if (sw === undefined) return;
+
 		/*
-		 * Only a genuine update, never the first install.
-		 *
-		 * The worker calls skipWaiting and claims its clients, so controllerchange
-		 * fires on a first visit too, with nothing stale to escape. Reloading there
-		 * makes every cold load bounce, and with the reload racing the next install
-		 * it can bounce forever.
+		 * Registered here rather than by SvelteKit, whose generated snippet makes the
+		 * same unguarded read and resolves the worker against `paths.base`. Both URLs
+		 * come off document.baseURI instead, so the worker registers at the site root
+		 * on divemap.mauri.app and under /dive-map/ on the github.io project URL
+		 * without either one being hardcoded.
 		 */
-		if (navigator.serviceWorker.controller === null) return;
+		const register = () => {
+			void sw
+				.register(new URL('service-worker.js', document.baseURI), {
+					scope: new URL('.', document.baseURI).href
+				})
+				.catch(() => undefined);
+		};
+		if (document.readyState === 'complete') register();
+		else window.addEventListener('load', register, { once: true });
+
+		/*
+		 * A new worker taking over means the archives on the server have moved. The
+		 * running page is still holding modules and tiles from the old deploy, so it
+		 * reloads once rather than mixing the two, which is what produced the ETag
+		 * mismatch that needed site data cleared by hand.
+		 *
+		 * Only a genuine update, never the first install. The worker calls skipWaiting
+		 * and claims its clients, so controllerchange fires on a first visit too, with
+		 * nothing stale to escape. Reloading there makes every cold load bounce, and
+		 * with the reload racing the next install it can bounce forever.
+		 */
+		if (sw.controller === null) return;
 		let reloading = false;
 		const onchange = () => {
 			if (reloading) return;
 			reloading = true;
 			location.reload();
 		};
-		navigator.serviceWorker.addEventListener('controllerchange', onchange);
+		sw.addEventListener('controllerchange', onchange);
 		return () => {
-			navigator.serviceWorker.removeEventListener('controllerchange', onchange);
+			sw.removeEventListener('controllerchange', onchange);
 		};
 	});
 </script>
-
-<svelte:head><link rel="icon" href={favicon} /></svelte:head>
 
 <!--
 THESIS: The seabed as a hand-painted tabletop battlemap. Refuses the nautical-chart

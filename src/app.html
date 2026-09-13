@@ -4,6 +4,28 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="text-scale" content="scale" />
+
+		<!--
+			Every href here goes through %sveltekit.assets%, which renders as a path
+			relative to the page. The site has to answer on its own root at
+			divemap.mauri.app and under /dive-map/ on the github.io project URL, and a
+			leading slash is right for exactly one of them. The manifest's own
+			start_url and scope are "." for the same reason: a manifest URL is the base
+			its relative members resolve against, so "." is whichever directory the
+			manifest was served from.
+
+			These live in app.html rather than in svelte:head because +layout.ts sets
+			ssr = false, so anything in svelte:head only exists once the bundle has run.
+			Chrome reads the manifest off the served HTML when it decides whether the
+			app can be installed, and a tab wants its icon before then.
+		-->
+		<link rel="icon" href="%sveltekit.assets%/favicon.ico" sizes="16x16 32x32 48x48" />
+		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
+		<link rel="apple-touch-icon" href="%sveltekit.assets%/apple-touch-icon.png" />
+		<link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
+		<meta name="theme-color" content="#14100c" />
+		<meta name="mobile-web-app-capable" content="yes" />
+
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

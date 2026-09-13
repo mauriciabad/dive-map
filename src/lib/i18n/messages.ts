@@ -7,6 +7,10 @@ import type { Locale } from './locale';
  */
 const ca = {
 	appName: 'Mapa de busseig',
+	appFullName: 'Mapa de busseig de la costa catalana',
+	appShortName: 'Busseig',
+	appDescription:
+		'Batimetria i hàbitats marins de la costa catalana, per llegir un punt d’immersió abans de saltar. Funciona sense connexió i s’imprimeix en A3.',
 	layers: 'Capes',
 	isobaths: 'Isòbates',
 	ground: 'Fons',
@@ -192,6 +196,10 @@ type Catalogue = Record<keyof typeof ca, string>;
 
 const es: Catalogue = {
 	appName: 'Mapa de buceo',
+	appFullName: 'Mapa de buceo de la costa catalana',
+	appShortName: 'Buceo',
+	appDescription:
+		'Batimetría y hábitats marinos de la costa catalana, para leer un punto de inmersión antes de saltar. Funciona sin conexión y se imprime en A3.',
 	layers: 'Capas',
 	isobaths: 'Isóbatas',
 	ground: 'Fondo',
@@ -376,6 +384,10 @@ const es: Catalogue = {
 
 const en: Catalogue = {
 	appName: 'Dive map',
+	appFullName: 'Dive map of the Catalan coast',
+	appShortName: 'Dive map',
+	appDescription:
+		'Bathymetry and marine habitats of the Catalan coast, to read a site before you get in. Works offline and prints to A3.',
 	layers: 'Layers',
 	isobaths: 'Isobaths',
 	ground: 'Bottom',

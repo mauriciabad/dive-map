@@ -40,6 +40,42 @@ break every asset path on the real domain. For the same reason the workflow pass
 `static_site_generator` input to `actions/configure-pages`, which is what would otherwise
 inject a repo-name base path.
 
+## The app icon
+
+`pipeline/scripts/build_icons.mjs` draws the icon and writes every raster into `static/`.
+It is the source; the PNGs and the `.ico` are outputs, so edit the script and rerun it
+rather than touching a file in `static/icons/`.
+
+One coastline is authored. The seabed bands are offsets of it, damped toward the mean
+shore as they go deeper, so moving the coast moves the whole seabed with it. The drawing
+is laid out in a 160-unit world and cropped twice: `any` takes a tight crop, `maskable`
+takes a wider one so land and open water run off all four edges. A maskable icon that is
+the `any` icon with padding is the usual mistake, and a launcher's circular crop then eats
+a border instead of paint. `docs/shots/pwa-maskable-safezone.png` shows both crops against
+the safe circle.
+
+## Installing it
+
+`static/manifest.webmanifest` uses `"."` for `id`, `start_url` and `scope`, and relative
+paths for every icon. A manifest's URL is the base its relative members resolve against,
+so `"."` is whichever directory the manifest was served from: `/` on divemap.mauri.app and
+`/dive-map/` on the github.io project URL, from one file. A leading slash would be right
+for exactly one of them, and Chrome installs the wrong scope without complaining, which is
+why `verify-pwa.mjs` resolves both against the manifest and asserts they land on the page's
+own directory. Run it against both URLs from the same build.
+
+The icon links, the manifest link and the theme colour live in `src/app.html` rather than
+in `svelte:head`, because `src/routes/+layout.ts` sets `ssr = false` and anything in
+`svelte:head` only exists once the bundle has run. Chrome reads the manifest off the served
+HTML when it decides whether the app can be installed.
+
+`kit.serviceWorker.register` is `false` and `src/routes/+layout.svelte` registers the worker
+itself. SvelteKit's generated snippet tests `'serviceWorker' in navigator` and then reads
+`.register` off it, which throws wherever the property is declared and the API is absent:
+outside a secure context, in Safari private browsing, and in several embedded webviews.
+`serviceWorkerContainer()` in `src/lib/offline/support.ts` is the guard, because `lib.dom`
+types the property as always present and every unguarded read typechecks.
+
 ## Offline
 
 Offline is the normal mode at the moment of use, not a fallback. A diver on a boat has no
@@ -174,4 +210,5 @@ node pipeline/scripts/verify-options.mjs <url>      # do the settings do anythin
 node pipeline/scripts/verify-export.mjs <url>       # does a real A3 PDF come out
 node pipeline/scripts/find-seabed-centre.mjs <url>  # a centre with seabed under it
 node pipeline/scripts/validate-style.mjs            # the style against the MapLibre spec
+node pipeline/scripts/verify-pwa.mjs <url>          # would Chrome offer to install it
 ```
