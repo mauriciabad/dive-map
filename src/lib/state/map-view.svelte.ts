@@ -112,6 +112,15 @@ export class MapState {
 	ready = $state(false);
 
 	/**
+	 * Whether the patch on screen is still arriving, after the first load is done.
+	 *
+	 * Water the survey never reached is painted with a hatch, and a diver had no
+	 * way to tell that from tiles that had not landed yet. Written by MapView from
+	 * MapLibre's own answer, never guessed here.
+	 */
+	tilesLoading = $state(false);
+
+	/**
 	 * Set once the `world` source has painted. The hillshade waits on it, because
 	 * before the land is down it lights the DEM's nodata plane. See `style.ts`.
 	 */
@@ -191,9 +200,7 @@ export class MapState {
 
 	/** Whether the photograph is holding this layer's switch down, so the panel can say why. */
 	lockedByPhoto(id: LayerId): boolean {
-		return (
-			this.visible.has('satellite') && SUSPENDED_BY_PHOTO.some((l) => l.id === id && l.locked)
-		);
+		return this.visible.has('satellite') && SUSPENDED_BY_PHOTO.some((l) => l.id === id && l.locked);
 	}
 
 	toggle(id: LayerId): void {

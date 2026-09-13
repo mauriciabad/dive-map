@@ -256,6 +256,43 @@
 		});
 		m.once('idle', paintHillshade);
 
+		/**
+		 * Say when the patch on screen is still coming, and stop saying it the moment
+		 * it arrives.
+		 *
+		 * `areTilesLoaded` is true only when every source has every tile the current
+		 * viewport covers, which is the diver's question exactly: pan somewhere and
+		 * either the seabed is missing because nobody surveyed it or because it is
+		 * still in flight. Nothing is counted here, so nothing can drift out of step
+		 * with what the map actually holds.
+		 *
+		 * The wait before announcing is what stops it lying the other way. A pan
+		 * across cached water settles in a frame or two, and a badge that blinks on
+		 * every drag is noise a diver learns to look past. It clears the instant the
+		 * tiles land, whether or not the wait had run out.
+		 */
+		const PATIENCE_MS = 500;
+		let patience: ReturnType<typeof setTimeout> | undefined;
+		const readTiles = (): void => {
+			if (m.areTilesLoaded()) {
+				clearTimeout(patience);
+				patience = undefined;
+				view.tilesLoading = false;
+				return;
+			}
+			if (patience !== undefined || view.tilesLoading) return;
+			patience = setTimeout(() => {
+				patience = undefined;
+				// Asked again rather than assumed. Half a second is long enough for the
+				// last tile to have landed without another event since.
+				view.tilesLoading = !m.areTilesLoaded();
+			}, PATIENCE_MS);
+		};
+		m.on('dataloading', readTiles);
+		m.on('sourcedata', readTiles);
+		m.on('moveend', readTiles);
+		m.on('idle', readTiles);
+
 		m.on('load', () => {
 			view.ready = true;
 			onready?.(m);
@@ -277,6 +314,7 @@
 		applied = first;
 		map = m;
 		return () => {
+			clearTimeout(patience);
 			publishMap(undefined);
 			chrome = undefined;
 			pin?.remove();

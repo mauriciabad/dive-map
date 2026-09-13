@@ -254,6 +254,15 @@
 		</div>
 	{/if}
 
+	<!-- After the boot indicator has gone, and never under the failure banner it
+	     would sit on top of. -->
+	{#if view.ready && view.tilesLoading && view.error === undefined}
+		<div class="fetching" role="status">
+			<span class="ping" aria-hidden="true"></span>
+			{t(view.locale, 'loadingHere')}
+		</div>
+	{/if}
+
 	{#if view.error !== undefined}
 		<div class="failure" role="alert">
 			<strong>{t(view.locale, 'errorTitle')}</strong>
@@ -351,6 +360,73 @@
 		100% {
 			bottom: 0;
 			opacity: 0.25;
+		}
+	}
+
+	/*
+	 * A pill, not an overlay. The diver is reading the seabed under it, and an
+	 * indicator drawn over the water it is talking about would hide the answer it
+	 * promises. It sits in the one strip of chrome nothing else uses, clear of both
+	 * corner stacks on a phone, opaque rather than frosted so it survives a deck at
+	 * noon, and deaf to the pointer so a drag that starts on it still pans.
+	 */
+	.fetching {
+		position: absolute;
+		z-index: 20;
+		inset: calc(var(--ctrl-gap) + env(safe-area-inset-top)) auto auto 50%;
+		translate: -50% 0;
+		width: max-content;
+		max-width: calc(100vw - 2 * (var(--ctrl-gap) * 2 + var(--ctrl-size)));
+		display: flex;
+		align-items: center;
+		gap: 0.55rem;
+		padding: 0.5rem 0.85rem;
+		background: var(--color-table-800);
+		border-radius: var(--radius-rail);
+		box-shadow: var(--rail-shadow);
+		color: var(--color-paper);
+		font-size: 0.82rem;
+		font-weight: 600;
+		letter-spacing: 0.05em;
+		text-transform: uppercase;
+		pointer-events: none;
+	}
+
+	/* A sounder pinging, the same brass as the line that drops on a cold start. */
+	.ping {
+		position: relative;
+		flex: none;
+		width: 0.45rem;
+		height: 0.45rem;
+		border-radius: 50%;
+		background: var(--color-brass-300);
+	}
+
+	.ping::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		border-radius: 50%;
+		border: 1px solid var(--color-brass-400);
+		animation: ping 1.4s ease-out infinite;
+	}
+
+	@keyframes ping {
+		0% {
+			scale: 1;
+			opacity: 0.9;
+		}
+		100% {
+			scale: 3.2;
+			opacity: 0;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.ping::after {
+			animation: none;
+			scale: 2;
+			opacity: 0.45;
 		}
 	}
 
