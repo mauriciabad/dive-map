@@ -1,5 +1,10 @@
 <!doctype html>
-<html lang="en">
+<!--
+	One prerendered file is served to everybody, so this can only be a guess, and
+	the guess is the language the card below is written in. The app overwrites it
+	with the language it actually negotiated as soon as it runs.
+-->
+<html lang="ca">
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -25,6 +30,68 @@
 		<link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
 		<meta name="theme-color" content="#14100c" />
 		<meta name="mobile-web-app-capable" content="yes" />
+
+		<!--
+			What somebody pasting the link into WhatsApp, Slack or a group chat gets
+			back. All of it has to be in the served file: the page sets ssr = false, so
+			a svelte:head tag exists only once the bundle has run, and the scraper that
+			builds the preview card never runs it. Before this, a shared link came back
+			as a bare URL with no title at all.
+
+			These URLs are absolute, unlike every href above. A scraper fetches
+			og:image on its own, with no page to resolve a relative path against, and
+			a relative one is quietly dropped by most of them. The origin comes from
+			static/CNAME by way of svelte.config.js, so the card follows the site if
+			the domain ever changes. It names the canonical site even in a build
+			served from the github.io project URL, which is where a share should land.
+
+			One file, one language. Catalan, which is the language of the place names,
+			of the survey data and of the manifest; og:locale:alternate is all the
+			markup can say about the other two, since there is no second URL to point
+			at. A card in the reader's own language needs a server, which this site
+			does not have.
+
+			The image is built by pipeline/scripts/build_og_image.mjs out of the map
+			itself. 1200x630 is the frame every one of these platforms crops to, and
+			the file is kept under a quarter of a megabyte because WhatsApp gives up
+			on a slow one.
+		-->
+		<title>Mapa de busseig de la costa catalana</title>
+		<meta
+			name="description"
+			content="Batimetria i hàbitats marins de la costa catalana, per llegir un punt d’immersió abans de saltar. Funciona sense connexió i s’imprimeix en A3."
+		/>
+		<link rel="canonical" href="%sveltekit.env.PUBLIC_SITE_ORIGIN%/" />
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content="Mapa de busseig" />
+		<meta property="og:url" content="%sveltekit.env.PUBLIC_SITE_ORIGIN%/" />
+		<meta property="og:title" content="Mapa de busseig de la costa catalana" />
+		<meta
+			property="og:description"
+			content="Batimetria i hàbitats marins de la costa catalana, per llegir un punt d’immersió abans de saltar. Funciona sense connexió i s’imprimeix en A3."
+		/>
+		<meta property="og:image" content="%sveltekit.env.PUBLIC_SITE_ORIGIN%/og-image.jpg" />
+		<meta property="og:image:type" content="image/jpeg" />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta
+			property="og:image:alt"
+			content="Les Illes Medes en aquest mapa: isòbates, praderies de posidònia i onze punts d’immersió amb la seva bandera."
+		/>
+		<meta property="og:locale" content="ca_ES" />
+		<meta property="og:locale:alternate" content="es_ES" />
+		<meta property="og:locale:alternate" content="en_GB" />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content="Mapa de busseig de la costa catalana" />
+		<meta
+			name="twitter:description"
+			content="Batimetria i hàbitats marins de la costa catalana, per llegir un punt d’immersió abans de saltar. Funciona sense connexió i s’imprimeix en A3."
+		/>
+		<meta name="twitter:image" content="%sveltekit.env.PUBLIC_SITE_ORIGIN%/og-image.jpg" />
+		<meta
+			name="twitter:image:alt"
+			content="Les Illes Medes en aquest mapa: isòbates, praderies de posidònia i onze punts d’immersió amb la seva bandera."
+		/>
 
 		%sveltekit.head%
 	</head>

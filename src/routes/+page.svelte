@@ -389,9 +389,15 @@
 	);
 </script>
 
+<!--
+	The tab's name, in the language this tab settled on. Svelte replaces the title
+	`app.html` carries rather than adding a second one, so the crawler gets the
+	full name off the served file and the diver gets the short one in their own
+	language. The description is only in `app.html`: a second meta element is not
+	replaced, it is appended, and nothing reads the one the app would add.
+-->
 <svelte:head>
 	<title>{t(view.locale, 'appName')}</title>
-	<meta name="description" content={t(view.locale, 'appDescription')} />
 	<meta name="theme-color" content="#14100c" />
 </svelte:head>
 

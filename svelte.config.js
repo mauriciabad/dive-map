@@ -1,4 +1,27 @@
 import adapter from '@sveltejs/adapter-static';
+import { readFileSync } from 'node:fs';
+
+/*
+ * The address the site answers on, for the one thing that cannot be written
+ * relatively: the share card in app.html. A crawler fetches og:image on its own,
+ * with no page to resolve a relative path against, so those URLs have to be
+ * absolute and have to be in the served file.
+ *
+ * It is read from static/CNAME rather than typed here, because that file is what
+ * makes the domain true: GitHub Pages serves the site at whatever it says. Typing
+ * it twice is how a card ends up pointing at an address the site moved off.
+ *
+ * SvelteKit substitutes %sveltekit.env.PUBLIC_SITE_ORIGIN% in app.html from the
+ * public environment, and this config is read before that environment is, so
+ * setting it here reaches the template. An override is honoured for a deploy that
+ * is not this one.
+ */
+const origin = () => {
+	const host = readFileSync('static/CNAME', 'utf8').trim();
+	if (host === '') throw new Error('static/CNAME is empty, so the share card has no address');
+	return `https://${host}`;
+};
+process.env.PUBLIC_SITE_ORIGIN ??= origin();
 
 /** @type {import('@sveltejs/kit').Config} */
 export default {
