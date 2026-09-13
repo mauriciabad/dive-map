@@ -52,6 +52,13 @@ export const PANEL_ID = 'dive-settings-panel';
 /** The location panel is opened from the other corner and needs its own. */
 export const POSITION_PANEL_ID = 'dive-position-panel';
 
+/**
+ * The locate control's container. MapLibre owns the corner it sits in, so the
+ * opening hints find the button by this class and measure it rather than
+ * guessing at a corner offset that a notch or a missing compass would move.
+ */
+export const LOCATE_CONTROL_CLASS = 'dive-locate';
+
 export interface PanelProps {
 	readonly view: MapState;
 	readonly panel: PanelState;

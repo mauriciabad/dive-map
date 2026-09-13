@@ -8,7 +8,8 @@
 	import { type MapFrame, buildFrame } from '$lib/geo/frame';
 	import { PositionTracker } from '$lib/geo/position.svelte';
 	import { SvelteControl, whenMapReady } from '$lib/map/controls';
-	import { POSITION_PANEL_ID } from './panel';
+	import { POSITION_ZOOM } from '$lib/state/opening';
+	import { LOCATE_CONTROL_CLASS, POSITION_PANEL_ID } from './panel';
 	import type { MapState } from '$lib/state/map-view.svelte';
 
 	/**
@@ -105,7 +106,7 @@
 		whenMapReady((m) => {
 			const button = new SvelteControl(LocationButton, {
 				props: buttonProps,
-				className: 'maplibregl-ctrl maplibregl-ctrl-group'
+				className: `maplibregl-ctrl maplibregl-ctrl-group ${LOCATE_CONTROL_CLASS}`
 			});
 			m.addControl(button, 'top-right');
 			const onStyle = (): void => {
@@ -133,7 +134,11 @@
 		const fix = tracker.fix;
 		if (map === undefined || fix === undefined || seq === handledRecentre) return;
 		handledRecentre = seq;
-		map.easeTo({ center: [fix.lng, fix.lat], zoom: Math.max(map.getZoom(), 15), duration: 900 });
+		map.easeTo({
+			center: [fix.lng, fix.lat],
+			zoom: Math.max(map.getZoom(), POSITION_ZOOM),
+			duration: 900
+		});
 	});
 
 	$effect(() => () => {

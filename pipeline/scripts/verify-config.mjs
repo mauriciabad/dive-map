@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 /**
- * Prove the two memories behave as two memories.
+ * Prove the three memories behave as three memories.
  *
- * The working configuration lives in sessionStorage and carries the camera, so a
- * reload comes back to the same water and a second tab does not. The named
- * configurations live in localStorage, change only when somebody presses save,
- * and carry no camera at all, so loading one never moves the boat.
+ * The working configuration lives in sessionStorage and carries this tab's
+ * camera, so a reload comes back to the same water. The named configurations
+ * live in localStorage, change only when somebody presses save, and carry no
+ * camera at all, so loading one never moves the boat. Beside them sits the last
+ * camera any tab wrote, which is where a tab with none of its own opens.
  *
  * Every assertion here waits for a state it then reads. Nothing is settled by a
  * timeout: `verify-render.mjs` stops measuring once a number crosses a
@@ -30,8 +31,13 @@ if (shotDir) mkdirSync(shotDir, { recursive: true });
 const LIBRARY_KEY = 'dive-map:configurations';
 const WORKING_KEY = 'dive-map:working';
 
-/** Begur, where the map opens. */
-const START = { lng: 3.2165, lat: 41.9275, zoom: 13.4 };
+/**
+ * Begur, the water this was built for. Not where the map opens any more: a
+ * browser that has never been here opens on the whole survey, and one that has
+ * opens on the last camera any tab wrote. This is somewhere known to paint that
+ * a tab can be moved to.
+ */
+const BEGUR = { lng: 3.2165, lat: 41.9275, zoom: 13.4, bearing: 0 };
 
 /**
  * Illes Medes, well inside the survey so the camera guard leaves it alone, and
@@ -79,11 +85,15 @@ const watch = (page, tag) => {
  * running out of the drawing buffer. The last one is what separates a painted map
  * from a blue rectangle.
  *
+ * The floor on the spread is an argument rather than a constant because the map
+ * no longer opens at diving zoom. The whole survey at once is coast and open sea,
+ * so it clears a low bar and not the one a textured seabed clears.
+ *
  * Waiting on the sounding line alone is a trap: `waitForSelector` with `detached`
  * is satisfied by an element that has not been rendered yet, so it passes on an
  * empty page a millisecond after the navigation.
  */
-const settle = async (page) => {
+const settle = async (page, floor = 0.4) => {
 	// `MapView.svelte` publishes the handle under import.meta.env.DEV only, so a
 	// preview of a production build looks exactly like a map that never loaded.
 	// Saying so beats ninety seconds and a stack from inside the poll.
@@ -100,7 +110,7 @@ const settle = async (page) => {
 		{ timeout: 90_000 }
 	);
 	return page.waitForFunction(
-		() => {
+		(want) => {
 			const map = window.diveMap;
 			const canvas = map.getCanvas();
 			const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
@@ -127,9 +137,9 @@ const settle = async (page) => {
 			const spread = Math.sqrt(sumSquares / n - (sum / n) ** 2);
 			const previous = window.__spread;
 			window.__spread = spread;
-			return previous !== undefined && Math.abs(previous - spread) < 0.05 && spread > 6;
+			return previous !== undefined && Math.abs(previous - spread) < 0.05 && spread > want;
 		},
-		null,
+		floor,
 		{ timeout: 90_000, polling: 700 }
 	);
 };
@@ -157,6 +167,7 @@ const look = (page) =>
 			lng: +centre.lng.toFixed(5),
 			lat: +centre.lat.toFixed(5),
 			zoom: +map.getZoom().toFixed(3),
+			minZoom: +map.getMinZoom().toFixed(3),
 			bearing: Math.round(map.getBearing()),
 			hillshade: layer('hillshade'),
 			habitats: drawn('ground-habitats-fill'),
@@ -175,6 +186,9 @@ const stored = (page, key, area) =>
 		},
 		[key, area]
 	);
+
+/** The whole survey fitted to this screen, which is the camera guard's own floor. */
+const zoomedOut = (state) => near(state.zoom, state.minZoom, 0.02);
 
 const panel = (page) => page.locator('#dive-settings-panel');
 
@@ -262,9 +276,10 @@ await settle(a);
 const opened = await look(a);
 check(
 	'opens on the shipped defaults',
-	opened.hillshade === 'visible' && opened.habitats > 0 && opened.failure === undefined,
+	opened.hillshade === 'visible' && opened.failure === undefined,
 	opened
 );
+check('and as far out as the camera guard allows, having never been here', zoomedOut(opened), opened);
 
 await openSection(a, /layers|capes|capas/i);
 await panel(a)
@@ -277,7 +292,7 @@ await panel(a)
 	.click();
 await closePanel(a);
 await jumpTo(a, MOVED);
-await settle(a);
+await settle(a, 6);
 
 const changed = await look(a);
 check(
@@ -292,7 +307,7 @@ check(
 );
 
 await a.reload({ waitUntil: 'domcontentloaded' });
-await settle(a);
+await settle(a, 6);
 const reloaded = await look(a);
 check('a reload comes back to the same water', sameCamera(reloaded, changed), {
 	before: changed,
@@ -309,13 +324,9 @@ if (shotDir) await a.screenshot({ path: `${shotDir}/config-restored.png` });
 // A second tab in the same browser, which must not inherit any of it.
 const b = watch(await first.newPage(), 'tab B');
 await b.goto(url, { waitUntil: 'domcontentloaded' });
-await settle(b);
+await settle(b, 6);
 const second = await look(b);
-check(
-	'a second tab opens where the map opens, not where the first tab is',
-	sameCamera(second, START),
-	second
-);
+check('a second tab opens on the last camera any tab wrote', sameCamera(second, MOVED), second);
 check(
 	'a second tab opens on the shipped settings',
 	second.hillshade === 'visible' && second.habitats > 0,
@@ -324,6 +335,16 @@ check(
 const stillA = await look(a);
 check('the first tab stayed where it was', sameCamera(stillA, changed), { a: stillA, b: second });
 if (shotDir) await b.screenshot({ path: `${shotDir}/config-second-tab.png` });
+
+// Picking a camera up once is not following the other tab about.
+await jumpTo(a, BEGUR);
+await settle(a, 6);
+await waitForWorkingWrite(a, BEGUR.zoom);
+const heldB = await look(b);
+check('and then keeps its own water while the first tab moves on', sameCamera(heldB, MOVED), {
+	a: BEGUR,
+	b: heldB
+});
 await b.close();
 
 // The sheet is part of a configuration, so set one that is not the shipped A3
@@ -369,11 +390,11 @@ const later = await browser.newContext({
 });
 const c = watch(await later.newPage(), 'new session');
 await c.goto(url, { waitUntil: 'domcontentloaded' });
-await settle(c);
+await settle(c, 6);
 const fresh = await look(c);
 check(
-	'a new session opens on the shipped defaults, not on the last tab',
-	sameCamera(fresh, START) && fresh.habitats > 0,
+	'a new session opens on the shipped settings, over the water the browser last saw',
+	sameCamera(fresh, BEGUR) && fresh.habitats > 0,
 	fresh
 );
 
@@ -386,7 +407,7 @@ await c.waitForFunction(
 	null,
 	{ timeout: 10_000 }
 );
-await settle(c);
+await settle(c, 6);
 const loaded = await look(c);
 check(
 	'loading it changed the map',
@@ -394,7 +415,7 @@ check(
 	loaded
 );
 check('and nothing failed to load along the way', loaded.failure === undefined, loaded);
-check('loading it did not move the map', sameCamera(loaded, START), loaded);
+check('loading it did not move the map', sameCamera(loaded, BEGUR), loaded);
 if (shotDir) await c.screenshot({ path: `${shotDir}/config-loaded.png` });
 
 // The sheet came back with the rest of it. This session started on the shipped
@@ -457,7 +478,7 @@ await c.waitForFunction(
 
 const d = watch(await later.newPage(), 'tab from default');
 await d.goto(url, { waitUntil: 'domcontentloaded' });
-await settle(d);
+await settle(d, 6);
 const fromDefault = await look(d);
 check(
 	'a new tab opens on the default configuration',
@@ -465,8 +486,8 @@ check(
 	fromDefault
 );
 check(
-	'and still opens where the map opens, because a configuration has no camera',
-	sameCamera(fromDefault, START),
+	'and still opens over the water the browser last saw, because a configuration has no camera',
+	sameCamera(fromDefault, BEGUR),
 	fromDefault
 );
 await d.close();
@@ -533,7 +554,8 @@ const broken = [
 				(await old.count()) === 1
 			);
 			await old.click();
-			await settle(page);
+			await jumpTo(page, BEGUR);
+			await settle(page, 6);
 			const after = await look(page);
 			check(
 				'loading it leaves a map that still draws',
@@ -550,9 +572,11 @@ for (const { name, seed, andThen } of broken) {
 	await page.goto(url, { waitUntil: 'domcontentloaded' });
 	await settle(page);
 	const state = await look(page);
+	// These contexts carry only the blob being tested, so there is no camera
+	// anywhere and the map has to fall all the way back to the whole survey.
 	check(
 		`the map still opens with ${name}`,
-		sameCamera(state, START) && state.habitats + state.substrate > 0 && state.failure === undefined,
+		zoomedOut(state) && state.failure === undefined,
 		state
 	);
 	await andThen?.(page);

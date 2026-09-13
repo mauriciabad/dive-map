@@ -143,7 +143,10 @@ describe('what a tab opens with', () => {
 		});
 		const opening = open(local, session).opening();
 		expect(opening.configuration).toEqual(ca);
-		expect(opening.camera?.zoom).toBe(12);
+		expect(opening.start).toEqual({
+			kind: 'tab',
+			camera: { centre: { lng: 3, lat: 41 }, zoom: 12, bearing: 0 }
+		});
 	});
 
 	it('takes the saved default when the tab is a new one', () => {
@@ -156,16 +159,52 @@ describe('what a tab opens with', () => {
 		expect(opening.from).toBe('Medes');
 	});
 
-	/** A saved configuration has no camera, so a new tab cannot inherit a view. */
-	it('opens a new tab on no camera at all, whatever the default says', () => {
+	/** A saved configuration still has no camera, whatever else a new tab inherits. */
+	it('opens on the whole survey when no tab has ever moved', () => {
 		const local = memoryStore();
 		const configs = open(local);
 		configs.save('Medes', substrate);
 		configs.setOpenWith('Medes');
-		expect(open(local, memoryStore()).opening().camera).toBeUndefined();
+		expect(open(local, memoryStore()).opening().start).toEqual({ kind: 'survey' });
+	});
+
+	it('opens a new tab on the last camera any tab wrote', () => {
+		const local = memoryStore();
+		const camera = { centre: { lng: 2.4, lat: 41.2 }, zoom: 16, bearing: 30 };
+		open(local).remember({ configuration: ca, camera, from: undefined });
+		expect(open(local, memoryStore()).opening().start).toEqual({ kind: 'shared', camera });
 	});
 
 	it('falls back to what the map ships with', () => {
-		expect(open().opening()).toEqual({ configuration: ca, camera: undefined, from: undefined });
+		expect(open().opening()).toEqual({
+			configuration: ca,
+			from: undefined,
+			start: { kind: 'survey' }
+		});
+	});
+});
+
+describe('the opening hints', () => {
+	it('start out never having been shown', () => {
+		expect(open().introSeen).toBe(false);
+	});
+
+	it('stay dismissed in every other tab and in the next session', () => {
+		const local = memoryStore();
+		open(local).markIntroSeen();
+		expect(open(local, memoryStore()).introSeen).toBe(true);
+	});
+
+	/** A camera lands in the same blob every time the map settles. */
+	it('are not put back by the next camera a tab writes', () => {
+		const local = memoryStore();
+		const configs = open(local);
+		configs.markIntroSeen();
+		configs.remember({
+			configuration: ca,
+			camera: { centre: { lng: 3, lat: 41 }, zoom: 12, bearing: 0 },
+			from: undefined
+		});
+		expect(open(local, memoryStore()).introSeen).toBe(true);
 	});
 });

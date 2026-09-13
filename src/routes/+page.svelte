@@ -1,6 +1,7 @@
 <script lang="ts">
 	import MapView from '$lib/map/MapView.svelte';
 	import ControlRail from '$lib/ui/ControlRail.svelte';
+	import FirstRun from '$lib/ui/FirstRun.svelte';
 	import LocationControl from '$lib/ui/LocationControl.svelte';
 	import CropOverlay from '$lib/ui/CropOverlay.svelte';
 	import FeatureCard from '$lib/ui/FeatureCard.svelte';
@@ -9,25 +10,47 @@
 	import type { LngLat, MapMouseEvent, MapTouchEvent } from 'maplibre-gl';
 	import { MapState } from '$lib/state/map-view.svelte';
 	import { Configurations } from '$lib/state/configurations.svelte';
+	import { POSITION_ZOOM, SURVEY_CENTRE, grantedFix, nearSurvey } from '$lib/state/opening';
 	import { negotiate } from '$lib/i18n/locale';
 	import { t } from '$lib/i18n/messages';
-
-	/** Begur and Tamariu, the water this was built for. */
-	const START = { lng: 3.2165, lat: 41.9275 };
-	const START_ZOOM = 13.4;
 
 	const view = new MapState(navigator.languages);
 
 	/*
 	 * What this tab opens with, decided before the map is built: its own working
 	 * configuration if it has one, else the saved configuration set as the
-	 * default, else the shipped defaults. Only the working one carries a camera,
-	 * which is what keeps a second tab from opening on the first one's view.
+	 * default, else the shipped defaults.
 	 */
 	const configurations = new Configurations(negotiate(navigator.languages));
 	const opening = configurations.opening();
 	view.apply(opening.configuration);
-	const start = opening.camera ?? { centre: START, zoom: START_ZOOM, bearing: 0 };
+
+	/**
+	 * Somewhere over the region while the guard works out the real answer, which it
+	 * can only do once it knows the size of the screen. The camera is snapped to
+	 * `getMinZoom` below the moment the map exists, so this number decides nothing
+	 * except which tiles get asked for first. Zero would be worse than a guess:
+	 * MapLibre refuses to show the world smaller than the viewport and throws the
+	 * centre to the equator to make it fit.
+	 */
+	const BEFORE_THE_GUARD_ANSWERS = 7;
+
+	const start =
+		opening.start.kind === 'survey'
+			? { centre: SURVEY_CENTRE, zoom: BEFORE_THE_GUARD_ANSWERS, bearing: 0 }
+			: opening.start.camera;
+
+	/*
+	 * Where the map settled once everything allowed to move it has had its say.
+	 * Undefined while a fix might still arrive, which is what keeps the opening
+	 * hints from flashing up over a map that is about to jump to the diver.
+	 */
+	let settled = $state.raw<'survey' | 'elsewhere' | undefined>(
+		opening.start.kind === 'tab' ? 'elsewhere' : undefined
+	);
+	let dismissed = $state(false);
+	const taught = configurations.introSeen;
+	const hinting = $derived(settled === 'survey' && !taught && !dismissed && view.ready);
 
 	/*
 	 * The working configuration trails the map instead of following it. A camera
@@ -54,6 +77,53 @@
 			window.removeEventListener('pagehide', flush);
 		};
 	});
+
+	/*
+	 * A tab that did not come back to its own water opens on the diver instead,
+	 * when the browser already knows where they are and they are near this coast.
+	 * Nothing here asks for anything: the permission is read before the fix is
+	 * requested, so a first visit is never met with a prompt.
+	 *
+	 * A hand on the map outranks it. Somebody already dragging has said where they
+	 * want to be, and being thrown somewhere else mid-gesture is the worst thing a
+	 * map can do.
+	 */
+	$effect(() =>
+		whenMapReady((map) => {
+			if (opening.start.kind === 'tab') return;
+			/*
+			 * As far out as the map goes, which is the whole survey fitted to this
+			 * screen. `constrainToData` does that arithmetic already and publishes the
+			 * answer as the minimum zoom, so reading it back beats keeping a second
+			 * copy of it here that would be right on a laptop and wrong on a phone.
+			 */
+			if (opening.start.kind === 'survey') {
+				map.jumpTo({ center: [SURVEY_CENTRE.lng, SURVEY_CENTRE.lat], zoom: map.getMinZoom() });
+			}
+			const canvas = map.getCanvasContainer();
+			let touched = false;
+			const stop = (): void => {
+				touched = true;
+			};
+			canvas.addEventListener('pointerdown', stop, { passive: true });
+			canvas.addEventListener('wheel', stop, { passive: true });
+			void grantedFix(navigator).then((fix) => {
+				if (fix !== undefined && !touched && nearSurvey(fix)) {
+					map.jumpTo({
+						center: [fix.lng, fix.lat],
+						zoom: Math.max(map.getZoom(), POSITION_ZOOM)
+					});
+					settled = 'elsewhere';
+					return;
+				}
+				settled = opening.start.kind === 'survey' ? 'survey' : 'elsewhere';
+			});
+			return () => {
+				canvas.removeEventListener('pointerdown', stop);
+				canvas.removeEventListener('wheel', stop);
+			};
+		})
+	);
 
 	/** Wet fingers need slack; the seabed needs more, so a site on a habitat
 	 *  boundary names both sides rather than whichever pixel was under the thumb. */
@@ -168,6 +238,17 @@
 
 	<ControlRail {view} {configurations} />
 	<LocationControl {view} />
+
+	<!-- Last, so the locate button it points at is already in MapLibre's corner. -->
+	{#if hinting}
+		<FirstRun
+			locale={view.locale}
+			ondone={() => {
+				dismissed = true;
+				configurations.markIntroSeen();
+			}}
+		/>
+	{/if}
 </main>
 
 <style>

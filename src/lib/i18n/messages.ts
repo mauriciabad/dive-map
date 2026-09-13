@@ -244,6 +244,8 @@ const ca = {
 		'Aquest navegador té configuracions desades per una versió més nova del mapa. Aquesta versió no les sap llegir i no les tocarà.',
 	configsDamaged: 'Les configuracions desades en aquest navegador no es poden llegir.',
 	configsDiscard: 'Descartar-les i començar de nou',
+	introCoast: 'Acosta’t a la costa per veure el fons marí.',
+	introLocate: 'Aquest botó et porta on ets ara.',
 	habitatEstimate:
 		'Classes estimades. La cartografia admet un 40 % d’encert per classe i un 75 % de puresa per polígon.'
 } as const;
@@ -490,6 +492,8 @@ const es: Catalogue = {
 		'Este navegador tiene configuraciones guardadas por una versión más nueva del mapa. Esta versión no sabe leerlas y no las tocará.',
 	configsDamaged: 'Las configuraciones guardadas en este navegador no se pueden leer.',
 	configsDiscard: 'Descartarlas y empezar de nuevo',
+	introCoast: 'Acércate a la costa para ver el fondo marino.',
+	introLocate: 'Este botón te lleva donde estás ahora.',
 	habitatEstimate:
 		'Clases estimadas. La cartografía admite un 40 % de acierto por clase y un 75 % de pureza por polígono.'
 };
@@ -731,6 +735,8 @@ const en: Catalogue = {
 		'This browser holds configurations saved by a newer version of the map. This version cannot read them and will not touch them.',
 	configsDamaged: 'The configurations saved in this browser cannot be read.',
 	configsDiscard: 'Discard them and start again',
+	introCoast: 'Zoom in on the coast to see the seabed.',
+	introLocate: 'This button takes you to where you are.',
 	habitatEstimate:
 		'Estimated classes. The survey accepts 40% accuracy per class and 75% polygon purity.'
 };

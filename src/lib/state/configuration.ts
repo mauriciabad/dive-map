@@ -54,6 +54,18 @@ export interface Camera {
 	readonly bearing: number;
 }
 
+/**
+ * Where a tab's camera came from, which is not the same question as what it is.
+ *
+ * `tab` is a reload coming back to its own water. `shared` is a new tab picking
+ * up the last camera any tab wrote. `survey` is nobody having pointed this
+ * browser at anything yet, and it is the only one that earns the opening hints.
+ */
+export type Start =
+	| { readonly kind: 'survey' }
+	| { readonly kind: 'tab'; readonly camera: Camera }
+	| { readonly kind: 'shared'; readonly camera: Camera };
+
 /** A named configuration, as saved by hand. The name is its identity. */
 export interface SavedConfiguration {
 	readonly name: string;
@@ -75,7 +87,26 @@ export interface Working {
 	readonly from: string | undefined;
 }
 
+/**
+ * The rest of what `localStorage` holds: what this browser last saw, written
+ * without anybody asking for it.
+ *
+ * A third memory because neither of the other two can answer this. The library
+ * is what a diver saved on purpose and must never move on its own; the working
+ * configuration belongs to one tab and dies with it. A tab opening for the first
+ * time still needs somewhere to look for the water the last one was over, and
+ * the opening hints need somewhere to record that they have done their job.
+ */
+export interface Recent {
+	/** The last camera any tab wrote. A tab with none of its own opens here. */
+	readonly camera: Camera | undefined;
+	/** True once the opening hints have been dismissed, so no tab shows them again. */
+	readonly introSeen: boolean;
+}
+
 export const EMPTY_LIBRARY: Library = { saved: [], openWith: undefined };
+
+export const NOTHING_RECENT: Recent = { camera: undefined, introSeen: false };
 
 export const shippedConfiguration = (locale: Locale): Configuration => ({
 	layers: DEFAULT_LAYERS,
@@ -111,6 +142,7 @@ export const STORAGE_VERSION = 1;
 
 export const LIBRARY_KEY = 'dive-map:configurations';
 export const WORKING_KEY = 'dive-map:working';
+export const RECENT_KEY = 'dive-map:recent';
 
 /**
  * What came back from storage. `damaged` is a blob this version cannot read at
@@ -328,3 +360,17 @@ export const readWorking = (store: KeyValueStore, locale: Locale): Working | und
 
 export const writeWorking = (store: KeyValueStore, working: Working): boolean =>
 	store.write(WORKING_KEY, JSON.stringify({ version: STORAGE_VERSION, ...working }));
+
+/**
+ * Nothing here was typed by a person, so a blob this version cannot read is
+ * worth nothing and the next camera the diver moves to replaces it. That is the
+ * line `readWorking` takes, and for the same reason. The library is the opposite.
+ */
+export const readRecent = (store: KeyValueStore): Recent => {
+	const blob = readBlob(store.read(RECENT_KEY));
+	if (blob.kind !== 'ok') return NOTHING_RECENT;
+	return { camera: parseCamera(blob.value['camera']), introSeen: blob.value['introSeen'] === true };
+};
+
+export const writeRecent = (store: KeyValueStore, recent: Recent): boolean =>
+	store.write(RECENT_KEY, JSON.stringify({ version: STORAGE_VERSION, ...recent }));
