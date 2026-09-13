@@ -265,8 +265,20 @@ body {
 	align-items: center;
 	justify-content: flex-end;
 	gap: 6px;
+	/*
+	 * Pinned to both edges rather than to the right alone, which is where the
+	 * cropping came from. MapLibre sizes this corner to its contents, and a box
+	 * sized that way could not work out how wide the credits were allowed to be:
+	 * on a phone it settled on one button's width and the text wrapped one letter
+	 * per line, four hundred pixels off the bottom of the screen. Given both edges
+	 * it is a strip the width of the map, the row still ends at the right, and the
+	 * credits have somewhere to wrap. The strip ignores the pointer, so the map
+	 * under it still drags.
+	 */
+	left: 0;
 	padding: 0 calc(env(safe-area-inset-right) + var(--ctrl-gap))
-		calc(env(safe-area-inset-bottom) + var(--ctrl-gap)) 0;
+		calc(env(safe-area-inset-bottom) + var(--ctrl-gap))
+		calc(env(safe-area-inset-left) + var(--ctrl-gap));
 }
 
 .maplibregl-map .maplibregl-ctrl-bottom-right > .maplibregl-ctrl {
@@ -298,6 +310,36 @@ body {
 	--attrib-ink: var(--color-paper);
 	background-color: var(--color-table-900);
 	box-shadow: 0 0 0 1px var(--ctrl-edge);
+}
+
+/*
+ * Open, the button and the credits are one line: (x) ICGC batimetria...
+ *
+ * MapLibre lays the summary and the text out as two blocks and reserves a strip
+ * of padding on the right for a button it positions absolutely. This app draws
+ * its own button in the flow instead, so that padding held nothing and the words
+ * went underneath. Worse on a phone: the text box came out one button wide and
+ * four hundred pixels tall, which ran off the bottom of the screen and is the
+ * cropping the owner saw.
+ *
+ * A row fixes both. The button is first because it is the way out and a thumb is
+ * already down there, the text takes what is left and wraps inside the box, and
+ * the box is capped at the screen so there is always something to wrap into.
+ */
+.maplibregl-map .maplibregl-ctrl-attrib.maplibregl-compact-show {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 8px 3px 3px;
+	max-width: calc(
+		100vw - 2 * var(--ctrl-gap) - env(safe-area-inset-left) - env(safe-area-inset-right)
+	);
+}
+
+.maplibregl-map
+	.maplibregl-ctrl-attrib.maplibregl-compact-show
+	.maplibregl-ctrl-attrib-inner {
+	min-width: 0;
 }
 
 .maplibregl-map .maplibregl-ctrl-attrib.maplibregl-compact {
@@ -354,6 +396,8 @@ body {
 .maplibregl-map .maplibregl-ctrl-attrib-button {
 	--attrib-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M15 5l-7 7 7 7'/%3E%3C/svg%3E");
 	position: relative;
+	/* Never squeezed by the credits beside it: 26 px is the whole of the target. */
+	flex: none;
 	background-image: none;
 	width: 26px;
 	height: 26px;
