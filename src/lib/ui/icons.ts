@@ -79,6 +79,12 @@ export const ICONS = {
 	/** Crop corners, for the framing overlay. */
 	frame: { d: ['M4 9V4h5', 'M15 4h5v5', 'M20 15v5h-5', 'M9 20H4v-5'] },
 
+	/** A photograph of ground: a headland under a sun, in a frame. */
+	satellite: {
+		d: ['M3 5h18v14H3z', 'M6 16.2l4.2-5.2 3 3.6 2.2-2.6 2.6 4.2'],
+		dots: [[8.2, 8.6, 1.5]]
+	},
+
 	language: {
 		d: [
 			'M3 12h18',

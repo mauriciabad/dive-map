@@ -166,6 +166,24 @@ export const DEPTH_BANDS: readonly {
  */
 const BEYOND_WASH = 'rgba(3, 41, 59, 0.8)';
 
+export const SATELLITE_SOURCE_ID = 'satellite';
+
+/**
+ * PNOA Máxima Actualidad, the national ortophoto, over IGN's WMTS. It covers the
+ * whole Spanish coast down to 25 cm and serves tiles to z20 at Tamariu; ICGC's
+ * Catalan ortophoto is finer still but its published WMTS templates returned
+ * HTML rather than a tile at the same place, and a coast the diver can see is
+ * worth more than a few centimetres they cannot.
+ *
+ * The only source here that is not ours. It is never precached: the service
+ * worker ignores every cross-origin request, so an area saved for the boat holds
+ * the survey and not somebody else's photograph.
+ */
+const SATELLITE_TILES =
+	'https://www.ign.es/wmts/pnoa-ma?service=WMTS&request=GetTile&version=1.0.0' +
+	'&layer=OI.OrthoimageCoverage&style=default&tilematrixset=GoogleMapsCompatible' +
+	'&format=image/jpeg&TileMatrix={z}&TileCol={x}&TileRow={y}';
+
 const isobathColour = (): DataDrivenPropertyValueSpecification<string> => {
 	const stops = DEPTH_BANDS.flatMap((b) => [b.from, b.light, b.to + 0.99, b.dark]);
 	return [
@@ -663,6 +681,14 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			url: `pmtiles://${asset('/tiles/substrate-raw.pmtiles')}`,
 			maxzoom: 15
 		},
+		[SATELLITE_SOURCE_ID]: {
+			type: 'raster',
+			tiles: [SATELLITE_TILES],
+			tileSize: 256,
+			maxzoom: 20,
+			attribution:
+				'<a href="https://pnoa.ign.es/" target="_blank" rel="noopener">PNOA</a> cedido por © Instituto Geográfico Nacional de España'
+		},
 		'dem-edge': { type: 'geojson', data: asset('/data/dem-edge.geojson') },
 		coastline: {
 			type: 'vector',
@@ -677,6 +703,19 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 	},
 	layers: [
 		{ id: 'void', type: 'background', paint: { 'background-color': PALETTE.void } },
+
+		{
+			// Under the painted seabed and everything above it, not over. The map's job
+			// is still to brief a dive, and an ortophoto laid over the habitat polygons
+			// would be a different product. The ground fills run 0.55 to 0.92 opacity,
+			// so with both on the photograph reads as what is under the paint; a diver
+			// who wants the photograph itself turns the ground layer off, which is the
+			// switch that was already there.
+			id: 'satellite',
+			type: 'raster',
+			source: SATELLITE_SOURCE_ID,
+			layout: { visibility: vis(options, 'satellite') }
+		},
 
 		{
 			// Where the bathymetry reached but the habitat survey did not. Left bare it

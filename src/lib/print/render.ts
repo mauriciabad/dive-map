@@ -2,6 +2,7 @@ import { Map as MapLibre, addProtocol } from 'maplibre-gl';
 import { Protocol } from 'pmtiles';
 import { installMarkerImages } from '$lib/map/marker-images';
 import { GROUND_FILL_LAYERS, type StyleOptions, buildStyle } from '$lib/map/style';
+import { failedTileSource } from '$lib/map/tile-errors';
 import {
 	PATTERN_CSS_SIZE,
 	TEXTURE_SIZES,
@@ -73,29 +74,6 @@ const printTextureSize = (pixelRatio: number): TextureSize =>
  * an A3 has measured at 7 to 9 seconds.
  */
 const LOAD_DEADLINE_MS = 30_000;
-
-/**
- * The source whose tile failed, or undefined when the failure was not about a tile.
- *
- * This distinction decides whether a sheet survives. One tile that fails to fetch
- * leaves a hole in a corner of a sheet that is otherwise finished, and a sheet with
- * a hole that says so beats no sheet at all. Rejecting on the first error of any
- * kind, which is what used to happen here, threw away an export that was complete
- * 9.9 seconds in: a By zoom 17 A3 covers 1039x1470 m, one habitat tile more than the
- * same sheet at 1:2000, and that tile failed to fetch. Anything that is not a tile,
- * a style that will not parse above all, means no sheet is coming at all.
- *
- * `sourceId` and `tile` are real at runtime and absent from `ErrorEvent`, whose
- * constructor spreads an untyped `data` object onto the instance, so they are
- * narrowed rather than asserted.
- */
-const failedTileSource = (event: object): string | undefined => {
-	if (!('sourceId' in event) || !('tile' in event)) return undefined;
-	const { sourceId, tile } = event;
-	return typeof sourceId === 'string' && typeof tile === 'object' && tile !== null
-		? sourceId
-		: undefined;
-};
 
 export interface RenderedCard {
 	/** Lossless, so a PNG export never passes through a JPEG. */
@@ -235,6 +213,10 @@ export const renderCard = async (
 		// do, abandon the sheet, is wired up at the moment it starts listening.
 		const fatal = new Promise<never>((_, reject) => {
 			map.on('error', (e) => {
+				// Rejecting on the first error of any kind, which is what used to happen
+				// here, threw away an export that was complete 9.9 seconds in: a zoom 17
+				// A3 covers 1039x1470 m, one habitat tile more than the same sheet at
+				// 1:2000, and that tile failed to fetch.
 				const source = failedTileSource(e);
 				if (source === undefined) {
 					problems.push(e.error.message.slice(0, 160));

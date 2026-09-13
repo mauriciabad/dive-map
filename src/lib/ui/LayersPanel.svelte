@@ -27,6 +27,7 @@
 	}
 
 	const LAYER_ROWS: readonly LayerRow[] = [
+		{ id: 'satellite', icon: 'satellite', key: 'satellite' },
 		{ id: 'hillshade', icon: 'relief', key: 'relief' },
 		{ id: 'depth-tint', icon: 'depth', key: 'depthTint' },
 		{ id: 'coastline', icon: 'frame', key: 'coastline' },

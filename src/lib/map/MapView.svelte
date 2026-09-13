@@ -18,7 +18,8 @@
 	import { publishMap } from './controls';
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import { installMarkerImages } from './marker-images';
-	import { buildStyle } from './style';
+	import { SATELLITE_SOURCE_ID, buildStyle } from './style';
+	import { failedTileSource } from './tile-errors';
 	import { type LoadedTexture, loadTextures, sizeForScreen, texturePalette } from './textures';
 	import type { MapState } from '$lib/state/map-view.svelte';
 	import type { LngLat } from '$lib/domain/card';
@@ -139,6 +140,11 @@
 			onready?.(m);
 		});
 		m.on('error', (e) => {
+			// The ortophoto is the one source that is neither ours nor cached, so on a
+			// boat it fails once per tile. Nothing is broken and nothing is missing that
+			// the diver did not ask a network for, so it degrades to no photograph
+			// rather than to a banner over a map that is working.
+			if (failedTileSource(e) === SATELLITE_SOURCE_ID) return;
 			view.error = e.error.message;
 		});
 
