@@ -20,6 +20,7 @@ const browser = await chromium.launch();
 const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
 const errors = [];
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 140)); });
+page.on('pageerror', (e) => errors.push(`pageerror: ${e.message.slice(0, 140)}`));
 
 await page.goto(url, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(25_000);

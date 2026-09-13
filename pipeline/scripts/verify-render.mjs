@@ -38,6 +38,7 @@ const page = await context.newPage();
 const errors = [];
 const failed = [];
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 160)); });
+page.on('pageerror', (e) => errors.push(`pageerror: ${e.message.slice(0, 160)}`));
 page.on('response', (r) => { if (r.status() >= 400) failed.push(`${r.status()} ${r.url().slice(0, 110)}`); });
 
 await page.goto(url, { waitUntil: 'domcontentloaded' });

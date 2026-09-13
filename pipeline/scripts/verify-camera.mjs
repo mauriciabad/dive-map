@@ -27,6 +27,7 @@ const errors = [];
 page.on('console', (m) => {
 	if (m.type() === 'error') errors.push(m.text().slice(0, 160));
 });
+page.on('pageerror', (e) => errors.push(`pageerror: ${e.message.slice(0, 160)}`));
 await page.goto(url, { waitUntil: 'domcontentloaded' });
 await page.waitForFunction(() => window.diveMap !== undefined, undefined, { timeout: 60_000 });
 

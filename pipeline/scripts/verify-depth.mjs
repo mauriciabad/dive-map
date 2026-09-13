@@ -20,7 +20,13 @@ const SEABED = [3.213, 41.906, 16];
 
 const browser = await chromium.launch();
 
+const errors = [];
+
 const settle = async (page, centre) => {
+	page.on('console', (m) => {
+		if (m.type() === 'error') errors.push(m.text().slice(0, 160));
+	});
+	page.on('pageerror', (e) => errors.push(`pageerror: ${e.message.slice(0, 160)}`));
 	await page.goto(url, { waitUntil: 'domcontentloaded' });
 	await page.waitForFunction(() => window.diveMap !== undefined, undefined, { timeout: 60_000 });
 	await page.evaluate(async ([lng, lat, zoom]) => {
@@ -88,6 +94,7 @@ const agrees = samples.every((s) => {
 		s.contours[0] === s.contours[1] ? `${s.contours[0]} m` : `${s.contours[0]}–${s.contours[1]} m`;
 	return s.visible && s.shown === expected;
 });
-const pass = agrees && onTouch.pointerFine === false && onTouch.readouts === 0;
-console.log(JSON.stringify({ pass, samples, onTouch }, null, 2));
+const pass =
+	agrees && onTouch.pointerFine === false && onTouch.readouts === 0 && errors.length === 0;
+console.log(JSON.stringify({ pass, samples, onTouch, errors: errors.slice(0, 6) }, null, 2));
 process.exit(pass ? 0 : 1);

@@ -3,6 +3,7 @@ const b = await chromium.launch();
 const p = await (await b.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
 const errs = [];
 p.on('console', m => { if (m.type()==='error') errs.push(m.text().slice(0,120)); });
+p.on('pageerror', e => errs.push(`pageerror: ${e.message.slice(0,120)}`));
 await p.goto(process.argv[2], { waitUntil: 'domcontentloaded' });
 await p.waitForTimeout(22000);
 const r = await p.evaluate(async () => {

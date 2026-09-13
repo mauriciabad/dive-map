@@ -3,6 +3,11 @@
 import { chromium } from 'playwright';
 const b = await chromium.launch();
 const p = await (await b.newContext({ viewport: { width: 1107, height: 1591 } })).newPage();
+const errors = [];
+p.on('console', (m) => {
+  if (m.type() === 'error') errors.push(m.text().slice(0, 160));
+});
+p.on('pageerror', (e) => errors.push(`pageerror: ${e.message.slice(0, 160)}`));
 await p.goto(process.argv[2], { waitUntil: 'domcontentloaded' });
 await p.waitForTimeout(20000);
 const out = await p.evaluate(async () => {
@@ -22,5 +27,5 @@ const out = await p.evaluate(async () => {
   }
   return at;
 });
-console.log(JSON.stringify(out, null, 1));
+console.log(JSON.stringify({ at: out, errors: errors.slice(0, 6) }, null, 1));
 await b.close();
