@@ -42,6 +42,7 @@ def main() -> int:
     ap.add_argument("--decimate", type=int, default=8)
     ap.add_argument("--min-ring-m", type=float, default=2000.0)
     ap.add_argument("--simplify-m", type=float, default=60.0)
+    ap.add_argument("--smooth-m", type=float, default=150.0)
     ap.add_argument("--beyond-bbox", default="-1.5,38.8,5.2,44.2")
     ap.add_argument("--extent-out")
     ap.add_argument("--extent-simplify-m", type=float, default=200.0)
@@ -66,7 +67,11 @@ def main() -> int:
         for geom, value in features.shapes(covered, mask=covered.astype(bool), transform=transform)
         if value == 1
     ]
-    region = unary_union(polys)
+    # Rounded by opening and closing rather than simplified, because the boundary
+    # is a raster edge: its own pixel staircase showed through as the edge of the
+    # unsurveyed hatch, and simplifying it enough to lose the steps walked the
+    # boundary far enough off the real one to leave a band of shaded, unwashed sea.
+    region = unary_union(polys).buffer(args.smooth_m).buffer(-2 * args.smooth_m).buffer(args.smooth_m)
     print(f"shapes {len(polys)} -> {region.geom_type}")
 
     rings = []

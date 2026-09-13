@@ -170,6 +170,10 @@ const isobathFilter = ({
 }: IsobathStyle): ExpressionSpecification => [
 	'all',
 	['<=', ['to-number', ['get', 'depth']], maxDepthM],
+	// 0 m is the coastline, not a depth contour. It has its own layer and its own
+	// switch, and leaving it in here drew it twice, once under the interval rules
+	// that can thin it out.
+	['!=', ['to-number', ['get', 'depth']], 0],
 	[
 		'any',
 		['in', ['to-number', ['get', 'depth']], ['literal', [...emphasised]]],
@@ -743,6 +747,37 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			paint: {
 				'line-color': PALETTE.landEdge,
 				'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 18, 3.5]
+			}
+		},
+
+		{
+			// The coastline, as the survey itself drew it. The habitat and substrate
+			// polygons were cut against the 0 m isobath, so this is the one line the
+			// painted ground is guaranteed to meet, and it is the line the land fill
+			// is the inside of. Its own switch, on by default, because a diver reading
+			// a shore entry wants to see exactly where the water starts.
+			id: 'zero-isobath-glow',
+			type: 'line',
+			source: 'isobaths',
+			'source-layer': 'isobaths',
+			filter: ['==', ['to-number', ['get', 'depth']], 0],
+			layout: { visibility: vis(options, 'zero-isobath'), 'line-join': 'round' },
+			paint: {
+				'line-color': 'rgba(8, 20, 28, 0.75)',
+				'line-blur': 2,
+				'line-width': ['interpolate', ['linear'], ['zoom'], 10, 2.4, 14, 4.5, 18, 8]
+			}
+		},
+		{
+			id: 'zero-isobath',
+			type: 'line',
+			source: 'isobaths',
+			'source-layer': 'isobaths',
+			filter: ['==', ['to-number', ['get', 'depth']], 0],
+			layout: { visibility: vis(options, 'zero-isobath'), 'line-join': 'round' },
+			paint: {
+				'line-color': '#ffe9b0',
+				'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 14, 2, 18, 4]
 			}
 		},
 

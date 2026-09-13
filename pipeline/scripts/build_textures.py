@@ -67,9 +67,9 @@ def unsurveyed(rng: np.random.Generator) -> Image.Image:
     # whatever is underneath and a dark base came out as a white smear in the
     # shallows. The 21 pack textures all sit in this range, so this one takes the
     # light the same way they do and the hatch survives it.
-    base = np.array([96.0, 106.0, 110.0], dtype=np.float32)
-    line = np.array([56.0, 66.0, 72.0], dtype=np.float32)
-    stripe = ((x + y) % 128) < 16
+    base = np.array([94.0, 104.0, 109.0], dtype=np.float32)
+    line = np.array([72.0, 82.0, 88.0], dtype=np.float32)
+    stripe = ((x + y) % 128) < 11
     a = np.where(stripe[..., None], line, base)
     a = a + rng.normal(0.0, 5.0, size=(n, n, 1)).astype(np.float32)
     return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
