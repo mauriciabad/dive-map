@@ -68,7 +68,11 @@ const PAPER_INK: Rgb = [0.94, 0.89, 0.81];
 const BRASS: Rgb = [0.72, 0.54, 0.25];
 const DIM: Rgb = [0.75, 0.69, 0.6];
 const PLATE: Rgb = [0.08, 0.06, 0.05];
-const PLATE_ALPHA = 0.82;
+/**
+ * Firm enough to be the plate's edge now that the plate is opaque, and still the
+ * brass rule the rest of the sheet is drawn with rather than a border.
+ */
+const PLATE_EDGE_ALPHA = 0.72;
 
 /**
  * Sizes in furniture units. A unit is a millimetre on A3 and `plan.unitPx` has
@@ -181,6 +185,17 @@ interface Piece {
 	readonly draw: (x: number, y: number) => readonly Drawing[];
 }
 
+/**
+ * Opaque, because the brightest ink the map draws is a white label with a dark halo
+ * and eighteen per cent of it is plenty. At 0.82 "la Pota del Llop" crossed the
+ * legend between the sand row and the mud row in heavier type than either of them,
+ * and a marker disc, a coastline and a fan of isobaths shared the north plate with
+ * the arrow. This sheet gets laminated and read on a boat in sunlight, where it has
+ * less contrast to spare than a screen, not more.
+ *
+ * What kept a plate from looking pasted on was the map coming through it, so the
+ * brass rule takes that job instead and is drawn as an edge rather than a fade.
+ */
 const plateOf = (box: Box, unit: number): Drawing => ({
 	kind: 'rect',
 	x: box.x,
@@ -188,10 +203,9 @@ const plateOf = (box: Box, unit: number): Drawing => ({
 	w: box.w,
 	h: box.h,
 	fill: PLATE,
-	fillOpacity: PLATE_ALPHA,
 	stroke: BRASS,
 	strokeWidth: HAIRLINE * unit,
-	strokeOpacity: 0.5
+	strokeOpacity: PLATE_EDGE_ALPHA
 });
 
 interface TextLine {
