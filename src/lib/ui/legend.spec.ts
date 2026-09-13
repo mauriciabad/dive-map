@@ -72,13 +72,17 @@ describe('the legend of a ground layer', () => {
 		expect(marked.map((entry) => entry.key)).toEqual(['habitats-20']);
 	});
 
-	it('never claims the groyne class is in the frame, since it carries no code', () => {
+	// Both are published as 70108 and a tile carries the code alone, so a frame
+	// holding one holds the other as far as the map can tell. Naming only the port
+	// structures promised a distinction the pixels do not make, and left the
+	// groynes listed as somewhere else while the diver was floating over one.
+	it('names both classes of a shared code when that code is in the frame', () => {
 		const legend = buildLegend('habitats', HABITAT_CODES, NO_TEXTURE_CHOICES);
 		const stones = [...legend.inFrame, ...legend.elsewhere].find(
 			(row) => row.texture === 'ch_bluestones'
 		);
-		expect(stones?.inFrame.map((entry) => entry.seabed.raster)).toEqual([29]);
-		expect(stones?.elsewhere.map((entry) => entry.seabed.raster)).toEqual([30]);
+		expect(stones?.inFrame.map((entry) => entry.seabed.raster)).toEqual([29, 30]);
+		expect(stones?.elsewhere).toEqual([]);
 	});
 });
 

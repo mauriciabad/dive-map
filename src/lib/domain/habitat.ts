@@ -34,7 +34,16 @@ export interface HabitatClass extends Localised {
 	 * one. It is what makes `seabedKey` total.
 	 */
 	readonly ground: Ground;
-	/** CODI_LPRE3, or CODI_LPRE4 for the three EUNIS-4 classes. Absent for raster 30. */
+	/**
+	 * CODI_LPRE3, or CODI_LPRE4 for the three EUNIS-4 classes.
+	 *
+	 * Not unique, and not optional either. The survey publishes raster 29 and
+	 * raster 30 both as 70108, so two rows here answer to one code; `sharersOf`
+	 * below is what the rest of the app reads that off. What no class may be is
+	 * codeless, because the style and the legend can only key by code: a class with
+	 * none is painted by the fallback and never named, which is how the anti-erosion
+	 * groynes spent a release unreachable. `habitat.spec.ts` holds that line.
+	 */
 	readonly code: string | undefined;
 	/** Habitat of Community Interest code, where the class has one. */
 	readonly hic: string | undefined;
@@ -366,7 +375,10 @@ export const HABITATS: readonly HabitatClass[] = [
 	{
 		raster: 30,
 		ground: 'habitats',
-		code: undefined,
+		// The same 70108 as raster 29. Both sets of polygons come back from the WFS
+		// under it, 162 groynes against 115 port structures, and only NOM_LPRE3 tells
+		// them apart. The tiles carry the code and drop the name.
+		code: '70108',
 		ca: 'Espigons anti-erosió',
 		es: 'Espigones antierosión',
 		en: 'Anti-erosion groynes',
@@ -629,9 +641,15 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
  * CODI_FONS invents 70102a, 70102b, 702a and 702b outside the LPRE scheme, and
  * the substrate spec maps both 70103 and 70104 onto 070104, so habitat and
  * substrate cannot be joined by string equality. Look up instead.
+ *
+ * The first row published under a code is the one that code resolves to. `new Map`
+ * would keep the last, so adding the finer of two rows that share a code would
+ * quietly rename a class a printed card already names. 70108 has resolved to the
+ * port structures since the first sheet was printed and it still does.
  */
-export const habitatByCode: ReadonlyMap<string, HabitatClass> = new Map(
-	HABITATS.flatMap((h) => (h.code === undefined ? [] : [[h.code, h] as const]))
+export const habitatByCode: ReadonlyMap<string, HabitatClass> = HABITATS.reduce(
+	(found, h) => (h.code === undefined || found.has(h.code) ? found : found.set(h.code, h)),
+	new Map<string, HabitatClass>()
 );
 
 export const substrateByCode: ReadonlyMap<string, SubstrateClass> = new Map(
@@ -700,8 +718,58 @@ export type TextureChoices = Readonly<Record<SeabedKey, string>>;
 
 export const NO_TEXTURE_CHOICES: TextureChoices = {};
 
-export const textureOf = (seabed: SeabedClass, chosen: TextureChoices): string =>
-	chosen[seabedKey(seabed)] ?? seabed.texture;
+/**
+ * The other classes of the same ground published under the same code.
+ *
+ * A vector tile carries the code and nothing else, so rows that share one are a
+ * single thing to the map however many the catalogue gives them: 70108 is both the
+ * port breakwaters and the anti-erosion groynes. Painting them apart is not
+ * something the data can do.
+ *
+ * Grouped inside a catalogue and not across the two. Habitat 30202 is
+ * circalittoral rock and substrate 30202 is a biogenic reef; they are different
+ * ground layers, and the style already keeps the layer's own meaning.
+ */
+const CODE_SHARERS: ReadonlyMap<SeabedKey, readonly SeabedKey[]> = (() => {
+	const groups = new Map<string, SeabedClass[]>();
+	for (const seabed of [...HABITATS, ...SUBSTRATES]) {
+		if (seabed.code === undefined) continue;
+		const at = `${seabed.ground}/${seabed.code}`;
+		const found = groups.get(at);
+		if (found === undefined) groups.set(at, [seabed]);
+		else found.push(seabed);
+	}
+	const sharers = new Map<SeabedKey, readonly SeabedKey[]>();
+	for (const group of groups.values()) {
+		if (group.length < 2) continue;
+		for (const seabed of group) {
+			sharers.set(seabedKey(seabed), group.filter((other) => other !== seabed).map(seabedKey));
+		}
+	}
+	return sharers;
+})();
+
+/** Empty for all but the handful of classes that answer to a code somebody else also has. */
+export const sharersOf = (seabed: SeabedClass): readonly SeabedKey[] =>
+	CODE_SHARERS.get(seabedKey(seabed)) ?? [];
+
+/**
+ * What this class is painted with, which is what its code is painted with.
+ *
+ * A choice made for one class of a shared code carries to the others, because the
+ * map has one pattern for the code either way. Without that, choosing a texture for
+ * the groynes changed nothing at all and choosing one for the port structures
+ * repainted the groynes with it, and neither said so.
+ */
+export const textureOf = (seabed: SeabedClass, chosen: TextureChoices): string => {
+	const own = chosen[seabedKey(seabed)];
+	if (own !== undefined) return own;
+	for (const sharer of sharersOf(seabed)) {
+		const shared = chosen[sharer];
+		if (shared !== undefined) return shared;
+	}
+	return seabed.texture;
+};
 
 /** The same choices with one class put back on whatever its catalogue gives it. */
 export const withoutChoice = (chosen: TextureChoices, key: SeabedKey): TextureChoices => {
