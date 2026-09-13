@@ -530,3 +530,123 @@ describe('tiles in bounds', () => {
 		expect(keys).toContain('12/2084/1519');
 	});
 });
+
+/**
+ * Issue #46, reopened.
+ *
+ * Chunks outlive a deploy on purpose, so that a diver who saved the coast at home
+ * does not arrive at the boat with an empty store. The cost of that is the store
+ * can now be wrong, and nothing was proving it right: `read` only ever learns the
+ * current tag from a response it made, so an archive whose every chunk is already
+ * held is served without one request going out, and the comparison meant to catch
+ * a stale archive never runs. The owner reloaded, took the update notice, and still
+ * got the old islands. The same build in a private window was correct.
+ */
+describe('an archive rebuilt under a warm cache', () => {
+	const REBUILT = new Uint8Array(
+		ARCHIVE.slice(0, ARCHIVE.length - 512).map((byte, index) => (index === 700 ? byte ^ 0xff : byte))
+	);
+	interface Rebuild {
+		body: Uint8Array<ArrayBuffer>;
+		requests: number;
+		online: boolean;
+	}
+
+	function rebuiltServer(state: Rebuild): typeof globalThis.fetch {
+		return (_input, init) => {
+			if (!state.online) return Promise.reject(new Error('network unavailable'));
+			state.requests += 1;
+			const range = parseRangeHeader(new Headers(init?.headers).get('Range'));
+			const body = state.body;
+			// Shaped like the Pages ETag: a deploy stamp that always moves, then the size.
+			const etag = `"6aa659cc-${body.length.toString(16)}"`;
+			if (range === null) return Promise.resolve(new Response(body, { status: 200 }));
+			const start = range.offset;
+			const end = Math.min(start + range.length, body.length);
+			return Promise.resolve(
+				new Response(body.slice(start, end), {
+					status: 206,
+					headers: {
+						'Content-Range': `bytes ${start}-${end - 1}/${body.length}`,
+						ETag: etag
+					}
+				})
+			);
+		};
+	}
+
+	async function warmed(state: Rebuild): Promise<ChunkStore> {
+		const store = memoryChunkStore();
+		const reader = createRangeReader({ store, fetch: rebuiltServer(state), chunkSize: 256 });
+		await reader.read(URL_UNDER_TEST, 0, 1200);
+		return store;
+	}
+
+	it('serves the rebuilt archive to a reader whose every chunk was already held', async () => {
+		const state: Rebuild = { body: ARCHIVE, requests: 0, online: true };
+		const store = await warmed(state);
+
+		state.body = REBUILT;
+		state.requests = 0;
+		const after = createRangeReader({
+			store,
+			fetch: rebuiltServer(state),
+			chunkSize: 256,
+			revalidate: true
+		});
+		// Exactly the range that is already warm. Nothing here reaches past the store.
+		const reread = await after.read(URL_UNDER_TEST, 0, 1200);
+
+		expect(state.requests).toBeGreaterThan(0);
+		expect(reread.fromCache).toBe(false);
+		expect(hex(reread.data)).toBe(hex(REBUILT.slice(0, 1200).buffer));
+	});
+
+	it('hands back the old bytes without the probe, which is what the owner saw', async () => {
+		const state: Rebuild = { body: ARCHIVE, requests: 0, online: true };
+		const store = await warmed(state);
+
+		state.body = REBUILT;
+		state.requests = 0;
+		const after = createRangeReader({ store, fetch: rebuiltServer(state), chunkSize: 256 });
+		const reread = await after.read(URL_UNDER_TEST, 0, 1200);
+
+		expect(state.requests).toBe(0);
+		expect(hex(reread.data)).toBe(hex(ARCHIVE.slice(0, 1200).buffer));
+	});
+
+	it('keeps serving the store when the probe cannot reach the network', async () => {
+		const state: Rebuild = { body: ARCHIVE, requests: 0, online: true };
+		const store = await warmed(state);
+
+		state.online = false;
+		const offline = createRangeReader({
+			store,
+			fetch: rebuiltServer(state),
+			chunkSize: 256,
+			revalidate: true
+		});
+		const reread = await offline.read(URL_UNDER_TEST, 0, 1200);
+
+		expect(reread.fromCache).toBe(true);
+		expect(hex(reread.data)).toBe(hex(ARCHIVE.slice(0, 1200).buffer));
+	});
+
+	it('asks once per archive, not once per read', async () => {
+		const state: Rebuild = { body: ARCHIVE, requests: 0, online: true };
+		const store = await warmed(state);
+
+		state.requests = 0;
+		const reader = createRangeReader({
+			store,
+			fetch: rebuiltServer(state),
+			chunkSize: 256,
+			revalidate: true
+		});
+		await reader.read(URL_UNDER_TEST, 0, 100);
+		await reader.read(URL_UNDER_TEST, 300, 100);
+		await reader.read(URL_UNDER_TEST, 900, 100);
+
+		expect(state.requests).toBe(1);
+	});
+});

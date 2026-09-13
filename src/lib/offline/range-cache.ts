@@ -63,6 +63,22 @@ export interface RangeReaderOptions {
 	readonly fetch: typeof globalThis.fetch;
 	readonly chunkSize?: number | undefined;
 	readonly onChunkStored?: ((bytes: number) => void) | undefined;
+	/**
+	 * Ask the network what the archive is now, once, before serving it out of the
+	 * store.
+	 *
+	 * Without this the store has no way to ever be wrong. `read` only learns the
+	 * current tag from a response, so an archive whose every chunk is already held
+	 * is served forever without a single request going out, and the tag comparison
+	 * that is supposed to catch a stale archive never runs. A diver who loaded the
+	 * coast, took a deploy that rebuilt `land.pmtiles`, reloaded, and accepted the
+	 * update notice still got the old islands, while the same build in a private
+	 * window was correct. That is issue #46 reopened.
+	 *
+	 * Off for a saved area, whose chunks a diver pinned on purpose and which must
+	 * not evaporate because the coast was rebuilt while the boat was out.
+	 */
+	readonly revalidate?: boolean | undefined;
 }
 
 export interface RangeReadOptions {
@@ -104,7 +120,9 @@ function parseContentRangeTotal(header: string | null): number | null {
 
 export function createRangeReader(options: RangeReaderOptions): RangeReader {
 	const chunkSize = options.chunkSize ?? CHUNK_SIZE;
-	const { store, fetch: doFetch, onChunkStored } = options;
+	const { store, fetch: doFetch, onChunkStored, revalidate = false } = options;
+	/** Archives this reader has already asked the network about. */
+	const proven = new Set<string>();
 	/**
 	 * The content tag the network last gave for each archive this reader has read.
 	 * Without it a stale chunk is indistinguishable from a current one across two
@@ -144,6 +162,45 @@ export function createRangeReader(options: RangeReaderOptions): RangeReader {
 	}
 
 	/**
+	 * One byte, asked past the browser cache, for the tag alone.
+	 *
+	 * A whole chunk would answer the same question and cost 64 kB of a phone's data
+	 * to do it. `cache: 'no-cache'` because Pages serves these with `max-age=600`,
+	 * and a probe answered out of the browser's own cache proves nothing.
+	 */
+	async function probeTag(url: string, signal: AbortSignal | undefined): Promise<string | null> {
+		const init: RequestInit = { headers: new Headers({ Range: 'bytes=0-0' }), cache: 'no-cache' };
+		const response = await doFetch(url, signal === undefined ? init : { ...init, signal });
+		if (!response.ok) throw new Error(`Probe for ${url} answered ${response.status}`);
+		const etag = contentTag(response.headers.get('ETag'));
+		const stated = parseContentRangeTotal(response.headers.get('Content-Range'));
+		return etag ?? (stated === null ? null : lengthTag(stated));
+	}
+
+	/**
+	 * Seeding `current` with what the network says is enough on its own: every stored
+	 * chunk is then measured against the live tag and a stale one is refetched.
+	 * `dropUrl` clears the rest of the archive so the store does not keep bytes no
+	 * read will ever accept again.
+	 */
+	async function prove(url: string, signal: AbortSignal | undefined): Promise<void> {
+		if (proven.has(url)) return;
+		proven.add(url);
+		let tag: string | null;
+		try {
+			tag = await probeTag(url, signal);
+		} catch {
+			// Offline, or the archive is unreachable. What is stored is all there is,
+			// and serving it is the whole reason it was stored.
+			return;
+		}
+		if (tag === null) return;
+		const held = contentTag((await store.get(chunkKey(url, 0, chunkSize)))?.etag);
+		if (held !== null && held !== tag) await store.dropUrl?.(url);
+		current.set(url, tag);
+	}
+
+	/**
 	 * Stored chunks predate this normalisation, so both sides go through
 	 * `contentTag` rather than only the fresh one. A warm cache holding
 	 * `"6aa65807-39dd38"` is kept, not thrown away and refetched.
@@ -163,6 +220,7 @@ export function createRangeReader(options: RangeReaderOptions): RangeReader {
 		retried = false
 	): Promise<RangeRead> {
 		const signal = readOptions?.signal;
+		if (revalidate) await prove(url, signal);
 		const first = Math.floor(offset / chunkSize);
 		const last = Math.floor((offset + Math.max(1, length) - 1) / chunkSize);
 		const parts: Uint8Array[] = [];

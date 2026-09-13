@@ -164,7 +164,10 @@ export function registerServiceWorker(
 	const deployment: Deployment = { origin: scope.location.origin, base: manifest.base };
 	const ranges = createRangeReader({
 		store: cacheStorageChunkStore(CHUNK_CACHE),
-		fetch: (input, init) => fetch(input, init)
+		fetch: (input, init) => fetch(input, init),
+		// The runtime store outlives a deploy, so something has to prove it still
+		// matches what is deployed. A saved area's reader does not do this.
+		revalidate: true
 	});
 
 	scope.addEventListener('install', (event) => {
