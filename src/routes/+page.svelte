@@ -8,9 +8,14 @@
 	import { GROUND_PICK_LAYERS, OSM_PICK_LAYERS, pickFrom } from '$lib/ui/feature-card';
 	import { whenMapReady } from '$lib/map/controls';
 	import { watchArchives } from '$lib/map/tile-errors';
-	import type { LngLat, MapMouseEvent, MapTouchEvent } from 'maplibre-gl';
+	import { replaceState } from '$app/navigation';
+	import { resolve } from '$app/paths';
+	import type { Map as MapLibre, MapMouseEvent, MapTouchEvent } from 'maplibre-gl';
 	import { MapState } from '$lib/state/map-view.svelte';
 	import { Configurations } from '$lib/state/configurations.svelte';
+	import { findExtent, formatAddress, parseAddress } from '$lib/state/address';
+	import type { OsmRef } from '$lib/domain/osm';
+	import type { Start } from '$lib/state/configuration';
 	import { POSITION_ZOOM, SURVEY_CENTRE, grantedFix, nearSurvey } from '$lib/state/opening';
 	import { negotiate } from '$lib/i18n/locale';
 	import { t } from '$lib/i18n/messages';
@@ -26,6 +31,36 @@
 	const opening = configurations.opening();
 	view.apply(opening.configuration);
 
+	/*
+	 * A link outranks every remembered camera and the diver's own position: read
+	 * once, here, before the map is built. See `Start` in state/configuration.ts
+	 * for the order of the rest.
+	 */
+	const address = parseAddress(location.hash);
+	const opened: Start =
+		address.camera === undefined ? opening.start : { kind: 'address', camera: address.camera };
+
+	/**
+	 * Put the link for what is on screen in the address bar, in place, without a
+	 * history entry.
+	 *
+	 * Through SvelteKit's own `replaceState` rather than the browser's, because the
+	 * router keeps its position in the history stack in that state object and loses
+	 * count when something writes over it.
+	 */
+	const remember = (hash: string): void => {
+		if (hash === location.hash) return;
+		/*
+		 * `svelte/no-navigation-without-resolve` wants the argument to be a bare
+		 * `resolve()` call, so that nothing hard-codes a path that breaks under the
+		 * base this site is served from on the project URL. The base is honoured
+		 * here, by the `resolve('/')` the fragment is appended to; the rule cannot
+		 * see through the template, and a fragment is not a route it could resolve.
+		 */
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		replaceState(`${resolve('/')}${location.search}${hash}`, {});
+	};
+
 	/**
 	 * Somewhere over the region while the guard works out the real answer, which it
 	 * can only do once it knows the size of the screen. The camera is snapped to
@@ -37,9 +72,9 @@
 	const BEFORE_THE_GUARD_ANSWERS = 7;
 
 	const start =
-		opening.start.kind === 'survey'
+		opened.kind === 'survey'
 			? { centre: SURVEY_CENTRE, zoom: BEFORE_THE_GUARD_ANSWERS, bearing: 0 }
-			: opening.start.camera;
+			: opened.camera;
 
 	/*
 	 * Where the map settled once everything allowed to move it has had its say.
@@ -47,7 +82,7 @@
 	 * hints from flashing up over a map that is about to jump to the diver.
 	 */
 	let settled = $state.raw<'survey' | 'elsewhere' | undefined>(
-		opening.start.kind === 'tab' ? 'elsewhere' : undefined
+		opened.kind === 'tab' || opened.kind === 'address' ? 'elsewhere' : undefined
 	);
 	let dismissed = $state(false);
 	const taught = configurations.introSeen;
@@ -65,8 +100,22 @@
 			camera: view.camera,
 			from: configurations.from
 		};
+		/*
+		 * The address bar trails the map on the same timer, so whatever is on screen
+		 * is always a link somebody can send, and so the browser's own share button
+		 * shares the view rather than the front page. Only once the map is really
+		 * pointed somewhere: before that `view.camera` is the class's placeholder,
+		 * and writing it would overwrite the link this tab was opened with.
+		 *
+		 * The open feature rides along, so sharing a dive site shares its card and
+		 * not merely the water around it.
+		 */
+		const hash = view.ready
+			? formatAddress({ camera: view.camera, osm: view.selection?.feature?.ref })
+			: undefined;
 		const pending = setTimeout(() => {
 			configurations.remember(working);
+			if (hash !== undefined) remember(hash);
 		}, 400);
 		const flush = (): void => {
 			clearTimeout(pending);
@@ -91,14 +140,15 @@
 	 */
 	$effect(() =>
 		whenMapReady((map) => {
-			if (opening.start.kind === 'tab') return;
+			// A link and a reload both name the water already, so neither is moved.
+			if (opened.kind === 'tab' || opened.kind === 'address') return;
 			/*
 			 * As far out as the map goes, which is the whole survey fitted to this
 			 * screen. `constrainToData` does that arithmetic already and publishes the
 			 * answer as the minimum zoom, so reading it back beats keeping a second
 			 * copy of it here that would be right on a laptop and wrong on a phone.
 			 */
-			if (opening.start.kind === 'survey') {
+			if (opened.kind === 'survey') {
 				map.jumpTo({ center: [SURVEY_CENTRE.lng, SURVEY_CENTRE.lat], zoom: map.getMinZoom() });
 			}
 			const canvas = map.getCanvasContainer();
@@ -117,7 +167,7 @@
 					settled = 'elsewhere';
 					return;
 				}
-				settled = opening.start.kind === 'survey' ? 'survey' : 'elsewhere';
+				settled = opened.kind === 'survey' ? 'survey' : 'elsewhere';
 			});
 			return () => {
 				canvas.removeEventListener('pointerdown', stop);
@@ -150,30 +200,103 @@
 		[x + r, y + r]
 	];
 
+	/**
+	 * Answer for one point on the map: the OSM feature under it, the seabed under
+	 * it, and the depth. Shared by the tap that opens a card and by a link that
+	 * arrives naming a feature, so both get the same card rather than two answers
+	 * built from different queries.
+	 */
+	const inspect = (
+		map: MapLibre,
+		point: { readonly x: number; readonly y: number },
+		at: { readonly lng: number; readonly lat: number }
+	): void => {
+		// The same window the hover cursor guards in `cursor.ts`, and it opens
+		// again on the setStyle behind every layer toggle. MapLibre answers a
+		// query naming a layer it does not have by firing an error event rather
+		// than throwing, and the map turns that into a banner over a map that is
+		// loading fine. There is nothing under the pointer to pick yet anyway.
+		if (!map.isStyleLoaded()) return;
+		const osm = map.queryRenderedFeatures(box(point.x, point.y, 10), {
+			layers: [...OSM_PICK_LAYERS]
+		});
+		const ground = map.queryRenderedFeatures(box(point.x, point.y, 24), {
+			layers: [...GROUND_PICK_LAYERS]
+		});
+		view.select(
+			pickFrom(
+				osm.map((f) => f.properties),
+				ground.map((f) => ({ layer: f.layer.id, props: f.properties })),
+				{ lng: at.lng, lat: at.lat }
+			)
+		);
+	};
+
+	/** As close as a link to one feature goes, when the feature is a single point. */
+	const FEATURE_ZOOM = 16;
+
+	/*
+	 * A link naming an OSM feature lands on it with its card open.
+	 *
+	 * The extent comes out of the file the map ships rather than from what happens
+	 * to be drawn, because the camera has to be moved before the feature is on
+	 * screen at all. Once it is there the card is built by the same query a tap
+	 * runs, so a shared dive site arrives with its depth and its seabed filled in.
+	 */
 	$effect(() =>
 		whenMapReady((map) => {
-			const inspect = (point: { x: number; y: number }, at: LngLat) => {
-				// The same window the hover cursor guards in `cursor.ts`, and it opens
-				// again on the setStyle behind every layer toggle. MapLibre answers a
-				// query naming a layer it does not have by firing an error event rather
-				// than throwing, and the map turns that into a banner over a map that is
-				// loading fine. There is nothing under the pointer to pick yet anyway.
-				if (!map.isStyleLoaded()) return;
-				const osm = map.queryRenderedFeatures(box(point.x, point.y, 10), {
-					layers: [...OSM_PICK_LAYERS]
+			let gone = false;
+
+			const show = (ref: OsmRef): void => {
+				void findExtent(ref).then((extent) => {
+					if (gone || extent === undefined) return;
+					const at = {
+						lng: (extent.west + extent.east) / 2,
+						lat: (extent.south + extent.north) / 2
+					};
+					map.fitBounds(
+						[
+							[extent.west, extent.south],
+							[extent.east, extent.north]
+						],
+						{ padding: 80, maxZoom: FEATURE_ZOOM, duration: 0 }
+					);
+					map.once('idle', () => {
+						if (!gone) inspect(map, map.project(at), at);
+					});
 				});
-				const ground = map.queryRenderedFeatures(box(point.x, point.y, 24), {
-					layers: [...GROUND_PICK_LAYERS]
-				});
-				view.select(
-					pickFrom(
-						osm.map((f) => f.properties),
-						ground.map((f) => ({ layer: f.layer.id, props: f.properties })),
-						{ lng: at.lng, lat: at.lat }
-					)
-				);
 			};
 
+			if (address.osm !== undefined) show(address.osm);
+
+			/*
+			 * A fragment can also arrive without a page load: pasted into the address
+			 * bar, or followed from a link to this same map. The camera is applied here
+			 * too, which it is not on a cold open, because on a cold open the map was
+			 * built pointed at it already and jumping again would undo the guard that
+			 * pulls a camera back to the survey.
+			 */
+			const onhash = (): void => {
+				const next = parseAddress(location.hash);
+				if (next.camera !== undefined) {
+					map.jumpTo({
+						center: [next.camera.centre.lng, next.camera.centre.lat],
+						zoom: next.camera.zoom,
+						bearing: next.camera.bearing
+					});
+				}
+				if (next.osm !== undefined) show(next.osm);
+			};
+			window.addEventListener('hashchange', onhash);
+			return () => {
+				gone = true;
+				window.removeEventListener('hashchange', onhash);
+			};
+		})
+	);
+
+	$effect(() =>
+		whenMapReady((map) => {
 			/*
 			 * A tap cannot open the panel, because double-tap-and-drag is how you
 			 * zoom one-handed and a tap handler eats the first half of it. Touch gets
@@ -199,7 +322,7 @@
 
 			const onclick = (e: MapMouseEvent) => {
 				if (performance.now() - touchedAt < AFTER_TOUCH) return;
-				inspect(e.point, e.lngLat);
+				inspect(map, e.point, e.lngLat);
 			};
 			const ontouchstart = (e: MapTouchEvent) => {
 				cancel();
@@ -214,7 +337,7 @@
 				const at = e.lngLat;
 				held = setTimeout(() => {
 					held = undefined;
-					inspect(point, at);
+					inspect(map, point, at);
 				}, 450);
 			};
 			const ontouchmove = () => {

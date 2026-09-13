@@ -80,6 +80,12 @@ export interface Camera {
 /**
  * Where a tab's camera came from, which is not the same question as what it is.
  *
+ * `address` is a link somebody was sent, and it outranks every memory here: a
+ * diver opening "meet me here" has to land there, whatever this browser was
+ * doing last and wherever the diver happens to be standing. It holds for that
+ * navigation only, because nothing writes it anywhere; the next plain open is
+ * back to the rules below.
+ *
  * `tab` is a reload coming back to its own water. `shared` is a new tab picking
  * up the last camera any tab wrote. `survey` is nobody having pointed this
  * browser at anything yet, and it is the only one that earns the opening hints.
@@ -87,7 +93,8 @@ export interface Camera {
 export type Start =
 	| { readonly kind: 'survey' }
 	| { readonly kind: 'tab'; readonly camera: Camera }
-	| { readonly kind: 'shared'; readonly camera: Camera };
+	| { readonly kind: 'shared'; readonly camera: Camera }
+	| { readonly kind: 'address'; readonly camera: Camera };
 
 /** A named configuration, as saved by hand. The name is its identity. */
 export interface SavedConfiguration {
