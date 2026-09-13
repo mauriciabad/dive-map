@@ -86,9 +86,9 @@ export interface IsobathPaint {
 	 *
 	 * A line can end up with nothing to paint: the 0 m contour painting upwards has
 	 * no water above it, and a mark on the maximum depth painting downwards has none
-	 * below. Switching method takes that mark off the ruler, so what is left here is
-	 * a diver who marked one of those two lines by hand. Off makes it follow the
-	 * band beside it, so the band and its edge read as one colour.
+	 * below. 0 m is always marked, so painting upwards always lands on this. Off
+	 * makes the line follow the band beside it, so the band and its edge read as
+	 * one colour.
 	 */
 	readonly edgeOwnColour: boolean;
 }
@@ -328,8 +328,9 @@ export const contourDepths = (style: IsobathStyle, zoom: number): readonly numbe
 	for (let depth = 0; depth <= style.maxDepthM; depth += interval) drawn.add(depth);
 	for (const depth of style.emphasised)
 		if (depth <= style.maxDepthM && depth >= 0) drawn.add(depth);
-	// The shoreline is its own layer and its own switch. It joins the contour ink
-	// only when a diver marks it, which is the rule the map's own filter follows.
+	// The shoreline is the 0 m contour, so it ships marked and draws in the contour
+	// ink. A diver who takes it off the ruler takes it out of here too, which is the
+	// rule the map's own filter follows.
 	if (!style.emphasised.includes(0)) drawn.delete(0);
 	return [...drawn].sort(ascending);
 };
@@ -345,20 +346,24 @@ const governorOf = (style: IsobathStyle, depthM: number): number | undefined => 
 };
 
 /**
- * Switching the method moves the ends of the ruler and hands every colour to the
- * mark that now governs the water it was painted on.
+ * Switching the method marks the end of the ruler the new method can paint from
+ * and hands every colour to the mark that now governs the water it was on.
  *
- * Which end can carry a colour swaps with the method. Painting downwards a band
- * runs from its own line to the next one down, so the shallowest water is named
- * by a mark on the surface and nothing names the water under the deepest mark;
- * painting upwards it is the other way round. So the surface is marked going
- * down and the maximum depth going up, and the mark at the far end, which would
- * have a band of one line and nothing else, goes.
+ * Painting downwards a band runs from its own line to the next one down, so the
+ * shallowest water is named by a mark on the surface and nothing names the water
+ * under the deepest mark; painting upwards it is the other way round. So the
+ * surface is marked going down and the maximum depth going up.
+ *
+ * Only the deepest mark is ever given up, and only on the way to downwards where
+ * it would name a band of one line and nothing else. 0 m is not given up either
+ * way. It is the coastline, a diver asked for it to stay drawn whichever way the
+ * paint runs, and painting upwards it is exactly the line `noBand` is for.
  *
  * Between them every colour lands on the mark that now names the water it was
- * already on, so the map does not move and the swatches do. They arrive thin:
- * they are there to carry a colour, and a heavy line along the whole coast is
- * not what somebody asked for by choosing which way the paint runs.
+ * already on, so the map does not move and the swatches do. A mark the switch
+ * adds arrives thin: it is there to carry a colour, and a heavy line along the
+ * whole coast is not what somebody asked for by choosing which way the paint
+ * runs.
  *
  * Weight stays where it is. A tick belongs to a line, not to a band.
  */
@@ -367,7 +372,7 @@ export const withMethod = (style: IsobathStyle, method: PaintMethod): IsobathSty
 	if (current.method === method) return style;
 
 	const named = method === 'upwards' ? style.maxDepthM : 0;
-	const spent = method === 'upwards' ? 0 : style.maxDepthM;
+	const spent = method === 'upwards' ? undefined : style.maxDepthM;
 	const kept = style.emphasised.filter((depthM) => depthM !== spent);
 	const depths = [...new Set(kept.length < MARK_LIMIT ? [...kept, named] : kept)].sort(ascending);
 

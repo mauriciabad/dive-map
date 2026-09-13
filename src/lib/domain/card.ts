@@ -101,6 +101,10 @@ export interface IsobathStyle {
 	 * The depths a diver has picked out, the ones a recreational dive plan turns
 	 * on. Each is drawn heavy and carries the colour of the band it governs, until
 	 * `paint` says otherwise.
+	 *
+	 * 0 m is one of them and ships marked, because the coastline is that contour
+	 * and nothing else. Only the diver takes it off the ruler; see `withMethod`,
+	 * which used to.
 	 */
 	readonly emphasised: readonly number[];
 	/** Stop drawing below this. Nobody on this boat is going deeper. */
@@ -117,7 +121,7 @@ export interface IsobathStyle {
 export const DEFAULT_ISOBATHS: IsobathStyle = {
 	intervalM: 5,
 	autoInterval: true,
-	emphasised: [5, 18, 30, 40, 50],
+	emphasised: [0, 5, 18, 30, 40, 50],
 	maxDepthM: 80,
 	labels: true
 };

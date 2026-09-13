@@ -148,15 +148,22 @@ describe('switching which line names a band', () => {
 	it('leaves the weight of a line where the line is', () => {
 		const thin = withEmphasis(DEFAULT_ISOBATHS, 30, false);
 		const marks = depthMarks(withMethod(thin, 'downwards'));
-		// 0 m is the mark the switch adds, and it arrives thin: it is there to carry
-		// a colour, not to draw a heavy line along the whole coast.
+		// 0 m is the mark the switch names going downwards, and it arrives thin: it is
+		// there to carry a colour, not to draw a heavy line along the whole coast.
 		expect(marks.filter((mark) => !mark.emphasised).map((mark) => mark.depthM)).toEqual([0, 30]);
 	});
 
-	it('marks the end that can carry a colour and drops the end that cannot', () => {
+	/**
+	 * The owner's words: the coastline is the 0 m isobar and no special line, so
+	 * neither method is allowed to take it off the ruler any more. Painting
+	 * upwards it governs no band, and `noBand` is what keeps it a drawn line.
+	 */
+	it('marks the end the method can paint from and never gives up the surface', () => {
 		const downwards = withMethod(DEFAULT_ISOBATHS, 'downwards');
 		expect(downwards.emphasised).toEqual([0, 5, 18, 30, 40, 50]);
-		expect(withMethod(downwards, 'upwards').emphasised).toEqual([5, 18, 30, 40, 50, 80]);
+		const upwards = withMethod(downwards, 'upwards');
+		expect(upwards.emphasised).toEqual([0, 5, 18, 30, 40, 50, 80]);
+		expect(depthMarks(upwards).find((mark) => mark.depthM === 0)?.noBand).toBe(true);
 	});
 
 	it('carries the colour of both end bands across the switch', () => {
@@ -173,7 +180,7 @@ describe('switching which line names a band', () => {
 describe('marks', () => {
 	it('starts a new mark on its own depth band', () => {
 		const style = withMark(DEFAULT_ISOBATHS, 65);
-		expect(style.emphasised).toEqual([5, 18, 30, 40, 50, 65]);
+		expect(style.emphasised).toEqual([0, 5, 18, 30, 40, 50, 65]);
 		expect(depthMarks(style).find((mark) => mark.depthM === 65)?.colour).toBe(defaultColour(65));
 	});
 
@@ -187,7 +194,7 @@ describe('marks', () => {
 
 	it('carries the colour to a depth a mark is moved to', () => {
 		const moved = withMarkAt(withColour(DEFAULT_ISOBATHS, 18, '#123456'), 18, 22);
-		expect(moved.emphasised).toEqual([5, 22, 30, 40, 50]);
+		expect(moved.emphasised).toEqual([0, 5, 22, 30, 40, 50]);
 		expect(depthMarks(moved).find((mark) => mark.depthM === 22)?.colour).toBe('#123456');
 	});
 
@@ -218,10 +225,10 @@ describe('the contours a ruler has to draw', () => {
 		expect(depths).toContain(60);
 	});
 
-	it('leaves the shoreline out until somebody marks it', () => {
+	it('draws the shoreline as a contour, and leaves it out once a diver drops it', () => {
 		const plain = { ...DEFAULT_ISOBATHS, autoInterval: false, intervalM: 5 };
-		expect(contourDepths(plain, 14)).not.toContain(0);
-		expect(contourDepths(withMark(plain, 0), 14)).toContain(0);
+		expect(contourDepths(plain, 14)).toContain(0);
+		expect(contourDepths(withoutMark(plain, 0), 14)).not.toContain(0);
 	});
 });
 
