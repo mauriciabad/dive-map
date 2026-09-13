@@ -135,6 +135,12 @@
 	$effect(() =>
 		whenMapReady((map) => {
 			const inspect = (point: { x: number; y: number }, at: LngLat) => {
+				// The same window the hover cursor guards in `cursor.ts`, and it opens
+				// again on the setStyle behind every layer toggle. MapLibre answers a
+				// query naming a layer it does not have by firing an error event rather
+				// than throwing, and the map turns that into a banner over a map that is
+				// loading fine. There is nothing under the pointer to pick yet anyway.
+				if (!map.isStyleLoaded()) return;
 				const osm = map.queryRenderedFeatures(box(point.x, point.y, 10), {
 					layers: [...OSM_PICK_LAYERS]
 				});
