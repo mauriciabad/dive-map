@@ -226,7 +226,15 @@ const runCase = async (context, testCase) => {
 				(Math.abs(b.lng - a.lng) * (Math.PI / 180) * R * Math.cos((lat * Math.PI) / 180)) / 500;
 			return Math.round((widthPx / pixelRatio) * metresPerCssPixel * 10) / 10;
 		},
-		[CENTRE[1], CENTRE[0], render?.renderZoom ?? 0, render?.widthPx ?? 0, render?.pixelRatio ?? 2]
+		[
+			CENTRE[1],
+			CENTRE[0],
+			render?.renderZoom ?? 0,
+			render?.width ?? 0,
+			// The sheet is drawn one zoom level down at twice the pixel ratio, so the
+			// ratio is whatever that gap says it is rather than a constant.
+			render === undefined ? 2 : 2 ** (render.zoom - render.renderZoom)
+		]
 	);
 	const bytes = statSync(saved).size;
 	const size = testCase.expect.kind === 'pdf' ? pdfSize(saved) : pngSize(saved);
