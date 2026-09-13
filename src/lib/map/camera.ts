@@ -13,9 +13,23 @@ import { DATA_EXTENT } from './data-extent.ts';
  * circle inscribed in the viewport of it. That circle is in frame at any
  * bearing, so ground inside it is drawn, and the diagonal costs nothing.
  *
- * Clamping runs on `move`, not on `moveend`. Correcting after the gesture ends
- * reads as the map snapping back; correcting during it reads as the map refusing
- * to go further, which is what a boundary should feel like.
+ * Clamping runs on `move` rather than only on `moveend`. Correcting after a
+ * gesture ends reads as the map snapping back; correcting during it reads as the
+ * map refusing to go further, which is what a boundary should feel like.
+ *
+ * It does not run while the zoom is changing, though. `setCenter` is a jump and a
+ * jump stops whatever camera animation is in flight, so correcting during the
+ * button's ease cancelled the very ease that was running. That made the button
+ * unusable from the opening view, whose centre is the bounding box centre of a
+ * diagonal coast and therefore outside the ring: every press advanced a few
+ * hundredths of a zoom level and was killed, so the map stuck just under 9 and a
+ * diver could not reach a dive site. Measured from 7.6, the presses landed on
+ * 8.6, 8.92, 8.93, 8.93, 8.94 and then nothing.
+ *
+ * Panning is left correcting live, because that is the gesture that actually
+ * meets the boundary and the push-back is the point of it. A zoom is corrected
+ * once it has landed instead, on `moveend`, where there is no longer an
+ * animation for the correction to cancel.
  */
 
 interface Vertex {
@@ -112,8 +126,13 @@ export const constrainToData = (map: MapLibre): (() => void) => {
 		map.setMinZoom(Math.min(camera.zoom, map.getMaxZoom()));
 	};
 
-	const clampCentre = (): void => {
+	/**
+	 * `settled` is the `moveend` pass. By then the animation has landed and there is
+	 * nothing left for a correction to cancel, so the ease check is skipped.
+	 */
+	const clampCentre = (settled = false): void => {
 		if (correcting) return;
+		if (!settled && map.isZooming()) return;
 		const canvas = map.getCanvas();
 		const inscribed = Math.min(canvas.clientWidth, canvas.clientHeight) / 2;
 		if (inscribed <= 0) return;
@@ -134,12 +153,21 @@ export const constrainToData = (map: MapLibre): (() => void) => {
 		correcting = false;
 	};
 
+	const duringMove = (): void => {
+		clampCentre();
+	};
+	const afterMove = (): void => {
+		clampCentre(true);
+	};
+
 	clampZoom();
-	clampCentre();
-	map.on('move', clampCentre);
+	clampCentre(true);
+	map.on('move', duringMove);
+	map.on('moveend', afterMove);
 	map.on('resize', clampZoom);
 	return () => {
-		map.off('move', clampCentre);
+		map.off('move', duringMove);
+		map.off('moveend', afterMove);
 		map.off('resize', clampZoom);
 	};
 };
