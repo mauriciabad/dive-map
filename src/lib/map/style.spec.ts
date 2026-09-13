@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { featureFilter } from '@maplibre/maplibre-gl-style-spec';
 import {
-	GROUND_DEPTH_LAYER,
+	GROUND_BY_LAYER,
 	type LayerWriter,
 	type StyleOptions,
 	applyIsobathLayers,
@@ -9,6 +9,7 @@ import {
 	isobathLayersOf
 } from './style.ts';
 import { DEFAULT_ISOBATHS, DEFAULT_LAYERS, type LayerId } from '$lib/domain/card';
+import type { Ground } from '$lib/domain/habitat';
 import { withColour, withEmphasis } from '$lib/domain/isobaths';
 import { DANGER_TAG_PREFIX, DIVE_NUMBER_KEYS, DIVE_TAG_KEYS } from '$lib/domain/osm';
 import { MARKER_CLOSE } from './markers.ts';
@@ -266,7 +267,7 @@ describe('every flat wash on the land side of the shore', () => {
 	});
 });
 
-describe('the surveyed depth the card reads', () => {
+describe('the ground both halves of the card read', () => {
 	// Picking Seafloor type in the panel switches `groundLayer` and adds `substrate`
 	// to the visible set, so both move together and a test of one is a lie.
 	const SEAFLOOR_TYPE: Partial<StyleOptions> = {
@@ -274,33 +275,43 @@ describe('the surveyed depth the card reads', () => {
 		visible: [...DEFAULT_LAYERS, 'substrate']
 	};
 
-	const probe = (extra: Partial<StyleOptions> = {}) =>
-		buildStyle(options(extra)).layers.find((l) => l.id === GROUND_DEPTH_LAYER);
+	const probe = (ground: Ground, extra: Partial<StyleOptions> = {}) =>
+		buildStyle(options(extra)).layers.find((l) => l.id === `ground-${ground}-probe`);
 
 	it('is in the style whichever ground is drawn, so a query can always name it', () => {
-		expect(probe({ groundLayer: 'habitats' })).toBeDefined();
-		expect(probe(SEAFLOOR_TYPE)).toBeDefined();
+		for (const ground of ['habitats', 'substrate'] as const) {
+			expect(probe(ground, { groundLayer: 'habitats' })).toBeDefined();
+			expect(probe(ground, SEAFLOOR_TYPE)).toBeDefined();
+		}
 	});
 
-	it('reads the habitat polygons, which are the only ones carrying a depth', () => {
-		const layer = probe(SEAFLOOR_TYPE);
-		if (layer?.type !== 'fill') throw new Error('no depth probe fill');
+	it('reads its own catalogue at zero opacity, drawing nothing and still answering', () => {
+		const layer = probe('habitats', SEAFLOOR_TYPE);
+		if (layer?.type !== 'fill') throw new Error('no habitat probe fill');
 		expect(layer.source).toBe('habitats');
 		expect(layer['source-layer']).toBe('habitats');
 		expect(layer.paint?.['fill-opacity']).toBe(0);
 	});
 
-	it('turns on for seafloor type, where nothing drawn carries a depth', () => {
-		expect(probe(SEAFLOOR_TYPE)?.layout?.visibility).toBe('visible');
+	it('turns on for the catalogue nobody is looking at, which is the one not queryable', () => {
+		expect(probe('habitats', SEAFLOOR_TYPE)?.layout?.visibility).toBe('visible');
+		expect(probe('substrate', { groundLayer: 'habitats' })?.layout?.visibility).toBe('visible');
 	});
 
-	it('stays off for habitats, whose own fill is already queryable', () => {
-		expect(probe({ groundLayer: 'habitats' })?.layout?.visibility).toBe('none');
+	it('stays off for the ground being drawn, whose own fill is already queryable', () => {
+		expect(probe('habitats', { groundLayer: 'habitats' })?.layout?.visibility).toBe('none');
+		expect(probe('substrate', SEAFLOOR_TYPE)?.layout?.visibility).toBe('none');
 	});
 
 	it('stays off with the ground switched off, rather than fetching tiles for nothing', () => {
 		const noGround = DEFAULT_LAYERS.filter((id) => id !== 'habitats');
-		expect(probe({ groundLayer: 'substrate', visible: noGround })?.layout?.visibility).toBe('none');
+		expect(probe('substrate', { visible: noGround })?.layout?.visibility).toBe('none');
+		expect(probe('habitats', { visible: noGround })?.layout?.visibility).toBe('none');
+	});
+
+	it('names only layers the style really has, so a tap never queries a ghost', () => {
+		const built = new Set(buildStyle(options()).layers.map((l) => l.id));
+		for (const id of Object.keys(GROUND_BY_LAYER)) expect(built.has(id)).toBe(true);
 	});
 });
 

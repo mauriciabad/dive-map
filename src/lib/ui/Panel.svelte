@@ -3,6 +3,7 @@
 	import { cubicOut } from 'svelte/easing';
 	import { MediaQuery } from 'svelte/reactivity';
 	import Icon from './Icon.svelte';
+	import type { IconName } from './icons';
 	import type { PanelAnchor } from './panel';
 	import {
 		type DragSample,
@@ -39,6 +40,13 @@
 		 */
 		readonly titleTone?: 'label' | 'name';
 		/**
+		 * The mark the map draws for what the panel is about, in the map's own colour
+		 * for it. A diver who tapped a yellow can buoy should see that buoy on the
+		 * card, not read the word for it.
+		 */
+		readonly icon?: IconName | undefined;
+		readonly iconTint?: string | undefined;
+		/**
 		 * Names what the panel is showing, for a panel that swaps its whole contents.
 		 * Changing it puts the scroll back to the top, because arriving halfway down a
 		 * screen you have never seen, with the way back above the fold, is how a panel
@@ -58,6 +66,8 @@
 		onclose,
 		anchor = 'top-left',
 		titleTone = 'label',
+		icon,
+		iconTint,
 		showing,
 		id,
 		footer,
@@ -211,6 +221,11 @@
 			onpointercancel={finish}
 			onclick={press}
 		></button>
+		{#if icon !== undefined}
+			<span class="mark" style:color={iconTint ?? 'var(--color-brass-300)'}>
+				<Icon name={icon} size={26} />
+			</span>
+		{/if}
 		<h2 data-tone={titleTone}>{title}</h2>
 		<button type="button" class="close" onclick={onclose}>
 			<Icon name="close" size={22} />
@@ -339,10 +354,19 @@
 		cursor: grabbing;
 	}
 
+	/* Over the grab handle, and letting the drag through it. */
+	.mark {
+		position: relative;
+		display: grid;
+		place-items: center;
+		flex: none;
+		pointer-events: none;
+	}
+
 	h2 {
 		position: relative;
 		pointer-events: none;
-		margin: 0;
+		margin: 0 auto 0 0;
 		font-size: 0.95rem;
 		font-weight: 700;
 		letter-spacing: 0.04em;

@@ -168,9 +168,8 @@
 				view.select(
 					pickFrom(
 						osm.map((f) => f.properties),
-						ground.map((f) => f.properties),
-						{ lng: at.lng, lat: at.lat },
-						view.groundLayer
+						ground.map((f) => ({ layer: f.layer.id, props: f.properties })),
+						{ lng: at.lng, lat: at.lat }
 					)
 				);
 			};

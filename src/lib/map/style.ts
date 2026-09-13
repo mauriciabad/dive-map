@@ -10,6 +10,7 @@ import type {
 	StyleSpecification
 } from 'maplibre-gl';
 import {
+	type Ground,
 	HABITATS,
 	NO_TEXTURE_CHOICES,
 	SUBSTRATES,
@@ -624,13 +625,14 @@ export const GROUND_FILL_LAYERS = [
 ] as const;
 
 /**
- * Where the surveyed depth comes from, whichever ground is drawn. Issue #29.
+ * A zero-opacity copy of the ground nobody is looking at. Issues #29 and #39.
  *
- * The depth range is the habitat survey's: `dmin` and `dmax` per polygon. The
- * substrate product is a different ICGC layer with no depth field at all, so with
- * Seafloor type showing there was nothing under the pointer that carried one and
- * the card dropped its depth line. Depth is the number a diver opens that card
- * for, and it was going missing because of a display preference.
+ * Two things a tap has to answer that the drawn layer alone cannot. The surveyed
+ * depth is the habitat survey's `dmin` and `dmax` per polygon, and the substrate
+ * product is a different ICGC layer with no depth field at all, so with Seafloor
+ * type showing there was nothing under the pointer carrying one. And the card now
+ * names the class in both catalogues, which means reading a layer that is not
+ * painted whichever way the switch is set.
  *
  * Baking a depth onto the substrate polygons in the build was the other option and
  * it is the wrong one. The two products do not share a partition, so joining them
@@ -639,31 +641,48 @@ export const GROUND_FILL_LAYERS = [
  * both modes off the one survey that measured depth makes them identical by
  * construction.
  *
- * This layer is what makes that query possible: MapLibre will not return features
- * from a layer whose visibility is `none`, so the habitat polygons have to stay
- * rendered to stay queryable. Zero opacity draws nothing and still answers.
+ * A probe is what makes the query possible: MapLibre will not return features from
+ * a layer whose visibility is `none`, so the polygons have to stay rendered to stay
+ * queryable. Zero opacity draws nothing and still answers.
  *
- * It is in the style at every moment so nothing has to check before naming it in
- * a query, and it only turns on where it earns its keep. With Habitats showing,
- * the real fill is already queryable and this stays off. With the ground off
- * entirely there is nothing to answer about. That leaves Seafloor type, which is
- * the one case that pays for the habitat tiles alongside the substrate ones.
+ * Both are in the style at every moment so nothing has to check before naming one
+ * in a query, and each turns on only where it earns its keep: the probe for the
+ * ground being drawn is off, because that ground's own fill already answers, and
+ * with the ground switched off entirely there is nothing to answer about.
  */
-export const GROUND_DEPTH_LAYER = 'ground-depth-probe';
+const probeId = (ground: Ground): string => `ground-${ground}-probe`;
 
-const depthProbeLayer = (options: StyleOptions): LayerSpecification => ({
-	id: GROUND_DEPTH_LAYER,
-	type: 'fill',
-	source: 'habitats',
-	'source-layer': 'habitats',
-	layout: {
-		visibility:
-			options.groundLayer === 'substrate' && options.visible.includes('substrate')
-				? 'visible'
-				: 'none'
-	},
-	paint: { 'fill-opacity': 0 }
-});
+const groundProbeLayers = (options: StyleOptions): LayerSpecification[] =>
+	(['habitats', 'substrate'] as const).map((ground) => ({
+		id: probeId(ground),
+		type: 'fill',
+		source: ground,
+		'source-layer': ground,
+		layout: {
+			visibility:
+				options.groundLayer !== ground && options.visible.includes(options.groundLayer)
+					? 'visible'
+					: 'none'
+		},
+		paint: { 'fill-opacity': 0 }
+	}));
+
+/**
+ * Which catalogue each layer a tap may query answers for.
+ *
+ * A code on its own does not name a class: habitat 30202 is circalittoral rock
+ * dominated by invertebrates and substrate 30202 is a biogenic reef. The layer a
+ * hit came off is the other half of the answer, and this is where the card reads
+ * it rather than guessing from the switch.
+ */
+export const GROUND_BY_LAYER: Readonly<Record<string, Ground>> = {
+	'ground-habitats-fill': 'habitats',
+	'ground-habitats-raw-fill': 'habitats',
+	'ground-substrate-fill': 'substrate',
+	'ground-substrate-raw-fill': 'substrate',
+	[probeId('habitats')]: 'habitats',
+	[probeId('substrate')]: 'substrate'
+};
 
 const isKind = (...kinds: readonly string[]): ExpressionSpecification => [
 	'in',
@@ -1168,7 +1187,7 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 		},
 
 		...groundLayers(options),
-		depthProbeLayer(options),
+		...groundProbeLayers(options),
 
 		{
 			// Held back until the `world` source has painted, because until then this

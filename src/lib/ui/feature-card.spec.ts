@@ -1,11 +1,12 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ISOBATHS, DEFAULT_LAYERS } from '$lib/domain/card';
-import { HABITATS, SUBSTRATES, substrateByCode } from '$lib/domain/habitat';
+import { type Ground, HABITATS, SUBSTRATES, substrateByCode } from '$lib/domain/habitat';
 import { buildStyle } from '$lib/map/style';
 import { type DiveFeature, parseDiveFeature } from '$lib/domain/osm';
 import { LOCALES } from '$lib/i18n/locale';
 import {
+	type FeaturePick,
 	type FeatureProperties,
 	GROUND_PICK_LAYERS,
 	KIND_LABEL,
@@ -97,6 +98,14 @@ describe('trusting what the map hands back', () => {
 
 const AT = { lng: 3.2147, lat: 41.9083 };
 
+/** Ground hits as they arrive off one layer, which is what says which catalogue they are in. */
+const off = (ground: Ground, props: readonly FeatureProperties[]) =>
+	props.map((p) => ({ layer: `ground-${ground}-fill`, props: p }));
+
+/** The classes one reading of a pick names, for a pick that has that reading. */
+const named = (pick: FeaturePick | undefined, ground: Ground): readonly string[] =>
+	pick?.seabed.find((reading) => reading.ground === ground)?.classes.map((c) => c.code) ?? [];
+
 describe('picking a feature off the map', () => {
 	it('prefers the dive site over the zone it sits inside, whichever was hit first', () => {
 		const site = namedFeature('Canons de Tamariu');
@@ -104,9 +113,9 @@ describe('picking a feature off the map', () => {
 		// OSM tags this reserve seamark:restricted_area:category=swimming, so the
 		// parser reads it as a bathing zone. Wrong about Ses Negres, right about the
 		// tag, and the tag is what a mapper can fix.
-		expect(pickFrom([zone], [], AT, 'habitats')?.feature?.kind).toBe('swimming-area');
-		expect(pickFrom([zone, site], [], AT, 'habitats')?.feature?.name).toBe('Canons de Tamariu');
-		expect(pickFrom([site, zone], [], AT, 'habitats')?.feature?.name).toBe('Canons de Tamariu');
+		expect(pickFrom([zone], [], AT)?.feature?.kind).toBe('swimming-area');
+		expect(pickFrom([zone, site], [], AT)?.feature?.name).toBe('Canons de Tamariu');
+		expect(pickFrom([site, zone], [], AT)?.feature?.name).toBe('Canons de Tamariu');
 	});
 
 	it('picks nothing when no hit is a feature this map shows', () => {
@@ -114,13 +123,36 @@ describe('picking a feature off the map', () => {
 			{ kind: 'dive-site', name: 'no ref on this one' },
 			{ t: 'node', id: 1, amenity: 'cafe' }
 		];
-		expect(pickFrom(hits, [], AT, 'habitats')).toBeUndefined();
+		expect(pickFrom(hits, [], AT)).toBeUndefined();
 	});
 
 	it('reads the seabed off ground hits that carry a code and skips the ones that do not', () => {
 		const site = namedFeature('Canons de Tamariu');
-		const ground = [{ code: '30512' }, { name: 'no code here' }, { code: '30402' }];
-		expect(pickFrom([site], ground, AT, 'habitats')?.seabed.map((c) => c.code)).toEqual(['30512', '30402']);
+		const ground = off('habitats', [
+			{ code: '30512' },
+			{ name: 'no code here' },
+			{ code: '30402' }
+		]);
+		expect(named(pickFrom([site], ground, AT), 'habitats')).toEqual(['30512', '30402']);
+	});
+
+	// The card asks both questions, so the switch in the panel cannot decide which
+	// of them gets answered. Each hit is read against the catalogue of the layer it
+	// came off, and a code both catalogues publish means different things in each.
+	it('names the class in both catalogues, off the layer each hit arrived on', () => {
+		const pick = pickFrom(
+			[],
+			[...off('habitats', [{ code: '30202' }]), ...off('substrate', [{ code: '30202' }])],
+			AT
+		);
+		expect(pick?.seabed.map((reading) => reading.ground)).toEqual(['habitats', 'substrate']);
+		expect(pick?.seabed[0]?.classes[0]?.en).toBe('Circalittoral rock, invertebrate-dominated');
+		expect(pick?.seabed[1]?.classes[0]?.en).toBe('Biogenic reefs');
+	});
+
+	it('leaves out a catalogue with nothing under the point rather than heading an empty list', () => {
+		const pick = pickFrom([], off('habitats', [{ code: '30512' }]), AT);
+		expect(pick?.seabed.map((reading) => reading.ground)).toEqual(['habitats']);
 	});
 });
 
@@ -129,10 +161,12 @@ describe('the seabed strip under the tap', () => {
 		expect(seabedFrom(new Set(['30402', '30512']), 'habitats')[0]?.code).toBe('30512');
 	});
 
-	it('resolves a substrate-only code the habitat legend cannot see', () => {
-		const seabed = seabedFrom(new Set(['301']), 'habitats');
-		expect(seabed[0]).toBe(substrateByCode.get('301'));
-		expect(seabed[0]?.ca).toBe('Roca');
+	// The fall-through in `seabedClassByCode` is the right answer for a caller
+	// reading one layer and the wrong one for the card, which reads both: the
+	// substrate row belongs under the substrate heading, named as what it is.
+	it('leaves a substrate-only code to the substrate reading', () => {
+		expect(seabedFrom(new Set(['301']), 'habitats')).toEqual([]);
+		expect(seabedFrom(new Set(['301']), 'substrate')[0]).toBe(substrateByCode.get('301'));
 	});
 
 	// The same tap on the same polygon, read off whichever layer drew it. On
@@ -258,30 +292,30 @@ describe('the layers a tap is allowed to hit', () => {
 });
 
 describe('a tap on open seabed still answers', () => {
-	const ground = [
+	const ground = off('habitats', [
 		{ code: '30512', dmin: 12, dmax: 22 },
 		{ code: '30402', dmin: 20, dmax: 26 }
-	];
+	]);
 
 	it('returns a pick with no OSM feature at all', () => {
-		const pick = pickFrom([], ground, AT, 'habitats');
+		const pick = pickFrom([], ground, AT);
 		expect(pick?.feature).toBeUndefined();
-		expect(pick?.seabed.map((c) => c.code)).toEqual(['30512', '30402']);
+		expect(named(pick, 'habitats')).toEqual(['30512', '30402']);
 	});
 
 	it('reports the surveyed depth spanning every class under the point', () => {
-		expect(pickFrom([], ground, AT, 'habitats')?.depth).toEqual({ min: 12, max: 26 });
+		expect(pickFrom([], ground, AT)?.depth).toEqual({ min: 12, max: 26 });
 	});
 
 	it('carries the tapped position so it can be read off the card', () => {
-		expect(pickFrom([], ground, AT, 'habitats')?.position).toEqual(AT);
+		expect(pickFrom([], ground, AT)?.position).toEqual(AT);
 	});
 
 	it('still answers nothing where there is neither a feature nor a seabed', () => {
-		expect(pickFrom([], [], AT, 'habitats')).toBeUndefined();
+		expect(pickFrom([], [], AT)).toBeUndefined();
 	});
 
 	it('leaves the depth out when the tiles carry no depth for the polygon', () => {
-		expect(pickFrom([], [{ code: '30512' }], AT, 'habitats')?.depth).toBeUndefined();
+		expect(pickFrom([], off('habitats', [{ code: '30512' }]), AT)?.depth).toBeUndefined();
 	});
 });

@@ -14,7 +14,7 @@ import {
 	type OsmTags,
 	parseDiveFeature
 } from '$lib/domain/osm';
-import { GROUND_DEPTH_LAYER, GROUND_FILL_LAYERS } from '$lib/map/style';
+import { GROUND_BY_LAYER } from '$lib/map/style';
 import type { Depth } from '$lib/domain/units';
 import { type Locale, localisedName } from '$lib/i18n/locale';
 import { type MessageKey, t } from '$lib/i18n/messages';
@@ -22,14 +22,34 @@ import { type MessageKey, t } from '$lib/i18n/messages';
 /** A MapLibre feature's properties, before anything trusts them. */
 export type FeatureProperties = Readonly<Record<string, unknown>>;
 
+/**
+ * What one catalogue says is under the tap.
+ *
+ * Both are on the card, because they answer different questions and a diver wants
+ * both: the habitat is what lives there, the substrate is what the bottom is made
+ * of. Which one the map happens to be painting is a display preference, and it was
+ * deciding which half of that a diver got.
+ */
+export interface SeabedReading {
+	readonly ground: Ground;
+	/** Most diver-relevant first, capped at what the card has room for. */
+	readonly classes: readonly SeabedClass[];
+}
+
 export interface FeaturePick {
 	/** Absent when the tap landed on open seabed with nothing mapped on it. */
 	readonly feature: DiveFeature | undefined;
-	/** Seabed classes under the tapped point, most diver-relevant first. */
-	readonly seabed: readonly SeabedClass[];
+	/** One reading per catalogue that had anything to say, habitats first. */
+	readonly seabed: readonly SeabedReading[];
 	readonly position: { readonly lng: number; readonly lat: number };
 	/** Surveyed depth range of the habitat polygon under the point, in metres. */
 	readonly depth: { readonly min: number; readonly max: number } | undefined;
+}
+
+/** A ground polygon under the tap, with the layer that says which catalogue it is in. */
+export interface GroundHit {
+	readonly layer: string;
+	readonly props: FeatureProperties;
 }
 
 export const OSM_PICK_LAYERS = [
@@ -42,7 +62,7 @@ export const OSM_PICK_LAYERS = [
 	'osm-restricted'
 ] as const;
 
-export const GROUND_PICK_LAYERS = [...GROUND_FILL_LAYERS, GROUND_DEPTH_LAYER] as const;
+export const GROUND_PICK_LAYERS: readonly string[] = Object.keys(GROUND_BY_LAYER);
 
 export const SEABED_LIMIT = 3;
 
@@ -85,6 +105,9 @@ const KIND_PRIORITY: Record<DiveFeatureKind, number> = {
 	'restricted-area': 11
 };
 
+/** Habitats first: it is the layer the map opens on and the one a diver asks for. */
+const GROUNDS: readonly Ground[] = ['habitats', 'substrate'];
+
 /**
  * A tap always answers.
  *
@@ -92,12 +115,15 @@ const KIND_PRIORITY: Record<DiveFeatureKind, number> = {
  * depth range and a position under every point on this map, and that is most of
  * what a diver wants to know. Returning undefined there left the panel shut and
  * the map feeling broken.
+ *
+ * The catalogue a code belongs to comes off the layer the hit arrived on rather
+ * than off the switch in the panel. The style keeps a zero-opacity probe over the
+ * ground nobody is looking at, so both layers answer every tap.
  */
 export const pickFrom = (
 	osmHits: readonly FeatureProperties[],
-	groundHits: readonly FeatureProperties[],
-	position: { readonly lng: number; readonly lat: number },
-	ground: Ground
+	groundHits: readonly GroundHit[],
+	position: { readonly lng: number; readonly lat: number }
 ): FeaturePick | undefined => {
 	let best: DiveFeature | undefined;
 	for (const props of osmHits) {
@@ -109,18 +135,22 @@ export const pickFrom = (
 			best = feature;
 		}
 	}
-	const codes = new Set<string>();
+	const codes: Record<Ground, Set<string>> = { habitats: new Set(), substrate: new Set() };
 	let min = Number.POSITIVE_INFINITY;
 	let max = Number.NEGATIVE_INFINITY;
-	for (const props of groundHits) {
+	for (const { layer, props } of groundHits) {
+		const ground = GROUND_BY_LAYER[layer];
 		const code = props['code'];
-		if (typeof code === 'string') codes.add(code);
+		if (ground !== undefined && typeof code === 'string') codes[ground].add(code);
 		const lo: unknown = props['dmin'];
 		const hi: unknown = props['dmax'];
 		if (typeof lo === 'number') min = Math.min(min, lo);
 		if (typeof hi === 'number') max = Math.max(max, hi);
 	}
-	const seabed = seabedFrom(codes, ground);
+	const seabed = GROUNDS.flatMap((ground) => {
+		const classes = seabedFrom(codes[ground], ground);
+		return classes.length === 0 ? [] : [{ ground, classes }];
+	});
 	if (best === undefined && seabed.length === 0) return undefined;
 
 	return {
@@ -132,9 +162,8 @@ export const pickFrom = (
 };
 
 /**
- * The classes under the tap, most diver-relevant first and capped at what the
- * card has room for. The codes come off the one ground layer that is drawn, so
- * they resolve against that layer's catalogue and fall through to the other.
+ * The classes one catalogue has under the tap, most diver-relevant first and
+ * capped at what the card has room for.
  */
 export const seabedFrom = (
 	codes: ReadonlySet<string>,
@@ -143,6 +172,11 @@ export const seabedFrom = (
 ): readonly SeabedClass[] =>
 	[...codes]
 		.flatMap((code) => seabedClassByCode(code, ground) ?? [])
+		// `seabedClassByCode` answers a code this catalogue does not publish out of
+		// the other one, which is the right answer when only one layer is being read
+		// and the wrong one here. The card reads both, so the other catalogue's row
+		// belongs under the other heading, named as what it is rather than as a habitat.
+		.filter((seabed) => seabed.ground === ground)
 		.sort(byProminence)
 		.slice(0, limit);
 

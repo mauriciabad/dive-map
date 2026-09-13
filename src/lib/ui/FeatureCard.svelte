@@ -18,6 +18,7 @@
 	} from './feature-card';
 	import { osmUrl } from '$lib/domain/osm';
 	import { type TextureChoices, textureOf } from '$lib/domain/habitat';
+	import { MARKERS } from '$lib/map/markers';
 	import { type Locale, localisedName } from '$lib/i18n/locale';
 	import { t } from '$lib/i18n/messages';
 
@@ -44,12 +45,37 @@
 			? t(locale, 'seabedHere')
 			: (localisedName(feature.tags, locale) ?? t(locale, KIND_LABEL[feature.kind]))}
 	{@const hero = feature === undefined ? undefined : heroDepthOf(feature)}
+	{@const mark = feature === undefined ? undefined : MARKERS[feature.kind]}
 	{@const levels = feature?.kind === 'dive-site' ? feature.difficulty : []}
 	{@const difficulty = difficultyText(locale, levels)}
 	{@const pips = difficultyPips(levels)}
-	<Panel title={heading} {locale} anchor="bottom-left" titleTone="name" {onclose}>
+	<Panel
+		title={heading}
+		{locale}
+		anchor="bottom-left"
+		titleTone="name"
+		icon={mark?.icon}
+		iconTint={mark?.colour}
+		{onclose}
+	>
 		{#if feature !== undefined}
 			<p class="subtitle">{subtitleOf(feature, locale).join(' · ')}</p>
+		{/if}
+
+		<!--
+			The depth under the point, unlabelled and the largest thing on the card. It
+			is what a diver reads first and it needs no caption: a number this size on a
+			card about one point on the seabed is the depth there.
+		-->
+		{#if pick.depth !== undefined}
+			{@const flat = pick.depth.min === pick.depth.max}
+			<p class={['here', { flat }]}>
+				{#if flat}
+					{pick.depth.min}<span class="unit">m</span>
+				{:else}
+					{t(locale, 'depthRange', { min: pick.depth.min, max: pick.depth.max })}
+				{/if}
+			</p>
 		{/if}
 
 		{#if hero !== undefined}
@@ -77,12 +103,6 @@
 			</Field>
 		{/if}
 
-		{#if pick.depth !== undefined}
-			<Field label={t(locale, 'surveyedDepth')}>
-				<p class="prose">{t(locale, 'depthRange', { min: pick.depth.min, max: pick.depth.max })}</p>
-			</Field>
-		{/if}
-
 		<Field label={t(locale, 'position')}>
 			<p class="numeric prose">{pick.position.lat.toFixed(5)}, {pick.position.lng.toFixed(5)}</p>
 		</Field>
@@ -101,10 +121,15 @@
 			</Field>
 		{/each}
 
-		{#if pick.seabed.length > 0}
-			<Field label={t(locale, 'seabed')}>
+		<!--
+			Both catalogues, always. What lives on the bottom and what the bottom is
+			made of are different questions, and which layer happens to be painted is a
+			display preference that was deciding which half of the answer a diver got.
+		-->
+		{#each pick.seabed as reading (reading.ground)}
+			<Field label={t(locale, reading.ground)}>
 				<ul class="seabed">
-					{#each pick.seabed as seabedClass (seabedClass)}
+					{#each reading.classes as seabedClass (seabedClass)}
 						<li>
 							<span
 								class="swatch"
@@ -115,9 +140,11 @@
 						</li>
 					{/each}
 				</ul>
-				<Note>{t(locale, 'habitatEstimate')}</Note>
+				<Note>
+					{t(locale, reading.ground === 'habitats' ? 'habitatEstimate' : 'substrateEstimate')}
+				</Note>
 			</Field>
-		{/if}
+		{/each}
 
 		{#snippet footer()}
 			{#if feature !== undefined}
@@ -134,10 +161,28 @@
 		color: var(--control-ink-dim);
 	}
 
-	/* The depth is what the eye lands on, so nothing else on the panel is bigger. */
+	/*
+	 * The depth under the point. Nothing else on the card is bigger, and a range
+	 * carries three more glyphs and a word, so it takes a step down rather than
+	 * wrapping across two lines on a phone.
+	 */
+	.here {
+		margin: 0;
+		font-size: 2.1rem;
+		font-weight: 700;
+		line-height: 1;
+		font-variant-numeric: tabular-nums;
+		color: var(--control-ink);
+	}
+
+	.here.flat {
+		font-size: 3.2rem;
+	}
+
+	/* The feature's own depth, under its label: the site's rating, not the ground. */
 	.metres {
 		margin: 0;
-		font-size: 3.2rem;
+		font-size: 1.6rem;
 		font-weight: 700;
 		line-height: 1;
 		font-variant-numeric: tabular-nums;
@@ -146,7 +191,7 @@
 
 	.unit {
 		margin-left: 0.3rem;
-		font-size: 1rem;
+		font-size: 0.9rem;
 		font-weight: 600;
 		color: var(--color-brass-300);
 	}
