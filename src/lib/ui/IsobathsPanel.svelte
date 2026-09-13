@@ -4,9 +4,8 @@
 	import ChipGroup from './controls/ChipGroup.svelte';
 	import Field from './controls/Field.svelte';
 	import Note from './controls/Note.svelte';
-	import Segmented from './controls/Segmented.svelte';
+	import Range from './controls/Range.svelte';
 	import Toggle from './controls/Toggle.svelte';
-	import type { Choice } from './controls/types';
 	import { PANEL_ID } from './panel';
 	import { t } from '$lib/i18n/messages';
 	import type { MapState } from '$lib/state/map-view.svelte';
@@ -18,30 +17,31 @@
 
 	const { view, onclose }: Props = $props();
 
-	/** `auto` is a real choice alongside the fixed intervals, not a switch beside them. */
-	type Interval = number | 'auto';
-
-	const INTERVALS = [1, 2, 5, 10, 20] as const;
 	const EMPHASIS_CHOICES = [0, 5, 10, 18, 20, 30, 40, 50, 60] as const;
-	const MAX_DEPTHS = [30, 40, 50, 60, 80] as const;
+
+	/**
+	 * Below every real interval, so the shallow end of the track is where the map
+	 * picks for itself. It is a position on the same slider rather than a switch
+	 * beside it, because "let the zoom decide" is the coarsest setting there is.
+	 */
+	const AUTO = 0;
+
+	/** The coarsest interval offered, and what auto falls back to when zoomed out. */
+	const COARSEST_M = 20;
+
+	/** Deep enough for the whole survey, which bottoms out at 80.7 m. */
+	const DEEPEST_M = 100;
 
 	/** Written as an escape so no invisible character lands in the source. */
 	const THIN = '\u2009';
 
 	const metres = (value: number): string => `${value}${THIN}m`;
 
-	const intervals = $derived<readonly Choice<Interval>[]>([
-		{ value: 'auto', label: t(view.locale, 'autoInterval') },
-		...INTERVALS.map((value) => ({ value, label: metres(value) }))
-	]);
+	const interval = $derived(view.isobaths.autoInterval ? AUTO : view.isobaths.intervalM);
 
-	const depths = $derived<readonly Choice<number>[]>(
-		MAX_DEPTHS.map((value) => ({ value, label: metres(value) }))
-	);
-
-	const interval = $derived<Interval>(
-		view.isobaths.autoInterval ? 'auto' : view.isobaths.intervalM
-	);
+	/** A hand-edited blob can carry a setting past the end of the track. Show it rather than clamp it. */
+	const coarsest = $derived(Math.max(COARSEST_M, view.isobaths.intervalM));
+	const deepest = $derived(Math.max(DEEPEST_M, view.isobaths.maxDepthM));
 </script>
 
 <Panel
@@ -52,13 +52,17 @@
 	{onclose}
 >
 	<Field label={t(view.locale, 'interval')}>
-		<Segmented
-			options={intervals}
+		<Range
+			label={t(view.locale, 'interval')}
 			value={interval}
-			numeric
-			onselect={(next: Interval) => {
-				if (next === 'auto') view.setAutoInterval();
-				else view.setInterval(next);
+			min={AUTO}
+			max={coarsest}
+			format={(value: number) => (value === AUTO ? t(view.locale, 'autoInterval') : metres(value))}
+			onchange={(next: number) => {
+				view.isobaths =
+					next === AUTO
+						? { ...view.isobaths, autoInterval: true }
+						: { ...view.isobaths, intervalM: next, autoInterval: false };
 			}}
 		/>
 		<Note>{t(view.locale, 'autoIntervalHint')}</Note>
@@ -80,12 +84,14 @@
 	</Field>
 
 	<Field label={t(view.locale, 'maxDepth')}>
-		<Segmented
-			options={depths}
+		<Range
+			label={t(view.locale, 'maxDepth')}
 			value={view.isobaths.maxDepthM}
-			numeric
-			onselect={(next: number) => {
-				view.setMaxDepth(next);
+			min={5}
+			max={deepest}
+			format={metres}
+			onchange={(next: number) => {
+				view.isobaths = { ...view.isobaths, maxDepthM: next };
 			}}
 		/>
 	</Field>
