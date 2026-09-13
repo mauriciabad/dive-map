@@ -932,24 +932,6 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 				'fill-opacity': ['interpolate', ['linear'], ['zoom'], 7, 0.85, 12.5, 0.85, 14.5, 0]
 			}
 		},
-		{
-			// The wash would still meet the veil on one pixel. This lays the same colour
-			// along the boundary as a wide blurred line, offset inwards, which spreads
-			// the junction over a few hundred metres. The rings are wound with the
-			// covered side on the left, which is what makes one negative offset push the
-			// band inwards on every ring, holes included.
-			id: 'dem-edge-fade',
-			type: 'line',
-			source: 'dem-edge',
-			filter: ['==', ['get', 'kind'], 'edge'],
-			layout: { visibility: vis(options, 'depth-tint'), 'line-join': 'round' },
-			paint: {
-				'line-color': BEYOND_WASH,
-				'line-width': 56,
-				'line-blur': 40,
-				'line-offset': -26
-			}
-		},
 
 		{
 			id: 'isobath-glow',
