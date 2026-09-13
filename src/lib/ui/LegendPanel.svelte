@@ -1,6 +1,8 @@
 <script lang="ts">
+	import Icon from './Icon.svelte';
 	import Panel from './Panel.svelte';
 	import Action from './controls/Action.svelte';
+	import Chip from './controls/Chip.svelte';
 	import Field from './controls/Field.svelte';
 	import Note from './controls/Note.svelte';
 	import Segmented from './controls/Segmented.svelte';
@@ -14,6 +16,7 @@
 	import { PANEL_ID } from './panel';
 	import type { Ground, SeabedClass } from '$lib/domain/habitat';
 	import { DIVE_FEATURE_KINDS } from '$lib/domain/osm';
+	import { HABITAT_POINTS } from '$lib/map/habitat-points';
 	import { markerLayerId } from '$lib/domain/card';
 	import { whenMapReady } from '$lib/map/controls';
 	import {
@@ -159,6 +162,42 @@
 			{/if}
 		</Field>
 
+		<!--
+			Beside the map marks and not among the texture rows, because these are marks
+			too: the survey drew them as points and the map draws them as glyphs, so
+			what a diver is matching is a drawing rather than a pattern of seabed. One
+			switch for the layer, in the Layers panel, which is what the marks above
+			answer to as well.
+		-->
+		<Field label={t(view.locale, 'habitatPoints')}>
+			{#if view.shows('habitat-points')}
+				<Note>{t(view.locale, 'habitatPointsHint')}</Note>
+				<ul class="points">
+					{#each HABITAT_POINTS as point (point.code)}
+						<li class="point">
+							<span class="mark" style:color={point.colour}>
+								<Icon name={point.icon} size={24} />
+							</span>
+							<span class="name">
+								<span class="text">{point[view.locale]}</span>
+								{#if point.hic !== undefined}
+									<Chip label={t(view.locale, 'legendHic', { code: point.hic })} />
+								{/if}
+							</span>
+						</li>
+					{/each}
+				</ul>
+			{:else}
+				<Note tone="warn">{t(view.locale, 'habitatPointsOff')}</Note>
+				<Action
+					label={t(view.locale, 'habitatPointsShow')}
+					onclick={() => {
+						view.toggle('habitat-points');
+					}}
+				/>
+			{/if}
+		</Field>
+
 		{#if !view.shows(view.groundLayer)}
 			<Field label={t(view.locale, 'legendInFrame')}>
 				<Note tone="warn">{t(view.locale, 'legendGroundOff')}</Note>
@@ -244,6 +283,48 @@
 		margin: 0;
 		padding: 0;
 		list-style: none;
+	}
+
+	.points {
+		display: flex;
+		flex-direction: column;
+		gap: 0.1rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	/* The same column the map marks stand in, so the two lists read as one set. */
+	.point {
+		display: flex;
+		align-items: center;
+		gap: 0.7rem;
+		padding: 0.3rem 0.5rem;
+	}
+
+	.point .mark {
+		display: grid;
+		flex: none;
+		place-items: center;
+		width: 1.9rem;
+		height: 1.9rem;
+	}
+
+	.point .name {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.4rem;
+		flex: 1;
+		min-width: 0;
+		font-size: var(--control-text);
+		line-height: 1.3;
+		overflow-wrap: anywhere;
+	}
+
+	.point .text {
+		flex: 1 1 8rem;
+		min-width: 0;
 	}
 
 	/* The hatch has no class list, so its hint stands in for one and sits beside it. */
