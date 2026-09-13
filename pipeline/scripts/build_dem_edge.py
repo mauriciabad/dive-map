@@ -65,6 +65,12 @@ def main() -> int:
     ap.add_argument("--nearshore-m", type=float, default=1200.0)
     args = ap.parse_args()
 
+    if pathlib.Path(args.out).exists() and (
+        args.extent_out is None or pathlib.Path(args.extent_out).exists()
+    ):
+        print(f"have {args.out}")
+        return 0
+
     with rasterio.open(args.dem) as ds:
         h, w = ds.height // args.decimate, ds.width // args.decimate
         a = ds.read(1, out_shape=(h, w), resampling=Resampling.average)
