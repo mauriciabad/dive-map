@@ -101,15 +101,17 @@ export const MARKER_CLOSE = 10;
  * the number that decides how far apart two strokes of one drawing have to sit:
  * anything closer than twice this merges into a single blob at marker size.
  *
- * A glyph on a plate needs almost none of it, and cannot afford it either: the
- * plate is only twenty pixels across at z14 and a full halo closed every gap in
- * the bubbles. Which is why the answer is only the answer from `MARKER_CLOSE`
- * in: out there the plate is gone and the dive site is a glyph on bare seabed
- * like every other kind, so it takes the full outline.
+ * A glyph on a plate takes none of it. The diver-down flag is two colours and
+ * nothing else, white across red, which is already the strongest contrast on
+ * this map and needs no help from an outline; the thin dark one it used to carry
+ * only muddied the stripe's edges at the twenty pixels the plate is wide at z14.
+ * The answer is only the answer from `MARKER_CLOSE` in: out there the plate is
+ * gone and the dive site is a glyph on bare seabed like every other kind, so it
+ * takes the full outline.
  */
 export const MARKER_HALO = 2.2;
 
-export const markerHalo = (style: MarkerStyle): number => (style.plate ? 0.8 : MARKER_HALO);
+export const markerHalo = (style: MarkerStyle): number => (style.plate ? 0 : MARKER_HALO);
 
 /** The ink every marker is outlined in, and the plate the dive site sits on. */
 export const MARKER_INK = '#14100c';

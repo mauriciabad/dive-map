@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Icon from './Icon.svelte';
+	import Mark from './Mark.svelte';
 	import { KIND_LABEL } from './feature-card';
 	import type { DiveFeatureKind } from '$lib/domain/osm';
 	import { MARKERS } from '$lib/map/markers';
@@ -29,9 +29,9 @@
 </script>
 
 <button type="button" class="row" aria-pressed={on} onclick={onchange}>
-	<span class="mark" data-plate={style.plate} style:color={style.colour}>
+	<span class="mark">
 		{#if style.icon !== undefined}
-			<Icon name={style.icon} size={24} />
+			<Mark icon={style.icon} tint={style.colour} plate={style.plate} />
 		{/if}
 	</span>
 	<span class="name" data-label-only={style.icon === undefined} style:--ink={style.colour}>
@@ -74,12 +74,6 @@
 		place-items: center;
 		width: 1.9rem;
 		height: 1.9rem;
-		border-radius: 999px;
-	}
-
-	.mark[data-plate='true'] {
-		background: var(--color-table-900);
-		box-shadow: inset 0 0 0 1px var(--color-brass-400);
 	}
 
 	.name {

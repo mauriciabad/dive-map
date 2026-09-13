@@ -3,6 +3,7 @@
 	import { cubicOut } from 'svelte/easing';
 	import { MediaQuery } from 'svelte/reactivity';
 	import Icon from './Icon.svelte';
+	import Mark from './Mark.svelte';
 	import type { IconName } from './icons';
 	import type { PanelAnchor } from './panel';
 	import {
@@ -225,8 +226,8 @@
 			onclick={press}
 		></button>
 		{#if icon !== undefined}
-			<span class="mark" data-plate={iconPlate} style:color={iconTint ?? 'var(--color-brass-300)'}>
-				<Icon name={icon} size={24} />
+			<span class="mark">
+				<Mark {icon} tint={iconTint ?? 'var(--color-brass-300)'} plate={iconPlate} />
 			</span>
 		{/if}
 		<h2 data-tone={titleTone}>{title}</h2>
@@ -364,13 +365,7 @@
 		flex: none;
 		width: 1.9rem;
 		height: 1.9rem;
-		border-radius: 999px;
 		pointer-events: none;
-	}
-
-	.mark[data-plate='true'] {
-		background: var(--color-table-900);
-		box-shadow: inset 0 0 0 1px var(--color-brass-400);
 	}
 
 	h2 {
