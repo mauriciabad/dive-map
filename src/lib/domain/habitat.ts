@@ -37,14 +37,14 @@ export interface HabitatClass extends Localised {
 	/**
 	 * CODI_LPRE3, or CODI_LPRE4 for the three EUNIS-4 classes.
 	 *
-	 * Not unique, and not optional either. The survey publishes raster 29 and
-	 * raster 30 both as 70108, so two rows here answer to one code; `sharersOf`
-	 * below is what the rest of the app reads that off. What no class may be is
-	 * codeless, because the style and the legend can only key by code: a class with
-	 * none is painted by the fallback and never named, which is how the anti-erosion
-	 * groynes spent a release unreachable. `habitat.spec.ts` holds that line.
+	 * Not unique. The survey publishes raster 29 and raster 30 both as 70108, so
+	 * two rows here answer to one code; `sharersOf` below is what the rest of the
+	 * app reads that off. Required, because the style and the legend can only key
+	 * by code: a class with none would be painted by the fallback and never named,
+	 * which is how the anti-erosion groynes spent a release unreachable. The type
+	 * is what holds that line now.
 	 */
-	readonly code: string | undefined;
+	readonly code: string;
 	/** Habitat of Community Interest code, where the class has one. */
 	readonly hic: string | undefined;
 	readonly prominence: Prominence;
@@ -648,7 +648,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
  * port structures since the first sheet was printed and it still does.
  */
 export const habitatByCode: ReadonlyMap<string, HabitatClass> = HABITATS.reduce(
-	(found, h) => (h.code === undefined || found.has(h.code) ? found : found.set(h.code, h)),
+	(found, h) => (found.has(h.code) ? found : found.set(h.code, h)),
 	new Map<string, HabitatClass>()
 );
 
@@ -670,7 +670,7 @@ export const byProminence = (a: SeabedClass, b: SeabedClass): number =>
 
 /** Legend entries a card shows, most diver-relevant first, capped for A3 legibility. */
 export const legendFor = (present: ReadonlySet<string>, limit: number): readonly HabitatClass[] =>
-	HABITATS.filter((h) => h.code !== undefined && present.has(h.code))
+	HABITATS.filter((h) => present.has(h.code))
 		.sort(byProminence)
 		.slice(0, limit);
 
@@ -733,7 +733,6 @@ export const NO_TEXTURE_CHOICES: TextureChoices = {};
 const CODE_SHARERS: ReadonlyMap<SeabedKey, readonly SeabedKey[]> = (() => {
 	const groups = new Map<string, SeabedClass[]>();
 	for (const seabed of [...HABITATS, ...SUBSTRATES]) {
-		if (seabed.code === undefined) continue;
 		const at = `${seabed.ground}/${seabed.code}`;
 		const found = groups.get(at);
 		if (found === undefined) groups.set(at, [seabed]);

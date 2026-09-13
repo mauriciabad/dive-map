@@ -68,8 +68,6 @@ export const sizeForScreen = (devicePixelRatio: number, coarsePointer: boolean):
 	return TEXTURE_SIZES.find((size) => size >= wanted && size <= cap) ?? cap;
 };
 
-export const PRINT_TEXTURE_SIZE: TextureSize = 2048;
-
 export const textureUrl = (name: string, size: TextureSize, format: TextureFormat): string =>
 	asset(`/textures/${size}/${name}.${format}`);
 

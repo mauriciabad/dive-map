@@ -49,16 +49,6 @@ describe('seabed catalogue', () => {
 		expect(missing).toEqual([]);
 	});
 
-	// The style and the legend can only key by code, so a class without one is
-	// painted by the `ch_sand` fallback, never named, and unreachable from the
-	// texture picker. Raster 30 was that class.
-	it('gives every class a code', () => {
-		const codeless = [...HABITATS, ...SUBSTRATES]
-			.filter((c) => c.code === undefined)
-			.map((c) => seabedKey(c));
-		expect(codeless).toEqual([]);
-	});
-
 	it('files the anti-erosion groynes under the 70108 the survey publishes them as', () => {
 		const groynes = HABITATS.find((h) => h.raster === 30);
 		expect(groynes?.code).toBe('70108');
@@ -77,7 +67,7 @@ describe('seabed catalogue', () => {
 	});
 
 	it('caps the legend so an A3 sheet stays readable', () => {
-		const every = new Set(HABITATS.flatMap((h) => (h.code === undefined ? [] : [h.code])));
+		const every = new Set(HABITATS.map((h) => h.code));
 		expect(legendFor(every, 8)).toHaveLength(8);
 	});
 

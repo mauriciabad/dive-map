@@ -86,9 +86,7 @@ export const buildLegend = (
 	// The substrate layer returns 30509, 30512 and 30513, which only the habitat
 	// catalogue defines and which the style really does paint. A code the ground's
 	// own catalogue claims keeps the ground's meaning, as patternFor does.
-	const claimed = new Set(
-		own.flatMap((seabed) => (seabed.code === undefined ? [] : [seabed.code]))
-	);
+	const claimed = new Set(own.map((seabed) => seabed.code));
 	for (const code of present) {
 		if (claimed.has(code)) continue;
 		const seabed = seabedClassByCode(code);
@@ -96,8 +94,7 @@ export const buildLegend = (
 	}
 	entries.sort((a, b) => byProminence(a.seabed, b.seabed));
 
-	const isHere = (entry: LegendEntry): boolean =>
-		entry.seabed.code !== undefined && present.has(entry.seabed.code);
+	const isHere = (entry: LegendEntry): boolean => present.has(entry.seabed.code);
 
 	// Two passes over the sorted entries: the first fixes the row order by the best
 	// class each texture has on screen, the second fills the rows.

@@ -114,9 +114,7 @@ const patternFor = (
 	const lookup: Record<string, string> = {};
 	const ordered = ground === 'habitats' ? [SUBSTRATES, HABITATS] : [HABITATS, SUBSTRATES];
 	for (const catalogue of ordered) {
-		for (const c of catalogue) {
-			if (c.code !== undefined) lookup[c.code] = textureOf(c, chosen);
-		}
+		for (const c of catalogue) lookup[c.code] = textureOf(c, chosen);
 	}
 	return ['coalesce', ['get', ['get', 'code'], ['literal', lookup]], 'ch_sand'];
 };

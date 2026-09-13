@@ -14,7 +14,7 @@ import { type Legend, type LegendEntry, buildLegend, codesOf } from './legend.ts
 const entriesOf = (legend: Legend): readonly LegendEntry[] =>
 	[...legend.inFrame, ...legend.elsewhere].flatMap((row) => [...row.inFrame, ...row.elsewhere]);
 
-const HABITAT_CODES = new Set(HABITATS.flatMap((h) => (h.code === undefined ? [] : [h.code])));
+const HABITAT_CODES = new Set(HABITATS.map((h) => h.code));
 
 describe('the legend of a ground layer', () => {
 	it.each(['habitats', 'substrate'] as const)(
