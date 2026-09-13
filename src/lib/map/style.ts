@@ -24,6 +24,7 @@ import {
 	markerHalo,
 	markerImageId
 } from './markers.ts';
+import { LAND_SOURCE, LAND_SOURCE_ID, landLayers } from './land.ts';
 import { UNSURVEYED_TEXTURE } from './textures.ts';
 
 /**
@@ -654,6 +655,7 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			url: `pmtiles://${asset('/tiles/coastline.pmtiles')}`,
 			maxzoom: 16
 		},
+		[LAND_SOURCE_ID]: LAND_SOURCE,
 		osm: { type: 'geojson', data: asset('/data/osm.geojson') },
 		...POSITION_SOURCES,
 		annotations: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } }
@@ -822,6 +824,12 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			layout: { visibility: vis(options, 'coastline') },
 			paint: { 'fill-pattern': 'ch_rock', 'fill-opacity': 0.16 }
 		},
+
+		// Land detail rides the coastline switch rather than one of its own. The
+		// land fill is what it is drawn on, so a river with the land turned off
+		// would hang over open water, and the two can only sensibly move together.
+		...landLayers({ visible: options.visible.includes('coastline') }),
+
 		{
 			// The real surveyed shoreline. Stroking the land polygon instead would draw
 			// the synthetic inland closure and the straight cuts at the French and
