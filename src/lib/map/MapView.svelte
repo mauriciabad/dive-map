@@ -30,7 +30,7 @@
 		buildStyle,
 		isobathLayersOf
 	} from './style';
-	import { type GraftedBaseMap, loadBaseMapStyle } from './basemap-style';
+	import { type GraftedBaseMap, glyphsFromArchive, loadBaseMapStyle } from './basemap-style';
 	import { WORLD_SOURCE_ID } from './land';
 	import { failedSource } from './tile-errors';
 	import {
@@ -269,6 +269,10 @@
 			maxPitch: 0,
 			canvasContextAttributes: { preserveDrawingBuffer: true },
 			locale: controlStrings(untrack(() => view.locale)),
+			// The one request this map does not answer itself. A grafted style names
+			// font faces `static/fonts` has no directory for, and this is what sends
+			// those to the archive that asked for them. See `glyphsFromArchive`.
+			transformRequest: glyphsFromArchive(() => grafted),
 			// Added below instead, with the rest of MapLibre's own chrome, so a
 			// language chosen mid-dive can rebuild all of it together.
 			attributionControl: false

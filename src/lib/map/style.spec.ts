@@ -25,7 +25,7 @@ import {
 } from '$lib/domain/isobaths';
 import { DANGER_TAG_PREFIX, DIVE_NUMBER_KEYS, DIVE_TAG_KEYS } from '$lib/domain/osm';
 import { MARKER_CLOSE } from './markers.ts';
-import { graftStyle } from './basemap-style.ts';
+import { glyphsFromArchive, graftStyle } from './basemap-style.ts';
 import { TILE_SERVICES } from '$lib/domain/basemaps';
 
 const options = (extra: Partial<StyleOptions> = {}): StyleOptions => ({
@@ -159,11 +159,15 @@ describe('the base map and the paint over it', () => {
 	 * drawing both would be the map twice and would credit it twice.
 	 */
 	it('stands the raster down once the vector style has arrived', () => {
-		const graft = graftStyle('standard-icgc', {
-			version: 8,
-			sources: { vt: { type: 'vector', tiles: ['https://example.test/{z}/{x}/{y}.pbf'] } },
-			layers: [{ id: 'roads', type: 'line', source: 'vt', 'source-layer': 'road' }]
-		});
+		const graft = graftStyle(
+			'standard-icgc',
+			{
+				version: 8,
+				sources: { vt: { type: 'vector', tiles: ['https://archive.test/{z}/{x}/{y}.pbf'] } },
+				layers: [{ id: 'roads', type: 'line', source: 'vt', 'source-layer': 'road' }]
+			},
+			'https://archive.test/style.json'
+		);
 		const built = buildStyle(options({ baseMap: 'standard-icgc', graft }));
 		const up = (id: string) => built.layers.find((l) => l.id === id)?.layout?.visibility;
 		expect(up('standard-icgc')).toBe('none');
@@ -173,14 +177,81 @@ describe('the base map and the paint over it', () => {
 
 	/** A style fetched for one base map must never draw under another. */
 	it('ignores a graft fetched for a base map nobody is on', () => {
-		const graft = graftStyle('standard-icgc', {
-			version: 8,
-			sources: { vt: { type: 'vector', tiles: ['https://example.test/{z}/{x}/{y}.pbf'] } },
-			layers: [{ id: 'roads', type: 'line', source: 'vt', 'source-layer': 'road' }]
-		});
+		const graft = graftStyle(
+			'standard-icgc',
+			{
+				version: 8,
+				sources: { vt: { type: 'vector', tiles: ['https://archive.test/{z}/{x}/{y}.pbf'] } },
+				layers: [{ id: 'roads', type: 'line', source: 'vt', 'source-layer': 'road' }]
+			},
+			'https://archive.test/style.json'
+		);
 		const built = buildStyle(options({ baseMap: 'classic-ign', graft }));
 		expect(built.layers.some((l) => l.id === 'basemap-roads')).toBe(false);
 		expect(built.layers.find((l) => l.id === 'classic-ign')?.layout?.visibility).toBe('visible');
+	});
+
+	/**
+	 * ICGC's document declares a global Mapterhorn hillshade beside their own 5 m
+	 * terrain. MapLibre credits every source it draws, so grafting the document
+	 * whole put a third party in the attribution and fetched world DEM tiles for a
+	 * map of one coast.
+	 */
+	it('leaves out a source the archive does not serve, and the layer on it', () => {
+		const graft = graftStyle(
+			'standard-icgc',
+			{
+				version: 8,
+				sources: {
+					vt: { type: 'vector', tiles: ['https://archive.test/{z}/{x}/{y}.pbf'] },
+					theirs: { type: 'raster-dem', url: 'https://archive.test/terrain.json' },
+					elsewhere: { type: 'raster-dem', url: 'https://tiles.example.test/tilejson.json' }
+				},
+				layers: [
+					{ id: 'roads', type: 'line', source: 'vt', 'source-layer': 'road' },
+					{ id: 'relief', type: 'hillshade', source: 'theirs' },
+					{ id: 'world-relief', type: 'hillshade', source: 'elsewhere' }
+				]
+			},
+			'https://archive.test/style.json'
+		);
+		expect(Object.keys(graft.sources)).toEqual(['basemap-vt', 'basemap-theirs']);
+		expect(graft.layers.map((l) => l.id)).toEqual(['basemap-roads', 'basemap-relief']);
+	});
+
+	/**
+	 * A MapLibre style has one glyphs URL, so the graft used to rewrite ICGC's
+	 * Fira Sans to this map's own faces and the ICGC map came out in Alegreya.
+	 */
+	it('sends a face this map does not serve to the archive that asked for it', () => {
+		const graft = graftStyle(
+			'standard-icgc',
+			{
+				version: 8,
+				glyphs: 'https://archive.test/glyphs/{fontstack}/{range}.pbf',
+				sources: { vt: { type: 'vector', tiles: ['https://archive.test/{z}/{x}/{y}.pbf'] } },
+				layers: [
+					{
+						id: 'names',
+						type: 'symbol',
+						source: 'vt',
+						'source-layer': 'place',
+						layout: { 'text-font': ['FiraSans-Bold'] }
+					}
+				]
+			},
+			'https://archive.test/style.json'
+		);
+		const named = graft.layers[0];
+		if (named?.type !== 'symbol') throw new Error('no symbol layer');
+		expect(named.layout?.['text-font']).toEqual(['FiraSans-Bold']);
+
+		const send = glyphsFromArchive(() => graft);
+		expect(send('/fonts/FiraSans-Bold/0-255.pbf')).toEqual({
+			url: 'https://archive.test/glyphs/FiraSans-Bold/0-255.pbf'
+		});
+		expect(send('/fonts/Alegreya%20Sans%20Bold/0-255.pbf')).toBeUndefined();
+		expect(send('/tiles/seabed-dem.pmtiles')).toBeUndefined();
 	});
 
 	/**
