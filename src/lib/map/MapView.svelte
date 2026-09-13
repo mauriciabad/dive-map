@@ -27,11 +27,13 @@
 		view: MapState;
 		centre: LngLat;
 		zoom: number;
+		/** Degrees clockwise from north, restored with the rest of the camera. */
+		bearing?: number;
 		/** Handed the live map once, so the print path can render from it. */
 		onready?: (map: MapLibre) => void;
 	}
 
-	const { view, centre, zoom, onready }: Props = $props();
+	const { view, centre, zoom, bearing = 0, onready }: Props = $props();
 
 	let map: MapLibre | undefined;
 	let applied: unknown;
@@ -96,6 +98,7 @@
 			style: first,
 			center: [centre.lng, centre.lat],
 			zoom,
+			bearing,
 			maxPitch: 0,
 			canvasContextAttributes: { preserveDrawingBuffer: true },
 			attributionControl: {

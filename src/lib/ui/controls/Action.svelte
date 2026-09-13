@@ -5,13 +5,14 @@
 	/**
 	 * The button a panel exists to press. `primary` is the brass slab that runs
 	 * the export; `quiet` is everything that changes a setting or leaves for
-	 * somewhere else. Both keep the 44px floor, which is why neither is a link
-	 * dressed as text.
+	 * somewhere else; `danger` is the one press that cannot be taken back. All
+	 * three keep the 44px floor, which is why none of them is a link dressed as
+	 * text.
 	 */
 
 	interface Props {
 		readonly label: string;
-		readonly tone?: 'primary' | 'quiet';
+		readonly tone?: 'primary' | 'quiet' | 'danger';
 		readonly onclick?: () => void;
 		/** Set instead of `onclick` to render an anchor that opens in a new tab. */
 		readonly href?: string;
@@ -85,6 +86,21 @@
 
 	.action[data-tone='quiet']:hover:not(:disabled) {
 		background: var(--control-hover);
+	}
+
+	/*
+	 * The one press nobody can take back. Ink on hazard rather than the brass
+	 * slab, because a delete that looks exactly like an export is a delete that
+	 * happens by accident.
+	 */
+	.action[data-tone='danger'] {
+		background: var(--color-hazard);
+		color: var(--color-table-900);
+		font-weight: 700;
+	}
+
+	.action[data-tone='danger']:hover:not(:disabled) {
+		background: #e0705a;
 	}
 
 	.action:disabled {

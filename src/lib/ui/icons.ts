@@ -88,6 +88,23 @@ export const ICONS = {
 		]
 	},
 
+	/**
+	 * An arrow all the way round to where it started. The bracket at the top left
+	 * is the arrowhead and the end of the stroke at once, which is what keeps a
+	 * head from closing up against the arc at 18 px.
+	 */
+	reset: { d: ['M2.8 5v4.9h4.9', 'M5 14.8a7.6 7.6 0 1 0 1.8-7.9L2.8 9.9'] },
+
+	/**
+	 * A luggage tag with its hole punched: a setting-up of the map with a name on
+	 * it. The hole is a solid dot rather than a ring because at 22 px a stroked
+	 * circle of that size closes up into one anyway.
+	 */
+	tag: {
+		d: ['M11 4h7a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-7L4 12z'],
+		dots: [[9.4, 12, 1.35]]
+	},
+
 	close: { d: ['M6 6l12 12', 'M18 6 6 18'] },
 
 	chevron: { d: ['M9 5l7 7-7 7'] },

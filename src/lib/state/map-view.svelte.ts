@@ -14,6 +14,7 @@ import {
 	newCard
 } from '$lib/domain/card';
 import { type Locale, negotiate } from '$lib/i18n/locale';
+import { type Camera, type Configuration, shippedConfiguration } from './configuration.ts';
 
 /**
  * Everything the side panel changes and the style reads. One object rather than
@@ -44,7 +45,6 @@ export class MapState {
 	}
 	locale = $state<Locale>('ca');
 
-
 	/**
 	 * Which settings section is open, and which feature is selected. Both are
 	 * sheets competing for the same screen on a phone, so they live together and
@@ -65,8 +65,47 @@ export class MapState {
 	ready = $state(false);
 	error = $state<string | undefined>(undefined);
 
+	/** What this browser asked for, kept so `reset` knows what shipped means here. */
+	readonly #negotiated: Locale;
+
 	constructor(languages: readonly string[] = []) {
-		this.locale = negotiate(languages);
+		this.#negotiated = negotiate(languages);
+		this.locale = this.#negotiated;
+	}
+
+	/** Everything a saved configuration carries, read off the live map. */
+	get configuration(): Configuration {
+		return {
+			layers: [...this.visible],
+			ground: this.groundLayer,
+			smoothed: this.smoothed,
+			isobaths: this.isobaths,
+			locale: this.locale
+		};
+	}
+
+	/** Where this tab is pointed. Per tab, so it is never part of a saved configuration. */
+	get camera(): Camera {
+		return { centre: this.centre, zoom: this.zoom, bearing: this.bearing };
+	}
+
+	apply(configuration: Configuration): void {
+		this.visible.clear();
+		for (const id of configuration.layers) this.visible.add(id);
+		this.groundLayer = configuration.ground;
+		this.smoothed = configuration.smoothed;
+		this.isobaths = configuration.isobaths;
+		this.locale = configuration.locale;
+	}
+
+	/**
+	 * Back to what the map ships with, leaving the camera and the language alone.
+	 * Someone resetting their layers on a boat has not asked to be moved somewhere
+	 * else, and has not asked to be spoken to in another language either: the
+	 * language is its own panel and its own decision.
+	 */
+	reset(): void {
+		this.apply({ ...shippedConfiguration(this.#negotiated), locale: this.locale });
 	}
 
 	openPanel(section: PanelSection | undefined): void {

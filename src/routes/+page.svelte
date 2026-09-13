@@ -8,6 +8,8 @@
 	import { whenMapReady } from '$lib/map/controls';
 	import type { LngLat, MapMouseEvent, MapTouchEvent } from 'maplibre-gl';
 	import { MapState } from '$lib/state/map-view.svelte';
+	import { Configurations } from '$lib/state/configurations.svelte';
+	import { negotiate } from '$lib/i18n/locale';
 	import { t } from '$lib/i18n/messages';
 
 	/** Begur and Tamariu, the water this was built for. */
@@ -15,6 +17,43 @@
 	const START_ZOOM = 13.4;
 
 	const view = new MapState(navigator.languages);
+
+	/*
+	 * What this tab opens with, decided before the map is built: its own working
+	 * configuration if it has one, else the saved configuration set as the
+	 * default, else the shipped defaults. Only the working one carries a camera,
+	 * which is what keeps a second tab from opening on the first one's view.
+	 */
+	const configurations = new Configurations(negotiate(navigator.languages));
+	const opening = configurations.opening();
+	view.apply(opening.configuration);
+	const start = opening.camera ?? { centre: START, zoom: START_ZOOM, bearing: 0 };
+
+	/*
+	 * The working configuration trails the map instead of following it. A camera
+	 * sync runs on every frame of a pan, and a write per frame is a write per
+	 * frame; 400 ms after the last change is still well inside a reload, and
+	 * pagehide covers the reload that beats the timer.
+	 */
+	$effect(() => {
+		const working = {
+			configuration: view.configuration,
+			camera: view.camera,
+			from: configurations.from
+		};
+		const pending = setTimeout(() => {
+			configurations.remember(working);
+		}, 400);
+		const flush = (): void => {
+			clearTimeout(pending);
+			configurations.remember(working);
+		};
+		window.addEventListener('pagehide', flush);
+		return () => {
+			clearTimeout(pending);
+			window.removeEventListener('pagehide', flush);
+		};
+	});
 
 	/** Wet fingers need slack; the seabed needs more, so a site on a habitat
 	 *  boundary names both sides rather than whichever pixel was under the thumb. */
@@ -93,7 +132,7 @@
 </svelte:head>
 
 <main>
-	<MapView {view} centre={START} zoom={START_ZOOM} />
+	<MapView {view} centre={start.centre} zoom={start.zoom} bearing={start.bearing} />
 
 	{#if !view.ready}
 		<div class="booting" role="status">
@@ -106,7 +145,12 @@
 		<div class="failure" role="alert">
 			<strong>{t(view.locale, 'errorTitle')}</strong>
 			<span>{view.error}</span>
-			<button type="button" onclick={() => { location.reload(); }}>{t(view.locale, 'retry')}</button>
+			<button
+				type="button"
+				onclick={() => {
+					location.reload();
+				}}>{t(view.locale, 'retry')}</button
+			>
 		</div>
 	{/if}
 
@@ -122,7 +166,7 @@
 		}}
 	/>
 
-	<ControlRail {view} />
+	<ControlRail {view} {configurations} />
 	<LocationControl {view} />
 </main>
 

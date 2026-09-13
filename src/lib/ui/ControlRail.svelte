@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ConfigsPanel from './ConfigsPanel.svelte';
 	import IsobathsPanel from './IsobathsPanel.svelte';
 	import LanguagePanel from './LanguagePanel.svelte';
 	import LayersPanel from './LayersPanel.svelte';
@@ -7,9 +8,15 @@
 	import type { PanelState } from './panel';
 	import PrintPanel from '$lib/print/PrintPanel.svelte';
 	import { SvelteControl, whenMapReady } from '$lib/map/controls';
+	import type { Configurations } from '$lib/state/configurations.svelte';
 	import type { MapState } from '$lib/state/map-view.svelte';
 
-	const { view }: { readonly view: MapState } = $props();
+	interface Props {
+		readonly view: MapState;
+		readonly configurations: Configurations;
+	}
+
+	const { view, configurations }: Props = $props();
 
 	// Backed by MapState so the feature card and this panel can close each other.
 	const panel: PanelState = {
@@ -50,4 +57,6 @@
 	<PrintPanel {view} onclose={close} />
 {:else if open === 'language'}
 	<LanguagePanel {view} onclose={close} />
+{:else if open === 'configs'}
+	<ConfigsPanel {view} {configurations} onclose={close} />
 {/if}

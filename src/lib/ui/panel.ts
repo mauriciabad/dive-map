@@ -3,12 +3,12 @@ import type { MessageKey } from '$lib/i18n/messages';
 import type { MapState } from '$lib/state/map-view.svelte';
 
 /**
- * The settings live in five sections. One table drives both the buttons in the
+ * The settings live in six sections. One table drives both the buttons in the
  * corner stack and the heading of the panel they open, so a section can never
  * have a button with no panel behind it.
  */
 
-export type PanelSection = 'layers' | 'legend' | 'isobaths' | 'print' | 'language';
+export type PanelSection = 'layers' | 'legend' | 'isobaths' | 'print' | 'language' | 'configs';
 
 export interface SectionTab {
 	readonly id: PanelSection;
@@ -21,8 +21,15 @@ export const SECTIONS: readonly SectionTab[] = [
 	{ id: 'legend', icon: 'legend', key: 'legend' },
 	{ id: 'isobaths', icon: 'isobath', key: 'isobaths' },
 	{ id: 'print', icon: 'print', key: 'print' },
-	{ id: 'language', icon: 'language', key: 'language' }
+	{ id: 'language', icon: 'language', key: 'language' },
+	{ id: 'configs', icon: 'tag', key: 'configs' }
 ];
+
+/**
+ * How one row of the saved configurations is open. One row at a time and one way
+ * at a time, so the panel cannot be halfway through a rename and a delete at once.
+ */
+export type ConfigRowMode = 'actions' | 'renaming' | 'confirm-delete';
 
 /**
  * Which corner stack a panel's desktop column hangs off. The sheet on a phone
