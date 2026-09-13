@@ -410,11 +410,11 @@
 		</div>
 	{/if}
 
-	<!-- Ahead of both badges in the same strip, because it is the answer to them
-	     when a deploy is what went wrong: the archives an unreadable one is failing
-	     on are the ones this update has already fetched. It only appears when a
-	     version lands while the map is open, which the worker makes rare, and it
-	     waits rather than reloading under a diver reading a plan off the screen. -->
+	<!-- Ahead of both badges in the same strip, because when a deploy is what went
+	     wrong this is the answer to them: the archive an unreadable one is failing on
+	     is the one the new version is already serving. It appears only once the map
+	     has been tapped, since until then the page just reloads onto the new build
+	     rather than say anything about it. -->
 	{#if updates.status !== 'idle' && view.error === undefined}
 		<div class="update" role="status">
 			<span>{UPDATE_MESSAGES[view.locale].ready}</span>
