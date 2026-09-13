@@ -32,7 +32,14 @@ if (shotDir) mkdirSync(shotDir, { recursive: true });
 /** The Ter mouth and the Pletera lagoons, a kilometre from Illes Medes. River, wetland and streams in one frame. */
 const at = (flag('--at') ?? '3.19,42.035,13').split(',').map(Number);
 
-const LAND_LAYERS = ['land-water', 'land-water-edge', 'land-waterway'];
+const LAND_LAYERS = [
+	'land-water',
+	'land-water-edge',
+	'land-waterway',
+	'land-road',
+	'land-track',
+	'land-path'
+];
 
 const VIEWPORTS = [
 	{ name: 'desktop', width: 1440, height: 900 },
@@ -163,16 +170,18 @@ for (const viewport of only === 'a3' ? [] : VIEWPORTS) {
  *
  * The measurement is hue, not colour matching. The sheet is a JPEG inside a PDF
  * and then a `sips` raster, so exact values do not survive. What does survive is
- * that painted land is warm and every drop of water on it is cool: the land fill
- * composites to a green a few points under its red, inland water to a green ten
- * points over it. Counting that one inequality catches open water and marsh
- * alike and rejects the land, the chrome, the brass and the paper.
+ * where a thing sits between the land fill and the sand of the shallows. Inland
+ * water composites to a green ten points over its red, where the land fill sits a
+ * few points under. Road ink composites to a red around 100, where the land fill
+ * is too dark to reach 75 and the sunlit sand is far too bright to stay under 140.
  *
- * The camera is chosen so an A3 at 1:2000 lands entirely inland, which is what
- * makes a whole-sheet count meaningful. Move it over water and this fails loudly
- * rather than passing on the sea.
+ * Two sheets, because one cannot carry both. An A3 at 1:2000 covers 600 by 850 m
+ * and the camera guard keeps the view centre on the survey, so a sheet is always
+ * within a few hundred metres of the shore: the Pletera lagoons have the water and
+ * no roads at all, l'Estartit has the street grid. Each framing asserts the thing
+ * it actually contains.
  */
-const exportSheet = async () => {
+const exportSheet = async (label, at, expect) => {
 	const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 	await context.addInitScript(() => {
 		Object.defineProperty(navigator, 'serviceWorker', { get: () => undefined });
@@ -196,7 +205,7 @@ const exportSheet = async () => {
 		await context.close();
 		return { ok: false, error: 'the A3 export produced no file' };
 	}
-	const saved = join(tmpdir(), `land-${Date.now()}.pdf`);
+	const saved = join(tmpdir(), `land-${label}-${Date.now()}.pdf`);
 	await file.saveAs(saved);
 	const png = `${saved}.png`;
 	execFileSync('sips', ['-s', 'format', 'png', '--resampleHeightWidthMax', '2000', saved, '--out', png]);
@@ -219,26 +228,38 @@ const exportSheet = async () => {
 		context2d.drawImage(image, 0, 0, w, h, 0, 0, w, h);
 		const { data } = context2d.getImageData(0, 0, w, h);
 		let cool = 0;
-		for (let i = 0; i < data.length; i += 4) if (data[i + 1] - data[i] > 6) cool++;
-		return { crop: [w, h], cool, of: data.length / 4 };
+		let ink = 0;
+		for (let i = 0; i < data.length; i += 4) {
+			const [r, g, b] = [data[i], data[i + 1], data[i + 2]];
+			if (g - r > 6) cool++;
+			else if (r > 75 && r < 140 && r - b > 20) ink++;
+		}
+		return { crop: [w, h], cool, ink, of: data.length / 4 };
 	}, `data:image/png;base64,${readFileSync(png).toString('base64')}`);
 
 	await context.close();
-	const fraction = share.cool / share.of;
+	const measured = { cool: share.cool / share.of, ink: share.ink / share.of };
 	return {
-		// Bare painted land measures well under a percent. A sheet that had drifted
-		// onto the sea would measure most of itself, which is the other failure.
-		ok: fraction > 0.02 && fraction < 0.6 && errors.length === 0,
+		label,
+		ok: measured[expect.band] > expect.atLeast && errors.length === 0,
+		expect,
 		pdf: saved,
-		coolFraction: Number(fraction.toFixed(4)),
+		coolFraction: Number(measured.cool.toFixed(4)),
+		inkFraction: Number(measured.ink.toFixed(4)),
 		...share,
 		errors
 	};
 };
 
 if (only !== 'screen') {
-	report.a3 = await exportSheet();
-	if (!report.a3.ok) failures++;
+	report.a3 = [
+		// Bare painted land measures well under a percent of either band, so these
+		// floors are the assertion. The numbers they clear on a good build are about
+		// 20 per cent cool over the lagoons and 2 per cent ink over the village.
+		await exportSheet('lagoons', at, { band: 'cool', atLeast: 0.02 }),
+		await exportSheet('village', [3.2005, 42.0555, 15], { band: 'ink', atLeast: 0.002 })
+	];
+	for (const sheet of report.a3) if (!sheet.ok) failures++;
 }
 
 await browser.close();

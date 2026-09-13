@@ -24,6 +24,15 @@ export const PALETTE = {
 	landWater: '#4d5f62',
 	landMarsh: '#2f3f34',
 	landMarshEdge: '#48584a',
+
+	// One ink for every road, path and track, warm so it belongs to the wood and
+	// brass the table is made of and can never be confused with water. 2.75:1 on
+	// the land fill at full strength, and the six classes are told apart by weight
+	// and by whether the line is broken, which is how a drawn chart does it and
+	// what keeps a town of residential streets from becoming a bright mat. Well
+	// under the sunlit sand of the shallows, which has to stay the brightest thing
+	// in any frame.
+	landInk: '#7d6b50',
 	ink: '#1d1710',
 	paper: '#efe4cf',
 	brass: '#b8893f',

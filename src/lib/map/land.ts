@@ -60,6 +60,12 @@ const numberByKind = (
 	fallback: number
 ): ExpressionSpecification => ['coalesce', ['get', ['get', 'kind'], ['literal', { ...cases }]], fallback];
 
+const isKind = (...kinds: readonly string[]): ExpressionSpecification => [
+	'in',
+	['get', 'kind'],
+	['literal', [...kinds]]
+];
+
 const WATERWAY_WIDTH: DataDrivenPropertyValueSpecification<number> = [
 	'interpolate',
 	['linear'],
@@ -71,6 +77,30 @@ const WATERWAY_WIDTH: DataDrivenPropertyValueSpecification<number> = [
 	18,
 	numberByKind({ river: 5.4, canal: 2.6 }, 1.8)
 ];
+
+/**
+ * Road weight, by how much of the coast a line is meant to carry.
+ *
+ * A path is thinner than a residential street and more use than one, because a
+ * path is how a diver walks to a shore entry, so it gets the higher opacity of
+ * the two. That is the whole reason paths are on this map.
+ */
+const ROAD_WIDTH: DataDrivenPropertyValueSpecification<number> = [
+	'interpolate',
+	['linear'],
+	['zoom'],
+	11,
+	numberByKind({ major: 0.9, road: 0.55 }, 0.4),
+	14,
+	numberByKind({ major: 2.3, road: 1.4, street: 0.8 }, 0.75),
+	18,
+	numberByKind({ major: 5, road: 3, street: 1.8 }, 1.5)
+];
+
+const ROAD_OPACITY: ExpressionSpecification = numberByKind(
+	{ major: 0.85, road: 0.7, street: 0.48, track: 0.55, path: 0.62, steps: 0.62 },
+	0.5
+);
 
 export interface LandOptions {
 	readonly visible: boolean;
@@ -141,10 +171,70 @@ export const landWaterLayers = (options: LandOptions): LayerSpecification[] => {
 	];
 };
 
+/**
+ * The network people move on, in one ink.
+ *
+ * Split into three layers only because `line-dasharray` cannot vary per feature
+ * the way width and opacity can. The split is by how the line is broken, not by
+ * what it means: solid for anything surfaced, a long dash for a track, a fine
+ * dot for a footpath. Nothing here is a second colour, which is what keeps a
+ * dense coastal town from reading as a bright patch beside the water.
+ *
+ * Roads sit above the rivers they cross, because a bridge is the top thing at a
+ * crossing and drawing it under the water reads as a ford.
+ */
+export const landRoadLayers = (options: LandOptions): LayerSpecification[] => {
+	const base = {
+		type: 'line',
+		source: LAND_SOURCE_ID,
+		'source-layer': 'road',
+		minzoom: DETAIL_MINZOOM
+	} as const;
+	const paint = {
+		'line-color': PALETTE.landInk,
+		'line-width': ROAD_WIDTH,
+		'line-opacity': ROAD_OPACITY
+	} as const;
+	const layout = { visibility: visibility(options), 'line-join': 'round' } as const;
+	return [
+		{
+			...base,
+			id: 'land-road',
+			filter: isKind('major', 'road', 'street'),
+			layout: { ...layout, 'line-cap': 'round' },
+			paint
+		},
+		{
+			...base,
+			id: 'land-track',
+			filter: isKind('track'),
+			layout: { ...layout, 'line-cap': 'butt' },
+			// In units of the line's own width, so the dash keeps its proportions as
+			// the line thickens with zoom instead of turning into a solid line.
+			paint: { ...paint, 'line-dasharray': [3, 2] }
+		},
+		{
+			...base,
+			id: 'land-path',
+			filter: isKind('path', 'steps'),
+			layout: { ...layout, 'line-cap': 'round' },
+			paint: { ...paint, 'line-dasharray': [0.1, 2.2] }
+		}
+	];
+};
+
 /** Every land layer, in the order a brush would lay them down. */
 export const landLayers = (options: LandOptions): LayerSpecification[] => [
-	...landWaterLayers(options)
+	...landWaterLayers(options),
+	...landRoadLayers(options)
 ];
 
 /** For anything that wants to know whether the land tiles actually drew. */
-export const LAND_LAYER_IDS: readonly string[] = ['land-water', 'land-water-edge', 'land-waterway'];
+export const LAND_LAYER_IDS: readonly string[] = [
+	'land-water',
+	'land-water-edge',
+	'land-waterway',
+	'land-road',
+	'land-track',
+	'land-path'
+];
