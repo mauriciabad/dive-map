@@ -56,8 +56,11 @@
 	let patterns: readonly LoadedTexture[] = [];
 
 	const restorePatterns = (m: MapLibre): void => {
-		for (const { name, bitmap } of patterns) {
-			if (!m.hasImage(name)) m.addImage(name, bitmap, { pixelRatio: 2 });
+		for (const { name, bitmap, pixelRatio } of patterns) {
+			// The ratio comes from the texture, not from here. A constant 2 against a
+			// file size that follows the device painted a 256 px repeat on a laptop
+			// and a 512 px one on a 3x phone, and the legend swatch declares 256.
+			if (!m.hasImage(name)) m.addImage(name, bitmap, { pixelRatio });
 		}
 	};
 
