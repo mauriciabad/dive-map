@@ -91,7 +91,9 @@ for (let i = 0; i < 14; i++) {
 	trail.push({ ...(await state()), drawn: await drawn() });
 }
 
-await page.evaluate(() => window.diveMap.setZoom(2));
+await page.evaluate(() => {
+	window.diveMap.setZoom(2);
+});
 await page.waitForTimeout(2500);
 const zoomedOut = { ...(await state()), drawn: await drawn() };
 

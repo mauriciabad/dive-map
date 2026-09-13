@@ -73,9 +73,16 @@ await page.waitForFunction(() => window.diveMap !== undefined, { timeout: 60_000
  * complains about is worse than no shot.
  */
 const flyTo = async ([lng, lat, zoom], ms = 5000) => {
+	// The braces are load-bearing. `jumpTo` answers with the map, and an arrow
+	// that returns it asks Playwright to serialise the whole thing: the style, the
+	// sources, every tile in the cache, the painter. Past about z9 that message no
+	// longer fits in a JavaScript string and the run dies in the pipe transport
+	// with ERR_STRING_TOO_LONG, after every step it reached had passed.
 	const jump = () =>
 		page.evaluate(
-			([lng, lat, zoom]) => window.diveMap.jumpTo({ center: [lng, lat], zoom }),
+			([lng, lat, zoom]) => {
+				window.diveMap.jumpTo({ center: [lng, lat], zoom });
+			},
 			[lng, lat, zoom]
 		);
 	await jump();
