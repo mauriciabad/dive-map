@@ -21,6 +21,7 @@
 	import { POSITION_ZOOM, SURVEY_CENTRE, grantedFix, nearSurvey } from '$lib/state/opening';
 	import { negotiate } from '$lib/i18n/locale';
 	import { t } from '$lib/i18n/messages';
+	import { UPDATE_MESSAGES, updates } from '$lib/offline/updates.svelte';
 
 	const view = new MapState(navigator.languages);
 
@@ -391,7 +392,7 @@
 
 	<!-- After the boot indicator has gone, and never under the failure banner it
 	     would sit on top of. -->
-	{#if view.ready && view.tilesLoading && !view.archiveUnreadable && view.error === undefined}
+	{#if view.ready && view.tilesLoading && !view.archiveUnreadable && view.error === undefined && updates.status === 'idle'}
 		<div class="fetching" role="status">
 			<span class="ping" aria-hidden="true"></span>
 			{t(view.locale, 'loadingHere')}
@@ -402,10 +403,28 @@
 	     step on. An archive that will not open never finishes loading either, so it
 	     takes the badge's place rather than sitting under a sounder that would ping
 	     until the battery went. -->
-	{#if view.ready && view.archiveUnreadable && view.error === undefined}
+	{#if view.ready && view.archiveUnreadable && view.error === undefined && updates.status === 'idle'}
 		<div class="fetching unreadable" role="status">
 			<span class="gap" aria-hidden="true"></span>
 			{t(view.locale, 'loadFailedHere')}
+		</div>
+	{/if}
+
+	<!-- Ahead of both badges in the same strip, because it is the answer to them
+	     when a deploy is what went wrong: the archives an unreadable one is failing
+	     on are the ones this update has already fetched. It only appears when a
+	     version lands while the map is open, which the worker makes rare, and it
+	     waits rather than reloading under a diver reading a plan off the screen. -->
+	{#if updates.status !== 'idle' && view.error === undefined}
+		<div class="update" role="status">
+			<span>{UPDATE_MESSAGES[view.locale].ready}</span>
+			<button
+				type="button"
+				disabled={updates.status === 'taking'}
+				onclick={() => {
+					updates.take();
+				}}>{UPDATE_MESSAGES[view.locale].take}</button
+			>
 		</div>
 	{/if}
 
@@ -632,5 +651,48 @@
 
 	.failure button:hover {
 		background: var(--color-brass-400);
+	}
+
+	/* The failure banner's shape without its hazard edge. Nothing is wrong, and a
+	   rail-coloured border says so at the glance before the words are read. */
+	.update {
+		position: absolute;
+		z-index: 25;
+		inset: calc(var(--ctrl-gap) + env(safe-area-inset-top)) auto auto 50%;
+		translate: -50% 0;
+		width: max-content;
+		max-width: min(34rem, calc(100vw - 2 * (var(--ctrl-gap) * 2 + var(--ctrl-size))));
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.6rem 0.85rem;
+		background: var(--color-table-800);
+		border: 1px solid var(--color-brass-500);
+		border-radius: var(--radius-rail);
+		box-shadow: var(--rail-shadow);
+		color: var(--color-paper);
+		font-size: 0.85rem;
+	}
+
+	.update button {
+		min-height: var(--spacing-touch);
+		padding: 0 1rem;
+		border: 0;
+		border-radius: 0.35rem;
+		background: var(--color-brass-500);
+		color: var(--color-table-900);
+		font: inherit;
+		font-weight: 600;
+		cursor: pointer;
+	}
+
+	.update button:hover {
+		background: var(--color-brass-400);
+	}
+
+	.update button:disabled {
+		cursor: progress;
+		opacity: 0.6;
 	}
 </style>

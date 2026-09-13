@@ -2,6 +2,7 @@
 	import './layout.css';
 	import './theme.css';
 	import { serviceWorkerContainer } from '$lib/offline/support';
+	import { watchForUpdates } from '$lib/offline/registration';
 	import type { Snippet } from 'svelte';
 
 	const { children }: { children: Snippet } = $props();
@@ -9,46 +10,7 @@
 	$effect(() => {
 		const sw = serviceWorkerContainer(navigator);
 		if (sw === undefined) return;
-
-		/*
-		 * Registered here rather than by SvelteKit, whose generated snippet makes the
-		 * same unguarded read and resolves the worker against `paths.base`. Both URLs
-		 * come off document.baseURI instead, so the worker registers at the site root
-		 * on divemap.mauri.app and under /dive-map/ on the github.io project URL
-		 * without either one being hardcoded.
-		 */
-		const register = () => {
-			void sw
-				.register(new URL('service-worker.js', document.baseURI), {
-					scope: new URL('.', document.baseURI).href
-				})
-				.catch(() => undefined);
-		};
-		if (document.readyState === 'complete') register();
-		else window.addEventListener('load', register, { once: true });
-
-		/*
-		 * A new worker taking over means the archives on the server have moved. The
-		 * running page is still holding modules and tiles from the old deploy, so it
-		 * reloads once rather than mixing the two, which is what produced the ETag
-		 * mismatch that needed site data cleared by hand.
-		 *
-		 * Only a genuine update, never the first install. The worker calls skipWaiting
-		 * and claims its clients, so controllerchange fires on a first visit too, with
-		 * nothing stale to escape. Reloading there makes every cold load bounce, and
-		 * with the reload racing the next install it can bounce forever.
-		 */
-		if (sw.controller === null) return;
-		let reloading = false;
-		const onchange = () => {
-			if (reloading) return;
-			reloading = true;
-			location.reload();
-		};
-		sw.addEventListener('controllerchange', onchange);
-		return () => {
-			sw.removeEventListener('controllerchange', onchange);
-		};
+		return watchForUpdates(sw);
 	});
 </script>
 
