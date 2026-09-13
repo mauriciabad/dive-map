@@ -31,7 +31,9 @@
 				onselect(option.value);
 			}}
 		>
-			{#if option.icon !== undefined}
+			{#if option.image !== undefined}
+				<img class="image" src={option.image} alt="" width="24" height="18" />
+			{:else if option.icon !== undefined}
 				<Icon name={option.icon} size={18} />
 			{/if}
 			{option.label}
@@ -48,6 +50,16 @@
 		background: var(--control-well);
 		border-radius: 0.45rem;
 		box-shadow: var(--sunk);
+	}
+
+	/* A flag has its own edge in the artwork, so it takes only enough rim to keep
+	   a white field off the well. */
+	.image {
+		flex: none;
+		width: 1.35rem;
+		height: auto;
+		border-radius: 2px;
+		box-shadow: 0 0 0 1px var(--ctrl-edge);
 	}
 
 	button {

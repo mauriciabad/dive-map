@@ -30,7 +30,7 @@
 	const LAYER_ROWS: readonly LayerRow[] = [
 		{ id: 'hillshade', icon: 'relief', key: 'relief' },
 		{ id: 'depth-tint', icon: 'depthVeil', key: 'depthTint' },
-		{ id: 'coastline', icon: 'frame', key: 'coastline' },
+		{ id: 'coastline', icon: 'land', key: 'land' },
 		{ id: 'flourishes', icon: 'flourish', key: 'flourishes' },
 		{ id: 'osm', icon: 'markerMooring', key: 'osmFeatures' },
 		{ id: 'annotations', icon: 'annotate', key: 'annotations' }
@@ -72,13 +72,6 @@
 			}}
 		/>
 		<Note>{t(view.locale, 'accuracyNote')}</Note>
-		<Action
-			label={t(view.locale, 'legendOpen')}
-			icon="legend"
-			onclick={() => {
-				view.openPanel('legend');
-			}}
-		/>
 	</Field>
 
 	<div class="rows">

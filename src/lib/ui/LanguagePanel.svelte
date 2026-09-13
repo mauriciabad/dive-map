@@ -3,6 +3,7 @@
 	import Segmented from './controls/Segmented.svelte';
 	import type { Choice } from './controls/types';
 	import { PANEL_ID } from './panel';
+	import { FLAGS } from '$lib/i18n/flags';
 	import { LOCALES, LOCALE_NAMES, type Locale } from '$lib/i18n/locale';
 	import { t } from '$lib/i18n/messages';
 	import type { MapState } from '$lib/state/map-view.svelte';
@@ -16,7 +17,8 @@
 
 	const choices: readonly Choice<Locale>[] = LOCALES.map((value) => ({
 		value,
-		label: LOCALE_NAMES[value]
+		label: LOCALE_NAMES[value],
+		image: FLAGS[value]
 	}));
 </script>
 

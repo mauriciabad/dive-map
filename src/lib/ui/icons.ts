@@ -30,16 +30,18 @@ export const ICONS = {
 	 * what say contour: the nested set this replaces closed up into one blob at
 	 * panel size, which is the only size it is ever read at.
 	 *
-	 * The outer one does not close. It comes round and runs out to the right with
-	 * both ends flaring away, the way a contour leaves the frame rather than ending,
-	 * which is also what keeps the set from reading as a target.
+	 * The outer one does not close. It comes round and runs out to the right, the
+	 * lower end reaching further than the upper one, the way a contour leaves the
+	 * frame rather than ending. That is also what keeps the set from reading as a
+	 * target. Every join is tangent to the last, so the whole ring is one curve
+	 * with no corner in it.
 	 *
 	 * The summit is a sounding dot rather than a third ring: a ring that small
 	 * closes into a blob at panel size, and a dot is what a chart puts there anyway.
 	 */
 	isobath: {
 		d: [
-			'M22.4 5.6q-1.9.6-2.7 2.3a9.4 7.2 0 1 0 0 8.2q.8 1.7 2.7 2.3',
+			'M20.8 6.2c-2.4-1.3-5.2-1.8-8.8-1.8-5.2 0-9.4 3.4-9.4 7.6 0 4.2 4.2 7.6 9.4 7.6 3.8 0 7-.6 9.4-2',
 			'M6.6 12a5.4 4 0 1 0 10.8 0a5.4 4 0 1 0-10.8 0'
 		],
 		dots: [[12, 12, 1.6]]
@@ -103,14 +105,17 @@ export const ICONS = {
 	},
 
 	/**
-	 * A coast seen from above: solid land in one corner, open water with its crests
-	 * in the other. This switch draws or drops the whole land side of the map rather
-	 * than the shore line, so the drawing is the mass and the water it ends at, and
-	 * the land runs off the edges of the box because a coast is not an island.
+	 * A headland standing out of the water. This switch draws or drops the whole
+	 * land side of the map rather than the shore line, so the drawing is the mass
+	 * and the water it rises from.
+	 *
+	 * Solid, and with no sun on it, which is what keeps it apart from the relief
+	 * switch two rows above: that one is an outline lit from the side, because what
+	 * it turns on is the light rather than the ground.
 	 */
 	land: {
-		d: ['M12.8 14.6q2.2-1.7 4.4 0t4.4 0', 'M8.6 20q2.6-2 5.2 0t5.2 0'],
-		fill: ['M2.4 2.6h16.2c-1 4-4.6 5.4-7.4 7.6-2.8 2.2-3.4 4.6-8.8 5.6z']
+		d: ['M2.6 20.8q2.9-1.6 5.8 0t5.8 0 5.8 0'],
+		fill: ['M2.6 16.2 8.8 5.4l4.2 6.8 3-3.9 5.4 7.9z']
 	},
 
 	/**
