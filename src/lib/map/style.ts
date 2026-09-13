@@ -703,6 +703,12 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			id: 'hillshade',
 			type: 'hillshade',
 			source: 'seabed-dem',
+			// The DEM lands before the basemap on a cold load, and this layer has no
+			// per-pixel mask, so it lights the flat land cells of the archive too: a
+			// hard rectangle over inland Catalonia until the land paints over it. The
+			// opening view sits at 7.56 and the relief says nothing legible there
+			// anyway, nine DEM tiles across a whole coastline.
+			minzoom: 9,
 			layout: { visibility: vis(options, 'hillshade') },
 			paint: {
 				// Low sun from the north-west. A high sun flattens a seabed whose whole
