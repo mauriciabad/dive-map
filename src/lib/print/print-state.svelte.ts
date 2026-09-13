@@ -5,10 +5,14 @@ import {
 	DEFAULT_SHEET,
 	type Framing,
 	type FurnitureId,
+	MM_BOUNDS,
 	type Orientation,
+	PX_BOUNDS,
+	type PrintSettings,
 	type Sheet,
 	type SheetPlan,
 	type StockId,
+	ZOOM_BOUNDS,
 	asZoomFraming,
 	planSheet,
 	trimPixels,
@@ -37,10 +41,6 @@ export interface LiveView {
 	readonly groundLayer: 'habitats' | 'substrate';
 	readonly smoothed: boolean;
 }
-
-const MM_BOUNDS = { low: 20, high: 2000 } as const;
-const PX_BOUNDS = { low: 200, high: 20_000 } as const;
-const ZOOM_BOUNDS = { low: 6, high: 22 } as const;
 
 const clamp = (value: number, low: number, high: number): number =>
 	Math.min(high, Math.max(low, Math.round(value)));
@@ -243,6 +243,31 @@ export class PrintState {
 	frameByZoom(live: LiveView): void {
 		if (this.framing.by === 'zoom') return;
 		this.framing = { by: 'zoom', zoom: this.plan(live).zoom };
+	}
+
+	/** The part of this worth keeping across a reload. Title and subtitle are not. */
+	get settings(): PrintSettings {
+		return { sheet: this.sheet, framing: this.framing, furniture: [...this.furniture] };
+	}
+
+	/**
+	 * Put a stored setup back, through the same transitions the panel uses rather
+	 * than over the fields.
+	 *
+	 * That is what holds the one invariant this class exists for. A blob written by
+	 * an older build, or edited by hand, can pair a sheet measured in pixels with a
+	 * scale ratio; going through `#reframe` and `setScale` turns that into a zoom
+	 * instead of leaving behind a ratio a raster cannot honour. Assigning the two
+	 * fields directly would restore exactly the state the rest of the class spends
+	 * its code preventing.
+	 */
+	apply(settings: PrintSettings, latitudeDeg: number): void {
+		if (settings.sheet.kind === 'stock') this.#lastStock = settings.sheet.stock;
+		this.#reframe(settings.sheet, latitudeDeg);
+		if (settings.framing.by === 'scale') this.setScale(settings.framing.scale);
+		else this.setZoom(settings.framing.zoom);
+		this.furniture.clear();
+		for (const id of settings.furniture) this.furniture.add(id);
 	}
 
 	shows(id: FurnitureId): boolean {

@@ -248,6 +248,116 @@ export const LEGAL_FURNITURE: readonly FurnitureId[] = ['disclaimer', 'attributi
 
 export const DEFAULT_FURNITURE: readonly FurnitureId[] = FURNITURE_IDS;
 
+/** What the panel will accept from a person, and so what it will accept from storage. */
+export const MM_BOUNDS = { low: 20, high: 2000 } as const;
+export const PX_BOUNDS = { low: 200, high: 20_000 } as const;
+export const ZOOM_BOUNDS = { low: 6, high: 22 } as const;
+const DPI_BOUNDS = { low: 50, high: 1200 } as const;
+const BLEED_BOUNDS = { low: 0, high: 20 } as const;
+
+/**
+ * A sheet setup as plain data, for storing and reading back.
+ *
+ * Only what should survive a reload: the size, the framing, and which elements
+ * are on. The title and the subtitle stay out. They are what one sheet is called,
+ * not how sheets are set up, and somebody reloading a saved setup wants their
+ * paper and their framing back rather than last week's card title. The format
+ * stays out too, because a raster can only be a PNG and the sheet already says so.
+ */
+export interface PrintSettings {
+	readonly sheet: Sheet;
+	readonly framing: Framing;
+	readonly furniture: readonly FurnitureId[];
+}
+
+export const DEFAULT_PRINT_SETTINGS: PrintSettings = {
+	sheet: DEFAULT_SHEET,
+	framing: DEFAULT_FRAMING,
+	furniture: DEFAULT_FURNITURE
+};
+
+/**
+ * These two are also in `$lib/state/configuration.ts`. A domain module reaching
+ * into a state module to share four lines is the worse trade.
+ */
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+	typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const numberWithin = (value: unknown, low: number, high: number): number | undefined =>
+	typeof value === 'number' && Number.isFinite(value) && value >= low && value <= high
+		? value
+		: undefined;
+
+const isStockId = (value: unknown): value is StockId => STOCK_IDS.some((id) => id === value);
+
+const parseSheet = (value: unknown): Sheet | undefined => {
+	if (!isRecord(value)) return undefined;
+	const kind = value['kind'];
+	if (kind === 'pixels') {
+		const widthPx = numberWithin(value['widthPx'], PX_BOUNDS.low, PX_BOUNDS.high);
+		const heightPx = numberWithin(value['heightPx'], PX_BOUNDS.low, PX_BOUNDS.high);
+		if (widthPx === undefined || heightPx === undefined) return undefined;
+		return { kind: 'pixels', widthPx: Math.round(widthPx), heightPx: Math.round(heightPx) };
+	}
+	const dpi = numberWithin(value['dpi'], DPI_BOUNDS.low, DPI_BOUNDS.high) ?? DEFAULT_SHEET.dpi;
+	// Missing from anything written before bleed existed, which is no reason to
+	// throw away the paper size somebody chose on purpose.
+	const bleedMm = numberWithin(value['bleedMm'], BLEED_BOUNDS.low, BLEED_BOUNDS.high) ?? 0;
+	if (kind === 'stock') {
+		const stock = value['stock'];
+		if (!isStockId(stock)) return undefined;
+		const orientation = value['orientation'] === 'landscape' ? 'landscape' : 'portrait';
+		return { kind: 'stock', stock, orientation, dpi, bleedMm };
+	}
+	if (kind === 'millimetres') {
+		const widthMm = numberWithin(value['widthMm'], MM_BOUNDS.low, MM_BOUNDS.high);
+		const heightMm = numberWithin(value['heightMm'], MM_BOUNDS.low, MM_BOUNDS.high);
+		if (widthMm === undefined || heightMm === undefined) return undefined;
+		return { kind: 'millimetres', widthMm, heightMm, dpi, bleedMm };
+	}
+	return undefined;
+};
+
+const parseFraming = (value: unknown): Framing | undefined => {
+	if (!isRecord(value)) return undefined;
+	if (value['by'] === 'zoom') {
+		const zoom = numberWithin(value['zoom'], ZOOM_BOUNDS.low, ZOOM_BOUNDS.high);
+		return zoom === undefined ? undefined : { by: 'zoom', zoom };
+	}
+	if (value['by'] === 'scale') {
+		const denominator = numberWithin(value['scale'], 1, 10_000_000);
+		return denominator === undefined ? undefined : { by: 'scale', scale: scale(denominator) };
+	}
+	return undefined;
+};
+
+/**
+ * Untrusted JSON, possibly written by an older build or edited by hand.
+ *
+ * The size is the one field worth refusing over, because a sheet is what the
+ * whole setup is about and there is no sensible stand-in for one that will not
+ * parse. Everything else falls back, the way `parseConfiguration` does next door:
+ * somebody who saved a setup and gets the paper and the elements back is better
+ * served than somebody told the lot is broken because a zoom was out of range.
+ *
+ * An empty furniture list is kept as empty. Switching every element off is a
+ * thing the panel lets you do on purpose, so it has to round-trip.
+ */
+export const parsePrintSettings = (value: unknown): PrintSettings | undefined => {
+	if (!isRecord(value)) return undefined;
+	const sheet = parseSheet(value['sheet']);
+	if (sheet === undefined) return undefined;
+	const stored = value['furniture'];
+	const kept = new Set<unknown>(Array.isArray(stored) ? stored : []);
+	return {
+		sheet,
+		framing: parseFraming(value['framing']) ?? DEFAULT_FRAMING,
+		furniture: Array.isArray(stored)
+			? FURNITURE_IDS.filter((id) => kept.has(id))
+			: DEFAULT_FURNITURE
+	};
+};
+
 /** What the sheet is on paper. Absent for a raster, which is none of these things. */
 export interface PaperPlan {
 	/** The whole page, trim plus bleed on every side. The PDF's MediaBox. */

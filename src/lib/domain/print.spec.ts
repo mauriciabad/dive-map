@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { scale } from './units.ts';
 import {
 	CANVAS_PIXEL_CAP,
+	DEFAULT_FRAMING,
 	DEFAULT_SHEET,
 	type Sheet,
 	asZoomFraming,
@@ -9,6 +10,7 @@ import {
 	groundMetresPerPixel,
 	bleedPixels,
 	pageSizeMm,
+	parsePrintSettings,
 	planSheet,
 	renderZoom,
 	scaleForResolution,
@@ -213,5 +215,63 @@ describe('bleed', () => {
 		expect(raster.bleedPx).toBe(0);
 		expect(bleedPixels(CUSTOM_PX)).toBe(0);
 		expect(pageSizeMm(CUSTOM_PX)).toBeUndefined();
+	});
+});
+
+describe('print settings that survive a reload', () => {
+	const stored = (over: Record<string, unknown> = {}): unknown => ({
+		sheet: { kind: 'stock', stock: 'A4', orientation: 'landscape', dpi: 300, bleedMm: 3 },
+		framing: { by: 'scale', scale: 5000 },
+		furniture: ['title', 'scaleBar', 'northArrow'],
+		...over
+	});
+
+	it('reads back exactly what it was given', () => {
+		expect(parsePrintSettings(stored())).toEqual({
+			sheet: { kind: 'stock', stock: 'A4', orientation: 'landscape', dpi: 300, bleedMm: 3 },
+			framing: { by: 'scale', scale: 5000 },
+			furniture: ['title', 'scaleBar', 'northArrow']
+		});
+	});
+
+	it('loads a sheet written before bleed existed, at no bleed', () => {
+		const old = { kind: 'stock', stock: 'A3', orientation: 'portrait', dpi: 200 };
+		expect(parsePrintSettings(stored({ sheet: old }))?.sheet).toEqual({ ...old, bleedMm: 0 });
+	});
+
+	it('keeps an empty element list, because switching them all off is a choice', () => {
+		expect(parsePrintSettings(stored({ furniture: [] }))?.furniture).toEqual([]);
+	});
+
+	it('drops an element this version does not know and keeps the rest', () => {
+		expect(parsePrintSettings(stored({ furniture: ['title', 'tideTable'] }))?.furniture).toEqual([
+			'title'
+		]);
+	});
+
+	it('falls back on a framing it cannot use and keeps the sheet', () => {
+		for (const framing of [{ by: 'zoom', zoom: 400 }, { by: 'ley-lines' }, 7, null]) {
+			const back = parsePrintSettings(stored({ framing }));
+			expect({ framing, got: back?.framing, sheet: back?.sheet.kind }).toMatchObject({
+				got: DEFAULT_FRAMING,
+				sheet: 'stock'
+			});
+		}
+	});
+
+	it('refuses a setup whose sheet makes no sense, because nothing stands in for one', () => {
+		for (const sheet of [
+			{ kind: 'stock', stock: 'A6', orientation: 'portrait', dpi: 200, bleedMm: 0 },
+			{ kind: 'millimetres', widthMm: 4, heightMm: 250, dpi: 150, bleedMm: 0 },
+			{ kind: 'pixels', widthPx: 900_000, heightPx: 10 },
+			{ kind: 'papyrus' },
+			'A3',
+			undefined
+		]) {
+			expect({ sheet, got: parsePrintSettings(stored({ sheet })) }).toMatchObject({
+				got: undefined
+			});
+		}
+		expect(parsePrintSettings('not an object')).toBeUndefined();
 	});
 });
