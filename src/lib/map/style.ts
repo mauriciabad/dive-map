@@ -175,22 +175,54 @@ export const DEPTH_BANDS: readonly {
 const BEYOND_WASH = 'rgba(3, 41, 59, 0.8)';
 
 export const SATELLITE_SOURCE_ID = 'satellite';
+export const ICGC_SATELLITE_SOURCE_ID = 'satellite-icgc';
 
 /**
  * PNOA Máxima Actualidad, the national ortophoto, over IGN's WMTS. It covers the
- * whole Spanish coast down to 25 cm and serves tiles to z20 at Tamariu; ICGC's
- * Catalan ortophoto is finer still but its published WMTS templates returned
- * HTML rather than a tile at the same place, and a coast the diver can see is
- * worth more than a few centimetres they cannot.
+ * whole Spanish coast down to 25 cm and serves tiles to z20 at Tamariu. It is the
+ * backing photograph, not the one this map is about.
  *
- * The only source here that is not ours. It is never precached: the service
- * worker ignores every cross-origin request, so an area saved for the boat holds
- * the survey and not somebody else's photograph.
+ * Neither source here is ours. Neither is precached: the service worker ignores
+ * every cross-origin request, so an area saved for the boat holds the survey and
+ * not somebody else's photograph.
  */
 const SATELLITE_TILES =
 	'https://www.ign.es/wmts/pnoa-ma?service=WMTS&request=GetTile&version=1.0.0' +
 	'&layer=OI.OrthoimageCoverage&style=default&tilematrixset=GoogleMapsCompatible' +
 	'&format=image/jpeg&TileMatrix={z}&TileCol={x}&TileRow={y}';
+
+/**
+ * ICGC's Ortofoto de costa, which is the photograph that belongs on this map.
+ *
+ * It is flown by the body that made the bathymetry underneath it, on the same
+ * campaigns, so the shoreline in the picture and the 0 m isobath are the same
+ * survey rather than two that disagree by a few metres. 10 cm over most of the
+ * coast and 5 cm over the 2022 bathymetry strip, against PNOA's 25 cm.
+ *
+ * WMS and not WMTS. The WMTS service at the same host answers GetCapabilities
+ * with a 500 and its RESTful templates return HTML, which is what sent an earlier
+ * attempt to IGN instead. `orto-costa` is the aggregate layer over the whole
+ * dated series, so it resolves to the most recent flight that covers a given
+ * pixel without this style naming a year that will go stale.
+ *
+ * `image/vnd.jpeg-png` is what makes it an overlay rather than a replacement.
+ * MapServer returns JPEG where the strip is opaque, about 20 KB a tile, and a
+ * 334-byte fully transparent PNG everywhere it has no coverage. So inland and
+ * offshore the IGN photograph below shows through untouched, and along the coast
+ * ICGC wins. Measured at Tamariu z16 through z20.
+ *
+ * `bounds` is the service's own declared extent. Outside Catalonia there is
+ * nothing to ask for.
+ */
+const ICGC_SATELLITE_TILES =
+	'https://geoserveis.icgc.cat/servei/catalunya/orto-costa/wms?service=WMS' +
+	'&request=GetMap&version=1.1.1&layers=orto-costa&styles=&srs=EPSG:3857' +
+	'&format=image/vnd.jpeg-png&transparent=true' +
+	'&width=256&height=256&bbox={bbox-epsg-3857}';
+
+const ICGC_SATELLITE_BOUNDS: [number, number, number, number] = [
+	0.024303, 40.061468, 3.360594, 43.400669
+];
 
 const isobathColour = (): DataDrivenPropertyValueSpecification<string> => {
 	const stops = DEPTH_BANDS.flatMap((b) => [b.from, b.light, b.to + 0.99, b.dark]);
@@ -825,6 +857,15 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			attribution:
 				'<a href="https://pnoa.ign.es/" target="_blank" rel="noopener">PNOA</a> cedido por © Instituto Geográfico Nacional de España'
 		},
+		[ICGC_SATELLITE_SOURCE_ID]: {
+			type: 'raster',
+			tiles: [ICGC_SATELLITE_TILES],
+			tileSize: 256,
+			maxzoom: 20,
+			bounds: ICGC_SATELLITE_BOUNDS,
+			attribution:
+				'<a href="https://www.icgc.cat/" target="_blank" rel="noopener">ICGC</a> ortofoto de costa, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>'
+		},
 		'dem-edge': { type: 'geojson', data: asset('/data/dem-edge.geojson') },
 		// Land only, and the land is the inside of the 0 m isobath. The line that
 		// bounds it is not in here: it is the 0 m contour in `isobaths`, which is the
@@ -857,6 +898,19 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			// Never dimmed. The photograph is the bottom of the stack, so what decides
 			// whether it can be seen is how much paint is left over it, and that is what
 			// the two paint levels are. Dimming it as well only muddied both.
+			paint: { 'raster-opacity': 1 }
+		},
+
+		{
+			// Over the national photograph, under everything else. ICGC's coastal
+			// ortophoto only exists along the shore, and outside that strip its WMS
+			// answers with a transparent tile, so this layer is the finer picture where
+			// there is one and a sheet of glass everywhere else. Same switch as the
+			// layer below it: a diver asks for the photograph, not for a provider.
+			id: 'satellite-icgc',
+			type: 'raster',
+			source: ICGC_SATELLITE_SOURCE_ID,
+			layout: { visibility: vis(options, 'satellite') },
 			paint: { 'raster-opacity': 1 }
 		},
 
@@ -919,17 +973,18 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			}
 		},
 		{
-			// Off whenever the photograph is on. The veil is the water column painted as
-			// alpha, up to 0.84 at depth, and over a photograph that is a second sheet
-			// of blue over one that already shows the water. Asked for by the owner and
-			// right on its own terms: the photograph says how deep the water looks, and
-			// the isobaths above say how deep it is.
+			// The water column painted as alpha, up to 0.84 at depth.
+			//
+			// It used to carry its own "off whenever the photograph is on" clause here.
+			// That silenced this layer and not `sea-beyond-dem` below, which reads the
+			// same switch, so the wash went on painting over the photograph with the
+			// switch gone from the panel. `MapState` takes `depth-tint` down when the
+			// photograph goes up, so both layers read one answer and this one reads it
+			// the same way every other layer does.
 			id: 'depth-veil',
 			type: 'color-relief',
 			source: 'seabed-dem',
-			layout: {
-				visibility: options.visible.includes('satellite') ? 'none' : vis(options, 'depth-tint')
-			},
+			layout: { visibility: vis(options, 'depth-tint') },
 			paint: { 'color-relief-color': DEPTH_VEIL }
 		},
 		{

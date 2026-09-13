@@ -38,27 +38,61 @@ describe('the ortophoto and the paint over it', () => {
 	});
 
 	/**
-	 * The owner's words: the marine habitats are not overlapping the IGN map. They
-	 * were not, because turning the photograph on used to step the seabed paint back
-	 * to a third of itself. The photograph is the bottom of the stack and the survey
-	 * is the subject, so by default nothing over the water changes at all.
+	 * This used to assert the opposite, that the seabed keeps every bit of its paint
+	 * over the photograph, so the survey stayed the subject of its own map. The
+	 * owner tested it in prod and reported the photograph missing, which it was:
+	 * habitat fill at 0.55 to 0.92 opacity is not something a picture shows through.
+	 * A switch asking for a photograph now produces one.
 	 */
-	it('keeps every bit of the habitat paint over the photograph by default', () => {
-		expect(groundStops(withSatellite())).toEqual([0.55, 0.92]);
+	it('hands the seabed to the photograph by default, which is the point of the switch', () => {
+		expect(groundStops(withSatellite())).toEqual([0, 0]);
 	});
 
-	it('steps the seabed back only when a diver asks it to', () => {
-		const at = (seabedPaint: 0 | 0.25 | 0.5 | 0.75 | 1) =>
-			groundStops(withSatellite({ seabedPaint }))[1] ?? -1;
-		expect(at(1)).toBeGreaterThan(at(0.75));
-		expect(at(0.75)).toBeGreaterThan(at(0.5));
-		expect(at(0.5)).toBeGreaterThan(at(0.25));
+	it('paints the seabed back up as a diver drags the slider', () => {
+		const at = (seabedPaint: number) => groundStops(withSatellite({ seabedPaint }))[1] ?? -1;
+		expect(at(1)).toBeGreaterThan(at(0.63));
+		expect(at(0.63)).toBeGreaterThan(at(0.25));
 		expect(at(0)).toBe(0);
 	});
 
 	it('never dims the photograph itself, whatever the paint says', () => {
 		for (const seabedPaint of [0, 0.5, 1] as const) {
 			expect(paintOf(withSatellite({ seabedPaint }), 'satellite')['raster-opacity']).toBe(1);
+		}
+	});
+
+	/**
+	 * The owner asked for ICGC and got IGN, because an earlier attempt could not
+	 * find an ICGC template that served a tile. ICGC is the body that made the
+	 * bathymetry this whole map is drawn from, so its photograph is the one that
+	 * lines up with the survey. IGN stays underneath to fill in past the coast,
+	 * which means the order of these two layers is the feature and not an accident.
+	 */
+	it('draws the Catalan photograph over the national one, both on the one switch', () => {
+		const ids = buildStyle(withSatellite()).layers.map((l) => l.id);
+		expect(ids.indexOf('satellite-icgc')).toBeGreaterThan(ids.indexOf('satellite'));
+	});
+
+	it('puts both photographs away together', () => {
+		for (const id of ['satellite', 'satellite-icgc']) {
+			const layer = buildStyle(options()).layers.find((l) => l.id === id);
+			expect(layer?.layout?.visibility).toBe('none');
+		}
+	});
+
+	/**
+	 * `depth-tint` drives the veil and the wash over sea past the survey's edge. The
+	 * veil alone used to carry an "off whenever the photograph is on" clause, so the
+	 * wash kept painting with its switch gone from the panel. `MapState` takes the
+	 * switch down instead, and these two now answer to it together.
+	 */
+	it('leaves the veil and the wash reading one switch, with no clause of their own', () => {
+		for (const id of ['depth-veil', 'sea-beyond-dem']) {
+			const on = buildStyle(withSatellite()).layers.find((l) => l.id === id);
+			const off = buildStyle(withSatellite({ visible: ['satellite'] })).layers.find(
+				(l) => l.id === id
+			);
+			expect([on?.layout?.visibility, off?.layout?.visibility]).toEqual(['visible', 'none']);
 		}
 	});
 

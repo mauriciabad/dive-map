@@ -69,16 +69,19 @@ export type LayerId =
 export type PaintLevel = number;
 
 /**
- * Where a diver lands when they turn the photograph on.
+ * Where a diver lands when they turn the photograph on: nowhere, both sides bare.
  *
- * The seabed keeps all of its paint and the land gives all of it up, because
- * those are the two halves of what the switch is for. The survey is the subject
- * of this map and stays authoritative over the water, which is the "marine
- * habitats overlapping the IGN map" the owner asked for. The shore is the half a
- * photograph actually says something about, and a photograph of 30 m of water
- * says nothing. Either is one drag away on its slider.
+ * The seabed used to keep all of its paint here, so the survey stayed
+ * authoritative over the water. The reasoning was sound and the result was not.
+ * At full paint the habitat fill runs 0.55 to 0.92 opacity, so a diver who asked
+ * for a photograph got one they could not see, and reported the photograph as
+ * broken. Turning the switch on now does the thing the switch says.
+ *
+ * Nothing is lost by starting bare. The isobaths, the markers and the labels all
+ * sit above the ground fill and none of them fades, so the briefing is still on
+ * screen; the paint is one drag away on either slider.
  */
-export const DEFAULT_SEABED_PAINT: PaintLevel = 1;
+export const DEFAULT_SEABED_PAINT: PaintLevel = 0;
 export const DEFAULT_LAND_PAINT: PaintLevel = 0;
 
 export const isPaintLevel = (value: unknown): value is PaintLevel =>
