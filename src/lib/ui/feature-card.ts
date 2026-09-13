@@ -22,7 +22,7 @@ import {
 } from '$lib/map/habitat-points';
 import { MARKERS } from '$lib/map/markers';
 import type { Depth } from '$lib/domain/units';
-import type { IconName } from '$lib/ui/icons';
+import type { IconName } from './icons';
 import { type Locale, localisedName } from '$lib/i18n/locale';
 import { type MessageKey, t } from '$lib/i18n/messages';
 
@@ -278,7 +278,11 @@ export const headOf = (pick: FeaturePick, locale: Locale): CardHead => {
 		const { habitat } = point;
 		return {
 			title: habitat[locale],
-			subtitle: pointSubtitle(habitat, locale),
+			// What the record is, and the directive code it answers to where it has one.
+			subtitle: [
+				t(locale, 'habitatPoint'),
+				...(habitat.hic === undefined ? [] : [t(locale, 'legendHic', { code: habitat.hic })])
+			],
 			icon: habitat.icon,
 			tint: habitat.colour,
 			plate: false
@@ -292,12 +296,6 @@ export const headOf = (pick: FeaturePick, locale: Locale): CardHead => {
 		plate: false
 	};
 };
-
-/** What the record is, and the directive code it answers to where it has one. */
-export const pointSubtitle = (habitat: HabitatPointClass, locale: Locale): readonly string[] => [
-	t(locale, 'habitatPoint'),
-	...(habitat.hic === undefined ? [] : [t(locale, 'legendHic', { code: habitat.hic })])
-];
 
 /**
  * The classes one catalogue has under the tap, most diver-relevant first and
