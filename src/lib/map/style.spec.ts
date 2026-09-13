@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { type StyleOptions, buildStyle } from './style.ts';
 import { DEFAULT_ISOBATHS, DEFAULT_LAYERS, type LayerId } from '$lib/domain/card';
+import { DANGER_TAG_PREFIX, DIVE_NUMBER_KEYS, DIVE_TAG_KEYS } from '$lib/domain/osm';
 
 const options = (extra: Partial<StyleOptions> = {}): StyleOptions => ({
 	locale: 'ca',
@@ -67,7 +68,8 @@ describe('isobath contrast', () => {
 
 		const width = casing['line-width'];
 		const line = paintOf(options({ visible: withPhoto(DEFAULT_LAYERS) }), 'isobath')['line-width'];
-		if (!Array.isArray(width) || !Array.isArray(line)) throw new Error('widths are not expressions');
+		if (!Array.isArray(width) || !Array.isArray(line))
+			throw new Error('widths are not expressions');
 		// The thinnest contour at the widest zoom: the casing has to be proud of it.
 		const thinnest = (expression: unknown[]): number => {
 			const stop = expression[6];
@@ -101,5 +103,40 @@ describe('the sea flourishes', () => {
 		if (!Array.isArray(opacity)) throw new Error('flourish opacity is not an expression');
 		expect(opacity.at(-2)).toBeGreaterThanOrEqual(14);
 		expect(opacity.at(-1)).toBe(0);
+	});
+});
+
+describe('what the osm layers read off a feature', () => {
+	// Two-argument `['get', key]` only. The three-argument form is a lookup into a
+	// literal object and its second argument is a kind, not a property name.
+	const readKeys = (node: unknown, into: Set<string>): void => {
+		if (Array.isArray(node)) {
+			if (node.length === 2 && node[0] === 'get' && typeof node[1] === 'string') into.add(node[1]);
+			for (const child of node) readKeys(child, into);
+			return;
+		}
+		if (typeof node === 'object' && node !== null) {
+			for (const value of Object.values(node)) readKeys(value, into);
+		}
+	};
+
+	const keysRead = (): Set<string> => {
+		const keys = new Set<string>();
+		for (const layer of buildStyle(options()).layers) {
+			if ('source' in layer && layer.source === 'osm') readKeys(layer, keys);
+		}
+		return keys;
+	};
+
+	it('draws the depth off the number, not the raw tag', () => {
+		expect(keysRead().has('maxDepth')).toBe(true);
+	});
+
+	it('reads nothing the reduction does not write', () => {
+		const emitted: readonly string[] = ['t', 'id', 'kind', ...DIVE_NUMBER_KEYS, ...DIVE_TAG_KEYS];
+		for (const key of keysRead()) {
+			if (key.startsWith(DANGER_TAG_PREFIX)) continue;
+			expect(emitted).toContain(key);
+		}
 	});
 });

@@ -1,4 +1,10 @@
-import { keepDiveTags, parseDiveFeature, type OsmElementType, type OsmTags } from './osm.ts';
+import {
+	diveNumbers,
+	keepDiveTags,
+	parseDiveFeature,
+	type OsmElementType,
+	type OsmTags
+} from './osm.ts';
 
 /**
  * The browser's own copy of the build-time OSM reduction.
@@ -304,7 +310,13 @@ export function toDiveCollection(elements: readonly OverpassElement[]): DiveColl
 		features.push({
 			type: 'Feature',
 			geometry,
-			properties: { t: elementType, id, kind: parsed.kind, ...keepDiveTags(tags) }
+			properties: {
+				t: elementType,
+				id,
+				kind: parsed.kind,
+				...keepDiveTags(tags),
+				...diveNumbers(parsed)
+			}
 		});
 	}
 	features.sort((a, b) =>

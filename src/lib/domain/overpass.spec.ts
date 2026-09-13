@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { DANGER_TAG_PREFIX, DIVE_TAG_KEYS, keepDiveTags } from './osm.ts';
+import { DANGER_TAG_PREFIX, DIVE_NUMBER_KEYS, DIVE_TAG_KEYS, keepDiveTags } from './osm.ts';
 import {
 	DIVE_BBOX,
 	OverpassError,
@@ -98,10 +98,44 @@ describe('the reduction', () => {
 	});
 
 	it('strips the tags nothing reads', () => {
+		const derived: readonly string[] = ['t', 'id', 'kind', ...DIVE_NUMBER_KEYS];
 		const keys = new Set(features.flatMap((f) => Object.keys(f.properties)));
 		for (const key of keys) {
-			if (['t', 'id', 'kind'].includes(key) || key.startsWith(DANGER_TAG_PREFIX)) continue;
+			if (derived.includes(key) || key.startsWith(DANGER_TAG_PREFIX)) continue;
 			expect(DIVE_TAG_KEYS as readonly string[]).toContain(key);
+		}
+	});
+
+	it('parses the max depth out of a tag a mapper can put units in', () => {
+		const site = (maxdepth: string): unknown =>
+			toDiveCollection([
+				{
+					type: 'node',
+					id: 1,
+					lat: 41.917,
+					lon: 3.208,
+					tags: { 'scuba_diving:divespot': 'yes', 'scuba_diving:maxdepth': maxdepth }
+				}
+			]).features[0]?.properties['maxDepth'];
+		expect(site('40')).toBe(40);
+		expect(site('40 m')).toBe(40);
+		expect(site('deep')).toBeUndefined();
+	});
+
+	it('agrees with the baked file the live answer replaces', () => {
+		const baked: unknown = JSON.parse(read('../../../static/data/osm.geojson'));
+		if (typeof baked !== 'object' || baked === null || !('features' in baked)) {
+			throw new Error('static/data/osm.geojson is not a FeatureCollection');
+		}
+		const depths = (collection: readonly { properties: Record<string, unknown> }[]) =>
+			collection
+				.filter((f) => 'maxDepth' in f.properties)
+				.map((f) => [f.properties['scuba_diving:maxdepth'], f.properties['maxDepth']]);
+		const bakedDepths = depths(baked.features as { properties: Record<string, unknown> }[]);
+		expect(bakedDepths.length).toBeGreaterThan(0);
+		for (const [raw, parsed] of bakedDepths) {
+			expect(typeof parsed).toBe('number');
+			expect(parsed).toBe(Number.parseFloat(String(raw)));
 		}
 	});
 

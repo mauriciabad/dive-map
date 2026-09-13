@@ -239,3 +239,31 @@ export function parseDiveFeature(ref: OsmRef, tags: OsmTags): DiveFeature | unde
 	}
 	return undefined;
 }
+
+/**
+ * The property names the reductions derive rather than copy from a tag. `style.ts`
+ * may read one of these or a key on `DIVE_TAG_KEYS`, and nothing else: reading
+ * anything else is how `osm-dive-site-depth` came to draw nothing for its whole
+ * life, which `style.spec.ts` now fails on.
+ */
+export const DIVE_NUMBER_KEYS = ['maxDepth'] as const satisfies readonly string[];
+
+/**
+ * The properties a style expression does arithmetic on, as opposed to the tags it
+ * only ever compares.
+ *
+ * `scuba_diving:maxdepth` is free text a mapper types, so it arrives as "18" on
+ * one site and could arrive as "40 m" on the next. A label wants a number and
+ * `symbol-sort-key` wants one it can subtract, and `parseDiveFeature` already
+ * does that parse. Both reductions emit what it returned rather than restating
+ * the rule: `overpass.ts` calls this directly, and `osm_to_geojson.py` reaches it
+ * through the same node bridge it runs the parser with. That is what keeps the
+ * baked file and the live Overpass answer agreeing, which they must, because one
+ * replaces the other at runtime.
+ */
+export function diveNumbers(feature: DiveFeature): Record<string, number> {
+	if (feature.kind === 'dive-site' && feature.maxDepth !== undefined) {
+		return { maxDepth: feature.maxDepth };
+	}
+	return {};
+}

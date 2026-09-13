@@ -2,8 +2,9 @@
 
 Reads Overpass `out geom` output, builds GeoJSON geometry for every element, keeps
 only what the app's own TypeScript parser recognises, strips every tag that parser
-never reads, and writes a compact FeatureCollection small enough to fetch over a
-boat's mobile signal.
+never reads, adds the numbers it derives from tags the style cannot do arithmetic
+on, and writes a compact FeatureCollection small enough to fetch over a boat's
+mobile signal.
 """
 
 from __future__ import annotations
@@ -31,13 +32,17 @@ LOCALISED_NAMES = ("name:ca", "name:es", "name:en")
 REQUIRED_LITERALS = frozenset({"seamark:type", "scuba_diving:divespot", "name", "alt_name"})
 
 DRIVER = """import { readFileSync, writeFileSync } from 'node:fs';
-import { parseDiveFeature } from %s;
+import { diveNumbers, parseDiveFeature } from %s;
 
 const [inputPath, outputPath] = process.argv.slice(2);
 const elements = JSON.parse(readFileSync(inputPath, 'utf8'));
 const results = elements.map((el) => {
 	const feature = parseDiveFeature({ type: el.type, id: el.id }, el.tags ?? {});
-	return { keep: feature !== undefined, kind: feature === undefined ? null : feature.kind };
+	return {
+		keep: feature !== undefined,
+		kind: feature === undefined ? null : feature.kind,
+		numbers: feature === undefined ? {} : diveNumbers(feature)
+	};
 });
 writeFileSync(outputPath, JSON.stringify(results));
 """
@@ -279,6 +284,11 @@ def reduce_features(
             continue
         properties = {"t": element.t, "id": element.id, "kind": result["kind"]}
         properties.update({k: v for k, v in element.tags.items() if k in keys})
+        # Straight from the app's own parser over the node bridge, never re-derived
+        # here. The live Overpass answer replaces this file at runtime, so a second
+        # implementation of the depth parse would show up as a label that changes
+        # when the network comes back.
+        properties.update(result["numbers"])
         features.append(feature(element, properties))
     features.sort(key=lambda f: (f["properties"]["t"], f["properties"]["id"]))
     return features, drops
