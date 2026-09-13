@@ -128,6 +128,22 @@ const CASES = [
 		},
 		// Paper grows by the bleed on all four sides; the card inside stays A3.
 		expect: { kind: 'pdf', widthMm: 303, heightMm: 426, trimMm: { widthMm: 297, heightMm: 420 } }
+	},
+	{
+		// A3 at 300 dpi is past the canvas ceiling, so A4 is the biggest sheet that
+		// prints at the density a print shop asks for. Every element is switched off,
+		// which leaves the raster the renderer produced and nothing drawn over it, so
+		// `straightEdge` below can read the map rather than the furniture.
+		name: 'bare-300dpi-png',
+		format: 'png',
+		bare: true,
+		setUp: async (page) => {
+			await byName(page, 'A4').click();
+			await byName(page, /^300$/).click();
+			await byName(page, /^None$/).click();
+			await byName(page, /^PNG$/).click();
+		},
+		expect: { kind: 'png', widthPx: 2480, heightPx: 3508 }
 	}
 ];
 
@@ -221,6 +237,87 @@ const spreadOf = async (page, file) => {
 		return Math.round(Math.sqrt(sumSq / n - mean * mean) * 100) / 100;
 	}, dataUrl);
 };
+
+/** Below this the two pixels are the same seabed; above it a person sees a line. */
+const HARD_STEP = 10;
+
+/**
+ * The longest hard straight edge on the sheet, as the fraction of the sheet it
+ * runs across.
+ *
+ * A seabed is mottled, so neighbouring pixels differ by ones and twos and a run of
+ * one column stepping hard against the next is not something the map draws. What
+ * does draw one is a tile: whatever a tile fails to paint, it fails to paint right
+ * up to its own edge, and that edge is straight, one pixel wide and hundreds of
+ * millimetres long. That is how a whole quarter of a printed card came back with no
+ * seabed on it while every check the renderer had said the sheet was finished.
+ *
+ * Reported as a fraction rather than a pixel count so one number compares sheets of
+ * any size, against the median of the same measurement as the floor.
+ */
+const straightEdge = async (page, file) => {
+	const dataUrl = `data:image/png;base64,${readFileSync(rasterise(file)).toString('base64')}`;
+	return page.evaluate(
+		async ([src, step]) => {
+			const image = new Image();
+			await new Promise((resolve, reject) => {
+				image.onload = resolve;
+				image.onerror = reject;
+				image.src = src;
+			});
+			const canvas = document.createElement('canvas');
+			canvas.width = image.width;
+			canvas.height = image.height;
+			const ctx = canvas.getContext('2d', { willReadFrequently: true });
+			ctx.drawImage(image, 0, 0);
+			const { data, width, height } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+			const lum = new Float32Array(width * height);
+			for (let i = 0; i < width * height; i++) {
+				lum[i] = 0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2];
+			}
+			// A sheet that bleeds has a hard edge where the paper ends, and a PDF
+			// rasterises with a pixel of white on the outside. Neither is the map.
+			const inset = Math.round(Math.min(width, height) * 0.02);
+			const runs = (count, along, at) => {
+				const scores = [];
+				for (let i = inset; i < count - inset - 1; i++) {
+					let hits = 0;
+					let n = 0;
+					for (let j = inset; j < along - inset; j++) {
+						if (Math.abs(lum[at(i + 1, j)] - lum[at(i, j)]) > step) hits++;
+						n++;
+					}
+					scores.push({ at: i, cover: hits / n });
+				}
+				return scores;
+			};
+			const best = (scores) =>
+				scores.reduce((top, one) => (one.cover > top.cover ? one : top), { at: -1, cover: 0 });
+			const median = (scores) => {
+				const sorted = scores.map((one) => one.cover).sort((a, b) => a - b);
+				return sorted[Math.floor(sorted.length / 2)] ?? 0;
+			};
+			const columns = runs(width, height, (x, y) => y * width + x);
+			const rows = runs(height, width, (y, x) => y * width + x);
+			const round = (value) => Math.round(value * 1000) / 1000;
+			return {
+				width,
+				height,
+				column: { at: best(columns).at, cover: round(best(columns).cover) },
+				row: { at: best(rows).at, cover: round(best(rows).cover) },
+				median: round(Math.max(median(columns), median(rows)))
+			};
+		},
+		[dataUrl, HARD_STEP]
+	);
+};
+
+/**
+ * What a seabed alone produces. Measured at 0.09 on a healthy 300 dpi A4; the sheet
+ * that carried the seam measured 0.95 on the same scan, so anything in between is a
+ * line somebody drew rather than ground somebody surveyed.
+ */
+const EDGE_LIMIT = 0.35;
 
 /**
  * Waits until the export button has stopped working, and reports what the panel is
@@ -424,6 +521,10 @@ const runCase = async (context, testCase) => {
 	const bytes = statSync(saved).size;
 	const size = testCase.expect.kind === 'pdf' ? pdfSize(saved) : pngSize(saved);
 	const spread = await spreadOf(page, saved);
+	// Only on a sheet with the furniture switched off. A legend plate has hard
+	// straight sides of its own, and they are supposed to be there.
+	const edge = testCase.bare === true ? await straightEdge(page, saved) : undefined;
+	const edgeOk = edge === undefined || Math.max(edge.column.cover, edge.row.cover) < EDGE_LIMIT;
 
 	// Where the printed arrow says north is, against where the projection puts it.
 	const bearing = testCase.bearing ?? 0;
@@ -434,8 +535,11 @@ const runCase = async (context, testCase) => {
 			: await northFromSheet(page, saved, { ...render.northPlate, sheetWidth: render.width });
 	const northOffBy = apart(drawnNorth, wantedNorth);
 	// Four degrees: the N is a glyph, not a point, so its centroid sits a little off
-	// the axis. Anything that misreads the bearing is out by tens of degrees.
-	const northOk = drawnNorth.pixels > 20 && northOffBy <= 4;
+	// the axis. Anything that misreads the bearing is out by tens of degrees. A bare
+	// sheet has no arrow, and brass ink where the plate would be would mean the
+	// element toggles never reached the file.
+	const northOk =
+		testCase.bare === true ? drawnNorth.pixels < 20 : drawnNorth.pixels > 20 && northOffBy <= 4;
 
 	const trim = testCase.expect.trimMm === undefined ? undefined : pdfTrim(saved);
 	await page.close();
@@ -459,6 +563,7 @@ const runCase = async (context, testCase) => {
 			sizeOk &&
 			trimOk &&
 			northOk &&
+			edgeOk &&
 			bytes > 20_000 &&
 			spread > 4 &&
 			framed.cropVisible &&
@@ -472,6 +577,8 @@ const runCase = async (context, testCase) => {
 		trimOk,
 		bearing,
 		north: { drawn: drawnNorth, wanted: wantedNorth, offByDegrees: northOffBy, ok: northOk },
+		edge,
+		edgeOk,
 		spread,
 		groundWidthM: render?.groundWidthM ?? null,
 		measuredGroundWidthM: measured,
