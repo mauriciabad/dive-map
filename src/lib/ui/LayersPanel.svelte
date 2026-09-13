@@ -79,6 +79,20 @@
 				view.smoothed = !view.smoothed;
 			}}
 		/>
+		<!--
+			Drawn from the seafloor type archive whichever ground is showing, so it
+			belongs beside the ground picker rather than among the layer switches. Off
+			until somebody turns it on: the owner asked to see it before deciding
+			whether it earns a place at all.
+		-->
+		<Toggle
+			label={t(view.locale, 'rockEdge')}
+			pressed={view.shows('rock-edge')}
+			onchange={() => {
+				view.toggle('rock-edge');
+			}}
+		/>
+		<Note>{t(view.locale, 'rockEdgeHint')}</Note>
 		<Note>{t(view.locale, 'accuracyNote')}</Note>
 	</Field>
 

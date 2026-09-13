@@ -41,6 +41,7 @@ export type LayerId =
 	| 'depth-tint'
 	| 'isobaths'
 	| 'spot-depths'
+	| 'rock-edge'
 	| 'habitats'
 	| 'substrate'
 	| 'habitat-points'
@@ -159,6 +160,9 @@ export const DEFAULT_LAYERS: readonly LayerId[] = [
 	'depth-tint',
 	'isobaths',
 	'spot-depths',
+	// `rock-edge` is deliberately not here. The owner asked to see the rock and
+	// sand boundary drawn before deciding whether it belongs on the map at all, so
+	// it ships as something to switch on rather than something to switch off.
 	'habitats',
 	'habitat-points',
 	'flourishes',
