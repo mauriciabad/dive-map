@@ -15,7 +15,14 @@ import {
 	parseDiveFeature
 } from '$lib/domain/osm';
 import { GROUND_BY_LAYER } from '$lib/map/style';
+import {
+	HABITAT_POINT_SORT,
+	type HabitatPointClass,
+	habitatPointByCode
+} from '$lib/map/habitat-points';
+import { MARKERS } from '$lib/map/markers';
 import type { Depth } from '$lib/domain/units';
+import type { IconName } from '$lib/ui/icons';
 import { type Locale, localisedName } from '$lib/i18n/locale';
 import { type MessageKey, t } from '$lib/i18n/messages';
 
@@ -36,9 +43,25 @@ export interface SeabedReading {
 	readonly classes: readonly SeabedClass[];
 }
 
+/**
+ * One habitat survey record under the tap: the class the survey put there, and
+ * the depth it wrote down for that point.
+ *
+ * The depth is the record's own and not `FeaturePick.depth`. They answer two
+ * different questions. One is how deep the bottom is where the thumb landed, read
+ * off the contours; the other is the depth the survey measured when it found this
+ * gorgonian ground. The card labels each as what it is rather than picking one.
+ */
+export interface HabitatPointRecord {
+	readonly habitat: HabitatPointClass;
+	readonly depth: number | undefined;
+}
+
 export interface FeaturePick {
 	/** Absent when the tap landed on open seabed with nothing mapped on it. */
 	readonly feature: DiveFeature | undefined;
+	/** The survey's point record under the tap, when a mark was drawn there. */
+	readonly point: HabitatPointRecord | undefined;
 	/** One reading per catalogue that had anything to say, habitats first. */
 	readonly seabed: readonly SeabedReading[];
 	readonly position: { readonly lng: number; readonly lat: number };
@@ -69,7 +92,27 @@ export const OSM_PICK_LAYERS = [
 	'osm-restricted'
 ] as const;
 
+/**
+ * The habitat survey's point records, which are marks and answer a tap like one.
+ *
+ * A list of its own rather than a row in `OSM_PICK_LAYERS`, because the hits off
+ * it are read as survey records and not as OSM elements: they carry a class code
+ * and a depth, and `refOf` would drop every one of them.
+ */
+export const HABITAT_POINT_PICK_LAYERS = ['habitat-point'] as const;
+
 export const GROUND_PICK_LAYERS: readonly string[] = Object.keys(GROUND_BY_LAYER);
+
+/**
+ * How far from a mark a tap still counts, in pixels either side of the point.
+ *
+ * Wet fingers need slack. It is one number because the hover cursor in
+ * `cursor.ts` has to promise exactly what the tap will deliver: a pointer over a
+ * mark that the click then misses is worse than no pointer at all. The seabed is
+ * queried wider, in `+page.svelte`, because a site on a habitat boundary should
+ * name both sides rather than whichever pixel was under the thumb.
+ */
+export const MARK_PICK_PX = 10;
 
 export const SEABED_LIMIT = 3;
 
@@ -119,6 +162,31 @@ const KIND_PRIORITY: Record<DiveFeatureKind, number> = {
 const GROUNDS: readonly Ground[] = ['habitats', 'substrate'];
 
 /**
+ * The record a tap resolves to when more than one mark is inside the box.
+ *
+ * The rarest class wins, which is the order the map placed the marks in.
+ * `HABITAT_POINT_SORT` is what stops the 1,259 Paramuricea records burying the
+ * two Caulerpa ones, and a tap that resolved the other way would hand back a
+ * class whose mark is not the one on the glass.
+ */
+export const pointFrom = (hits: readonly FeatureProperties[]): HabitatPointRecord | undefined => {
+	let best: HabitatPointRecord | undefined;
+	let placed = Number.POSITIVE_INFINITY;
+	for (const props of hits) {
+		const code = props['code'];
+		if (typeof code !== 'string') continue;
+		const habitat = habitatPointByCode(code);
+		if (habitat === undefined) continue;
+		const order = HABITAT_POINT_SORT[code] ?? Number.POSITIVE_INFINITY;
+		if (order >= placed) continue;
+		placed = order;
+		const depth = props['depth'];
+		best = { habitat, depth: typeof depth === 'number' ? depth : undefined };
+	}
+	return best;
+};
+
+/**
  * A tap always answers.
  *
  * Open water is not nothing: there is a habitat class, a substrate, a depth and a
@@ -133,9 +201,16 @@ const GROUNDS: readonly Ground[] = ['habitats', 'substrate'];
  * The catalogue a code belongs to comes off the layer the hit arrived on rather
  * than off the switch in the panel. The style keeps a zero-opacity probe over the
  * ground nobody is looking at, so both layers answer every tap.
+ *
+ * The arguments are in the order they win the card. A chart mark is what a diver
+ * is going to, a survey record is what is growing at one spot, and a ground
+ * polygon is the sweep of seabed both of them stand on, so the more specific
+ * thing heads the card and the rest stay on it as fields. It is the same reason
+ * the style draws them in that order: the mark on top is the one you meant.
  */
 export const pickFrom = (
 	osmHits: readonly FeatureProperties[],
+	pointHits: readonly FeatureProperties[],
 	groundHits: readonly GroundHit[],
 	position: { readonly lng: number; readonly lat: number },
 	depth: number | undefined
@@ -150,6 +225,7 @@ export const pickFrom = (
 			best = feature;
 		}
 	}
+	const point = pointFrom(pointHits);
 	const codes: Record<Ground, Set<string>> = { habitats: new Set(), substrate: new Set() };
 	for (const { layer, props } of groundHits) {
 		const ground = GROUND_BY_LAYER[layer];
@@ -163,10 +239,65 @@ export const pickFrom = (
 	// A depth on its own is an answer. Out past the habitat survey there is no class
 	// and no OSM feature under the tap, and the panel used to stay shut over water
 	// whose depth the archives know perfectly well.
-	if (best === undefined && seabed.length === 0 && depth === undefined) return undefined;
+	if (best === undefined && point === undefined && seabed.length === 0 && depth === undefined) {
+		return undefined;
+	}
 
-	return { feature: best, seabed, position, depth };
+	return { feature: best, point, seabed, position, depth };
 };
+
+/**
+ * What the card is about, once the tap is resolved.
+ *
+ * Which of the three things under a tap owns the title, and the glyph and the
+ * subtitle that go with it. Here rather than in the template because this is the
+ * precedence the issue is about and a `{#if}` chain in markup cannot be tested.
+ */
+export interface CardHead {
+	readonly title: string;
+	readonly subtitle: readonly string[];
+	readonly icon: IconName | undefined;
+	readonly tint: string | undefined;
+	readonly plate: boolean;
+}
+
+export const headOf = (pick: FeaturePick, locale: Locale): CardHead => {
+	const feature = pick.feature;
+	if (feature !== undefined) {
+		const mark = MARKERS[feature.kind];
+		return {
+			title: localisedName(feature.tags, locale) ?? t(locale, KIND_LABEL[feature.kind]),
+			subtitle: subtitleOf(feature, locale),
+			icon: mark.icon,
+			tint: mark.colour,
+			plate: mark.plate
+		};
+	}
+	const point = pick.point;
+	if (point !== undefined) {
+		const { habitat } = point;
+		return {
+			title: habitat[locale],
+			subtitle: pointSubtitle(habitat, locale),
+			icon: habitat.icon,
+			tint: habitat.colour,
+			plate: false
+		};
+	}
+	return {
+		title: t(locale, 'seabedHere'),
+		subtitle: [],
+		icon: undefined,
+		tint: undefined,
+		plate: false
+	};
+};
+
+/** What the record is, and the directive code it answers to where it has one. */
+export const pointSubtitle = (habitat: HabitatPointClass, locale: Locale): readonly string[] => [
+	t(locale, 'habitatPoint'),
+	...(habitat.hic === undefined ? [] : [t(locale, 'legendHic', { code: habitat.hic })])
+];
 
 /**
  * The classes one catalogue has under the tap, most diver-relevant first and

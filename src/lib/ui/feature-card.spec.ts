@@ -10,13 +10,16 @@ import {
 	type FeaturePick,
 	type FeatureProperties,
 	GROUND_PICK_LAYERS,
+	HABITAT_POINT_PICK_LAYERS,
 	KIND_LABEL,
 	OSM_PICK_LAYERS,
 	detailRowsOf,
 	difficultyPips,
 	difficultyText,
+	headOf,
 	heroDepthOf,
 	pickFrom,
+	pointFrom,
 	refOf,
 	seabedFrom,
 	subtitleOf,
@@ -114,9 +117,9 @@ describe('picking a feature off the map', () => {
 		// Ses Negres is tagged seamark:restricted_area:category=swimming and is a
 		// marine reserve. The protection tags are what say so, and they outrank the
 		// seamark category: see `isProtected` in osm.ts.
-		expect(pickFrom([zone], [], AT, undefined)?.feature?.kind).toBe('marine-reserve');
-		expect(pickFrom([zone, site], [], AT, undefined)?.feature?.name).toBe('Canons de Tamariu');
-		expect(pickFrom([site, zone], [], AT, undefined)?.feature?.name).toBe('Canons de Tamariu');
+		expect(pickFrom([zone], [], [], AT, undefined)?.feature?.kind).toBe('marine-reserve');
+		expect(pickFrom([zone, site], [], [], AT, undefined)?.feature?.name).toBe('Canons de Tamariu');
+		expect(pickFrom([site, zone], [], [], AT, undefined)?.feature?.name).toBe('Canons de Tamariu');
 	});
 
 	it('picks nothing when no hit is a feature this map shows', () => {
@@ -124,7 +127,7 @@ describe('picking a feature off the map', () => {
 			{ kind: 'dive-site', name: 'no ref on this one' },
 			{ t: 'node', id: 1, amenity: 'cafe' }
 		];
-		expect(pickFrom(hits, [], AT, undefined)).toBeUndefined();
+		expect(pickFrom(hits, [], [], AT, undefined)).toBeUndefined();
 	});
 
 	it('reads the seabed off ground hits that carry a code and skips the ones that do not', () => {
@@ -134,7 +137,10 @@ describe('picking a feature off the map', () => {
 			{ name: 'no code here' },
 			{ code: '30402' }
 		]);
-		expect(named(pickFrom([site], ground, AT, undefined), 'habitats')).toEqual(['30512', '30402']);
+		expect(named(pickFrom([site], [], ground, AT, undefined), 'habitats')).toEqual([
+			'30512',
+			'30402'
+		]);
 	});
 
 	// The card asks both questions, so the switch in the panel cannot decide which
@@ -142,6 +148,7 @@ describe('picking a feature off the map', () => {
 	// came off, and a code both catalogues publish means different things in each.
 	it('names the class in both catalogues, off the layer each hit arrived on', () => {
 		const pick = pickFrom(
+			[],
 			[],
 			[...off('habitats', [{ code: '30202' }]), ...off('substrate', [{ code: '30202' }])],
 			AT,
@@ -153,7 +160,7 @@ describe('picking a feature off the map', () => {
 	});
 
 	it('leaves out a catalogue with nothing under the point rather than heading an empty list', () => {
-		const pick = pickFrom([], off('habitats', [{ code: '30512' }]), AT, undefined);
+		const pick = pickFrom([], [], off('habitats', [{ code: '30512' }]), AT, undefined);
 		expect(pick?.seabed.map((reading) => reading.ground)).toEqual(['habitats']);
 	});
 });
@@ -289,7 +296,11 @@ describe('the layers a tap is allowed to hit', () => {
 			groundLayer
 		});
 		const ids = new Set(style.layers.map((layer) => layer.id));
-		const missing = [...OSM_PICK_LAYERS, ...GROUND_PICK_LAYERS].filter((id) => !ids.has(id));
+		const missing = [
+			...OSM_PICK_LAYERS,
+			...HABITAT_POINT_PICK_LAYERS,
+			...GROUND_PICK_LAYERS
+		].filter((id) => !ids.has(id));
 		expect(missing).toEqual([]);
 	});
 });
@@ -298,7 +309,7 @@ describe('a tap on open seabed still answers', () => {
 	const ground = off('habitats', [{ code: '30512' }, { code: '30402' }]);
 
 	it('returns a pick with no OSM feature at all', () => {
-		const pick = pickFrom([], ground, AT, undefined);
+		const pick = pickFrom([], [], ground, AT, undefined);
 		expect(pick?.feature).toBeUndefined();
 		expect(named(pick, 'habitats')).toEqual(['30512', '30402']);
 	});
@@ -311,22 +322,99 @@ describe('a tap on open seabed still answers', () => {
 	 */
 	it('reports the depth read at the point, not the range of the polygon', () => {
 		const deep = off('habitats', [{ code: '30512', dmin: 0, dmax: 42 }]);
-		expect(pickFrom([], deep, AT, 18)?.depth).toBe(18);
+		expect(pickFrom([], [], deep, AT, 18)?.depth).toBe(18);
 	});
 
 	it('carries the tapped position so it can be read off the card', () => {
-		expect(pickFrom([], ground, AT, undefined)?.position).toEqual(AT);
+		expect(pickFrom([], [], ground, AT, undefined)?.position).toEqual(AT);
 	});
 
 	it('still answers nothing where there is neither a feature, a seabed nor a depth', () => {
-		expect(pickFrom([], [], AT, undefined)).toBeUndefined();
+		expect(pickFrom([], [], [], AT, undefined)).toBeUndefined();
 	});
 
 	it('answers on a depth alone, out past the habitat survey', () => {
-		expect(pickFrom([], [], AT, 64)?.depth).toBe(64);
+		expect(pickFrom([], [], [], AT, 64)?.depth).toBe(64);
 	});
 
 	it('leaves the depth out where no contour was close enough to read', () => {
-		expect(pickFrom([], ground, AT, undefined)?.depth).toBeUndefined();
+		expect(pickFrom([], [], ground, AT, undefined)?.depth).toBeUndefined();
+	});
+});
+
+describe('a tap on a habitat survey record', () => {
+	const PARAMURICEA = { code: '302022501', depth: 41 };
+	const CAULERPA = { code: '305130202', depth: 9 };
+	const CORALLIGENOUS = off('habitats', [{ code: '30202' }]);
+
+	const answered = (pick: FeaturePick | undefined): FeaturePick => {
+		if (pick === undefined) throw new Error('the tap answered nothing');
+		return pick;
+	};
+
+	// What reopened issue #47: the mark drew, the tap went through it, and the card
+	// named the sweep of seabed it was standing on.
+	it('heads the card with the record rather than the polygon under it', () => {
+		const pick = answered(pickFrom([], [PARAMURICEA], CORALLIGENOUS, AT, 43));
+		expect(pick.point?.habitat.code).toBe('302022501');
+		expect(headOf(pick, 'en').title).toBe('Coralligenous with Paramuricea clavata');
+	});
+
+	it('keeps the polygon on the card under its own heading', () => {
+		expect(named(pickFrom([], [PARAMURICEA], CORALLIGENOUS, AT, 43), 'habitats')).toEqual([
+			'30202'
+		]);
+	});
+
+	// The style draws the chart marks over these, so the tap has to resolve the way
+	// the marks are stacked: a dive site is where you are going, the record is what
+	// is growing there, and the card carries both.
+	it('gives the title back to a chart mark, and keeps the record on the card', () => {
+		const site = namedFeature('Canons de Tamariu');
+		const pick = answered(pickFrom([site], [PARAMURICEA], CORALLIGENOUS, AT, 43));
+		expect(headOf(pick, 'en').title).toBe('Canons de Tamariu');
+		expect(pick.point?.habitat.code).toBe('302022501');
+	});
+
+	it('resolves to the rarest class when two marks are inside the box', () => {
+		const both = [PARAMURICEA, CAULERPA];
+		expect(pickFrom([], both, [], AT, undefined)?.point?.habitat.code).toBe('305130202');
+		expect(pickFrom([], [...both].reverse(), [], AT, undefined)?.point?.habitat.code).toBe(
+			'305130202'
+		);
+	});
+
+	it('ignores a hit the point catalogue cannot name', () => {
+		expect(pointFrom([{ code: '70108' }, { name: 'no code at all' }])).toBeUndefined();
+	});
+
+	it('carries the depth the survey wrote down beside the one read off the contours', () => {
+		const pick = answered(pickFrom([], [PARAMURICEA], [], AT, 43));
+		expect(pick.point?.depth).toBe(41);
+		expect(pick.depth).toBe(43);
+	});
+
+	it('opens a card where the record is the only thing under the tap', () => {
+		expect(pickFrom([], [PARAMURICEA], [], AT, undefined)?.point?.habitat.code).toBe('302022501');
+	});
+
+	it('names the class and the directive code in the reading language', () => {
+		const pick = answered(pickFrom([], [PARAMURICEA], [], AT, undefined));
+		expect(headOf(pick, 'ca').title).toBe('Coral·ligen amb Paramuricea clavata');
+		expect(headOf(pick, 'es').title).toBe('Coralígeno con Paramuricea clavata');
+		expect(headOf(pick, 'ca').subtitle).toEqual(['Registre d’hàbitat', 'HIC 1170']);
+		expect(headOf(pick, 'en').subtitle).toEqual(['Habitat record', 'HIC 1170']);
+	});
+
+	it('says nothing about a directive the class does not answer to', () => {
+		const pick = answered(pickFrom([], [CAULERPA], [], AT, undefined));
+		expect(headOf(pick, 'en').subtitle).toEqual(['Habitat record']);
+	});
+
+	it('heads the card with the glyph the map drew, in the ink it drew it in', () => {
+		const head = headOf(answered(pickFrom([], [CAULERPA], [], AT, undefined)), 'en');
+		expect(head.icon).toBe('pointCaulerpa');
+		expect(head.tint).toBe('#c3f53f');
+		expect(head.plate).toBe(false);
 	});
 });

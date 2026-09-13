@@ -1,12 +1,14 @@
 import type { Map as MapLibre, MapMouseEvent } from 'maplibre-gl';
-import { OSM_PICK_LAYERS } from '../ui/feature-card.ts';
+import { HABITAT_POINT_PICK_LAYERS, MARK_PICK_PX, OSM_PICK_LAYERS } from '../ui/feature-card.ts';
 
 /**
  * A pointer over the marks that open a card.
  *
- * Only the OSM marks get it. Tapping bare seabed opens a card too, but the
- * seabed is the whole sea, and a pointer over all of it would retire the grab
- * hand and stop the map reading as something you drag.
+ * The marks, and nothing else. The chart marks and the habitat survey's point
+ * records both head a card of their own, so both get the pointer. Tapping bare
+ * seabed opens a card too, but the seabed is the whole sea, and a pointer over
+ * all of it would retire the grab hand and stop the map reading as something you
+ * drag.
  *
  * One `mousemove` and a query, rather than MapLibre's per-layer enter and leave.
  * Attachments are wired when the map is constructed, which is before the style
@@ -15,11 +17,9 @@ import { OSM_PICK_LAYERS } from '../ui/feature-card.ts';
  * the pointer asks whatever is on screen now, so it also survives the setStyle
  * behind every layer toggle.
  *
- * The box matches the 10 px the tap handler picks with: the cursor has to promise
- * exactly what the click will deliver.
+ * The box is `MARK_PICK_PX`, the same number the tap handler picks with, because
+ * the cursor has to promise exactly what the click will deliver.
  */
-const PICK_PX = 10;
-
 export const pointerOverMarks = (map: MapLibre): (() => void) => {
 	const canvas = map.getCanvas();
 
@@ -35,10 +35,10 @@ export const pointerOverMarks = (map: MapLibre): (() => void) => {
 			over =
 				map.queryRenderedFeatures(
 					[
-						[x - PICK_PX, y - PICK_PX],
-						[x + PICK_PX, y + PICK_PX]
+						[x - MARK_PICK_PX, y - MARK_PICK_PX],
+						[x + MARK_PICK_PX, y + MARK_PICK_PX]
 					],
-					{ layers: [...OSM_PICK_LAYERS] }
+					{ layers: [...OSM_PICK_LAYERS, ...HABITAT_POINT_PICK_LAYERS] }
 				).length > 0;
 		} catch {
 			return;

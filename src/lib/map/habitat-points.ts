@@ -30,6 +30,16 @@ export interface HabitatPointClass extends Localised {
 	readonly colour: string;
 	/** Habitat of Community Interest code, where the class has one. */
 	readonly hic: string | undefined;
+	/**
+	 * What the survey found standing there, as the binomials.
+	 *
+	 * Held apart from the localised name even though the name says them too. The
+	 * name is a sentence in the reading language and the binomial is the same in
+	 * all three, so a card can set it in italics and a diver can take it to a book
+	 * or a search box. It is also the half of the record a diver recognises
+	 * underwater: the gorgonian is the thing you see, not the EUNIS class.
+	 */
+	readonly species: readonly string[];
 }
 
 /**
@@ -57,7 +67,8 @@ export const HABITAT_POINTS: readonly HabitatPointClass[] = [
 		en: 'Coralligenous with Paramuricea clavata',
 		icon: 'pointGorgonianFan',
 		colour: LIVING,
-		hic: '1170'
+		hic: '1170',
+		species: ['Paramuricea clavata']
 	},
 	{
 		code: '302022301',
@@ -66,7 +77,8 @@ export const HABITAT_POINTS: readonly HabitatPointClass[] = [
 		en: 'Circalittoral rock with Leptogorgia sarmentosa and Eunicella verrucosa',
 		icon: 'pointGorgonianSparse',
 		colour: LIVING,
-		hic: '1170'
+		hic: '1170',
+		species: ['Leptogorgia sarmentosa', 'Eunicella verrucosa']
 	},
 	{
 		code: '301041407',
@@ -75,7 +87,8 @@ export const HABITAT_POINTS: readonly HabitatPointClass[] = [
 		en: 'Infralittoral rock with Eunicella singularis',
 		icon: 'pointGorgonianWhip',
 		colour: LIVING,
-		hic: '1170'
+		hic: '1170',
+		species: ['Eunicella singularis']
 	},
 	{
 		code: '305130202',
@@ -84,9 +97,22 @@ export const HABITAT_POINTS: readonly HabitatPointClass[] = [
 		en: 'Caulerpa cylindracea beds',
 		icon: 'pointCaulerpa',
 		colour: LIVING,
-		hic: undefined
+		hic: undefined,
+		species: ['Caulerpa cylindracea']
 	}
 ];
+
+const byCode = new Map(HABITAT_POINTS.map((point) => [point.code, point]));
+
+/**
+ * The class a drawn record belongs to.
+ *
+ * `code` is the only thing the GeoJSON carries besides the depth, so this is what
+ * turns a tapped mark back into something a card can say. Unlike the polygon
+ * catalogue there is no second list to disambiguate against: these four codes are
+ * EUNIS level 5 and nothing else on this map publishes at that depth of the tree.
+ */
+export const habitatPointByCode = (code: string): HabitatPointClass | undefined => byCode.get(code);
 
 /** MapLibre image id for a class's glyph. */
 export const habitatPointImageId = (code: string): string => `habitat-point-${code}`;

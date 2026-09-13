@@ -1,25 +1,24 @@
 <script lang="ts">
 	import { asset } from '$app/paths';
 	import Panel from './Panel.svelte';
+	import Icon from './Icon.svelte';
 	import Action from './controls/Action.svelte';
 	import Chip from './controls/Chip.svelte';
 	import ChipGroup from './controls/ChipGroup.svelte';
 	import Field from './controls/Field.svelte';
 	import Note from './controls/Note.svelte';
 	import {
-		KIND_LABEL,
 		type FeaturePick,
 		detailRowsOf,
 		difficultyPips,
 		difficultyText,
+		headOf,
 		heroDepthOf,
-		subtitleOf,
 		texturePath
 	} from './feature-card';
 	import { osmUrl } from '$lib/domain/osm';
 	import { type TextureChoices, textureOf } from '$lib/domain/habitat';
-	import { MARKERS } from '$lib/map/markers';
-	import { type Locale, localisedName } from '$lib/i18n/locale';
+	import type { Locale } from '$lib/i18n/locale';
 	import { t } from '$lib/i18n/messages';
 
 	interface Props {
@@ -40,27 +39,24 @@
 
 {#if pick !== undefined}
 	{@const feature = pick.feature}
-	{@const heading =
-		feature === undefined
-			? t(locale, 'seabedHere')
-			: (localisedName(feature.tags, locale) ?? t(locale, KIND_LABEL[feature.kind]))}
+	{@const record = pick.point}
+	{@const head = headOf(pick, locale)}
 	{@const hero = feature === undefined ? undefined : heroDepthOf(feature)}
-	{@const mark = feature === undefined ? undefined : MARKERS[feature.kind]}
 	{@const levels = feature?.kind === 'dive-site' ? feature.difficulty : []}
 	{@const difficulty = difficultyText(locale, levels)}
 	{@const pips = difficultyPips(levels)}
 	<Panel
-		title={heading}
+		title={head.title}
 		{locale}
 		anchor="bottom-left"
 		titleTone="name"
-		icon={mark?.icon}
-		iconTint={mark?.colour}
-		iconPlate={mark?.plate ?? false}
+		icon={head.icon}
+		iconTint={head.tint}
+		iconPlate={head.plate}
 		{onclose}
 	>
-		{#if feature !== undefined}
-			<p class="subtitle">{subtitleOf(feature, locale).join(' · ')}</p>
+		{#if head.subtitle.length > 0}
+			<p class="subtitle">{head.subtitle.join(' · ')}</p>
 		{/if}
 
 		<!--
@@ -96,6 +92,46 @@
 					{/if}
 				</div>
 			</Field>
+		{/if}
+
+		<!--
+			The survey record under the tap.
+			Its own name only when a chart mark took the title off it, so the card
+			never says the same thing twice. The species are the binomials rather than
+			the class name's words, because that is what a diver takes to a book, and
+			the depth is the survey's own number for this record rather than the
+			contour reading at the top of the card.
+		-->
+		{#if record !== undefined}
+			{#if feature !== undefined}
+				<Field label={t(locale, 'habitatPoint')}>
+					<p class="record">
+						<span class="mark" style:color={record.habitat.colour}>
+							<Icon name={record.habitat.icon} size={22} />
+						</span>
+						<span class="record-name">{record.habitat[locale]}</span>
+						{#if record.habitat.hic !== undefined}
+							<Chip label={t(locale, 'legendHic', { code: record.habitat.hic })} />
+						{/if}
+					</p>
+				</Field>
+			{/if}
+
+			{#if record.habitat.species.length > 0}
+				<Field label={t(locale, 'pointSpecies')}>
+					<ul class="species">
+						{#each record.habitat.species as name (name)}
+							<li>{name}</li>
+						{/each}
+					</ul>
+				</Field>
+			{/if}
+
+			{#if record.depth !== undefined}
+				<Field label={t(locale, 'pointDepth')}>
+					<p class="metres">{record.depth}<span class="unit">m</span></p>
+				</Field>
+			{/if}
 		{/if}
 
 		<Field label={t(locale, 'position')}>
@@ -215,6 +251,45 @@
 
 	.pip.lit {
 		background: var(--color-brass-400);
+	}
+
+	/* The legend draws its rows this way too, so a mark reads the same in both. */
+	.record {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem;
+		margin: 0;
+	}
+
+	.record .mark {
+		display: grid;
+		flex: none;
+		place-items: center;
+		width: 1.9rem;
+		height: 1.9rem;
+	}
+
+	.record-name {
+		flex: 1 1 8rem;
+		min-width: 0;
+		font-size: var(--control-text);
+		line-height: 1.3;
+		color: var(--control-ink);
+		overflow-wrap: anywhere;
+	}
+
+	/* Binomials, so they are set the way a binomial is set anywhere else. */
+	.species {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+		font-size: var(--control-text);
+		font-style: italic;
+		color: var(--control-ink);
 	}
 
 	.prose {

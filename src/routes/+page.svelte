@@ -6,7 +6,13 @@
 	import BaseMapToggle from '$lib/ui/BaseMapToggle.svelte';
 	import CropOverlay from '$lib/ui/CropOverlay.svelte';
 	import FeatureCard from '$lib/ui/FeatureCard.svelte';
-	import { GROUND_PICK_LAYERS, OSM_PICK_LAYERS, pickFrom } from '$lib/ui/feature-card';
+	import {
+		GROUND_PICK_LAYERS,
+		HABITAT_POINT_PICK_LAYERS,
+		MARK_PICK_PX,
+		OSM_PICK_LAYERS,
+		pickFrom
+	} from '$lib/ui/feature-card';
 	import { whenMapReady } from '$lib/map/controls';
 	import { depthAt } from '$lib/map/depth';
 	import { watchArchives } from '$lib/map/tile-errors';
@@ -206,18 +212,20 @@
 		document.documentElement.lang = view.locale;
 	});
 
-	/** Wet fingers need slack; the seabed needs more, so a site on a habitat
+	/** The marks are picked at `MARK_PICK_PX`, the seabed wider: a site on a habitat
 	 *  boundary names both sides rather than whichever pixel was under the thumb. */
+	const GROUND_PICK_PX = 24;
+
 	const box = (x: number, y: number, r: number): [[number, number], [number, number]] => [
 		[x - r, y - r],
 		[x + r, y + r]
 	];
 
 	/**
-	 * Answer for one point on the map: the OSM feature under it, the seabed under
-	 * it, and the depth. Shared by the tap that opens a card and by a link that
-	 * arrives naming a feature, so both get the same card rather than two answers
-	 * built from different queries.
+	 * Answer for one point on the map: the OSM feature under it, the habitat survey
+	 * record under it, the seabed under it, and the depth. Shared by the tap that
+	 * opens a card and by a link that arrives naming a feature, so both get the
+	 * same card rather than two answers built from different queries.
 	 *
 	 * The depth is the contour nearest the point, read out of the archives rather
 	 * than off the lines being drawn, so it is the same number at every zoom. The
@@ -235,15 +243,22 @@
 		// than throwing, and the map turns that into a banner over a map that is
 		// loading fine. There is nothing under the pointer to pick yet anyway.
 		if (!map.isStyleLoaded()) return;
-		const osm = map.queryRenderedFeatures(box(point.x, point.y, 10), {
+		const osm = map.queryRenderedFeatures(box(point.x, point.y, MARK_PICK_PX), {
 			layers: [...OSM_PICK_LAYERS]
 		});
-		const ground = map.queryRenderedFeatures(box(point.x, point.y, 24), {
+		// The same box as the chart marks, because these are marks: a glyph the
+		// diver aimed at. Collision is on, so this asks only about the ones that
+		// were placed, and the mark on the glass is the mark the tap resolves to.
+		const points = map.queryRenderedFeatures(box(point.x, point.y, MARK_PICK_PX), {
+			layers: [...HABITAT_POINT_PICK_LAYERS]
+		});
+		const ground = map.queryRenderedFeatures(box(point.x, point.y, GROUND_PICK_PX), {
 			layers: [...GROUND_PICK_LAYERS]
 		});
 		view.select(
 			pickFrom(
 				osm.map((f) => f.properties),
+				points.map((f) => f.properties),
 				ground.map((f) => ({ layer: f.layer.id, props: f.properties })),
 				{ lng: at.lng, lat: at.lat },
 				depthAt(map, at)
