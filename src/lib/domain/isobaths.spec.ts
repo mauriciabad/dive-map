@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ISOBATHS, type IsobathStyle } from './card.ts';
 import {
+	DEFAULT_PAINT,
 	type PaintMethod,
 	contourColour,
 	contourDepths,
@@ -18,15 +19,25 @@ import {
 	withoutMark
 } from './isobaths.ts';
 
-/** The wireframe's own ruler: marks at both ends of the range and five between. */
+/**
+ * The wireframe's own ruler: marks at both ends of the range and six between.
+ *
+ * Built rather than switched into, because switching moves the ends and the point
+ * of this one is to hold both of them at once, which is what the drawing shows.
+ */
 const wireframe = (method: PaintMethod): IsobathStyle => {
 	const depths = [0, 5, 18, 30, 40, 50, 65, 80];
-	const painted = depths.reduce(
+	const base: IsobathStyle = {
+		...DEFAULT_ISOBATHS,
+		emphasised: depths,
+		maxDepthM: 80,
+		paint: { ...DEFAULT_PAINT, method }
+	};
+	return depths.reduce(
 		(style, depth, index) =>
 			withColour(style, depth, ['#aa0000', '#00aa00'][index % 2] ?? '#000000'),
-		withMethod({ ...DEFAULT_ISOBATHS, emphasised: depths, maxDepthM: 80 }, method)
+		base
 	);
-	return painted;
 };
 
 const colourAt = (style: IsobathStyle, depthM: number): string =>
@@ -52,12 +63,10 @@ describe('painted bands', () => {
 		const shallow = { ...DEFAULT_ISOBATHS, emphasised: [30], maxDepthM: 80 };
 		// Upwards, nothing reaches down past 30 m.
 		expect(paintedBands(shallow).at(-1)).toEqual({ fromM: 31, toM: 80, colour: undefined });
-		// Downwards, nothing reaches up past it.
-		expect(paintedBands(withMethod(shallow, 'downwards'))[0]).toEqual({
-			fromM: 0,
-			toM: 29,
-			colour: undefined
-		});
+		// Downwards, nothing reaches up past it. Built rather than switched into,
+		// because switching to downwards is what puts a mark on the surface.
+		const downwards = { ...shallow, paint: { ...DEFAULT_PAINT, method: 'downwards' as const } };
+		expect(paintedBands(downwards)[0]).toEqual({ fromM: 0, toM: 29, colour: undefined });
 	});
 
 	it('covers every metre of the range exactly once', () => {
@@ -138,7 +147,25 @@ describe('switching which line names a band', () => {
 	it('leaves the weight of a line where the line is', () => {
 		const thin = withEmphasis(DEFAULT_ISOBATHS, 30, false);
 		const marks = depthMarks(withMethod(thin, 'downwards'));
-		expect(marks.filter((mark) => !mark.emphasised).map((mark) => mark.depthM)).toEqual([30]);
+		// 0 m is the mark the switch adds, and it arrives thin: it is there to carry
+		// a colour, not to draw a heavy line along the whole coast.
+		expect(marks.filter((mark) => !mark.emphasised).map((mark) => mark.depthM)).toEqual([0, 30]);
+	});
+
+	it('marks the end that can carry a colour and drops the end that cannot', () => {
+		const downwards = withMethod(DEFAULT_ISOBATHS, 'downwards');
+		expect(downwards.emphasised).toEqual([0, 5, 18, 30, 40, 50]);
+		expect(withMethod(downwards, 'upwards').emphasised).toEqual([5, 18, 30, 40, 50, 80]);
+	});
+
+	it('carries the colour of both end bands across the switch', () => {
+		const painted = withColour(withMethod(DEFAULT_ISOBATHS, 'downwards'), 0, '#ff0000');
+		const shallow = colourAt(painted, 2);
+		const deep = colourAt(painted, 70);
+		const upwards = withMethod(painted, 'upwards');
+		expect(shallow).toBe('#ff0000');
+		expect(colourAt(upwards, 2)).toBe(shallow);
+		expect(colourAt(upwards, 70)).toBe(deep);
 	});
 });
 

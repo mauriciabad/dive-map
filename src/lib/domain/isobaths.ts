@@ -44,12 +44,13 @@ export interface IsobathPaint {
 	readonly method: PaintMethod;
 	readonly marks: Readonly<Record<number, MarkPaint>>;
 	/**
-	 * Whether the marked line that no band reaches keeps a colour of its own.
+	 * Whether a marked line that no band reaches keeps a colour of its own.
 	 *
-	 * One line can always end up with nothing to paint: the 0 m contour painting
-	 * upwards has no water above it, and a mark sitting on the maximum depth
-	 * painting downwards has none below. Off makes that line follow the band
-	 * beside it, so the band and its edge read as one colour.
+	 * A line can end up with nothing to paint: the 0 m contour painting upwards has
+	 * no water above it, and a mark on the maximum depth painting downwards has none
+	 * below. Switching method takes that mark off the ruler, so what is left here is
+	 * a diver who marked one of those two lines by hand. Off makes it follow the
+	 * band beside it, so the band and its edge read as one colour.
 	 */
 	readonly edgeOwnColour: boolean;
 }
@@ -294,34 +295,68 @@ export const contourDepths = (style: IsobathStyle, zoom: number): readonly numbe
 
 const withPaint = (style: IsobathStyle, paint: IsobathPaint): IsobathStyle => ({ ...style, paint });
 
+/** The mark that governs `depthM` right now, which is the one holding its colour. */
+const governorOf = (style: IsobathStyle, depthM: number): number | undefined => {
+	const depths = [...style.emphasised].sort(ascending);
+	return paintOf(style).method === 'upwards'
+		? depths.find((mark) => mark >= depthM)
+		: depths.findLast((mark) => mark <= depthM);
+};
+
 /**
- * Switching the method hands every colour to the mark that now governs its band,
- * so the water keeps the colour it was painted and the swatches move instead.
- * Upwards a band is named by the line under it and downwards by the line over it,
- * which is a shift of exactly one mark in one direction or the other.
+ * Switching the method moves the ends of the ruler and hands every colour to the
+ * mark that now governs the water it was painted on.
  *
- * The mark left without a source is the one whose band the other method leaves on
- * the depth ramp, at the shallow end going upwards and the deep end going
- * downwards, so it takes the ramp's own colour there. A colour set by hand on that
- * one mark is the only thing a switch and a switch back does not give you back.
+ * Which end can carry a colour swaps with the method. Painting downwards a band
+ * runs from its own line to the next one down, so the shallowest water is named
+ * by a mark on the surface and nothing names the water under the deepest mark;
+ * painting upwards it is the other way round. So the surface is marked going
+ * down and the maximum depth going up, and the mark at the far end, which would
+ * have a band of one line and nothing else, goes.
  *
- * The weight stays where it is. A tick belongs to a line, not to a band.
+ * Between them every colour lands on the mark that now names the water it was
+ * already on, so the map does not move and the swatches do. They arrive thin:
+ * they are there to carry a colour, and a heavy line along the whole coast is
+ * not what somebody asked for by choosing which way the paint runs.
+ *
+ * Weight stays where it is. A tick belongs to a line, not to a band.
  */
 export const withMethod = (style: IsobathStyle, method: PaintMethod): IsobathStyle => {
 	const current = paintOf(style);
 	if (current.method === method) return style;
-	const depths = [...style.emphasised].sort(ascending);
-	const towards = method === 'upwards' ? -1 : 1;
-	const moved: Record<number, MarkPaint> = {};
+
+	const named = method === 'upwards' ? style.maxDepthM : 0;
+	const spent = method === 'upwards' ? 0 : style.maxDepthM;
+	const kept = style.emphasised.filter((depthM) => depthM !== spent);
+	const depths = [...new Set(kept.length < MARK_LIMIT ? [...kept, named] : kept)].sort(ascending);
+
+	// Starts with the colours of depths that are not marked, which are remembered
+	// against a depth being put back, and takes back only what the switch can say
+	// something about.
+	const marks: Record<number, MarkPaint> = {};
+	for (const [depth, paint] of Object.entries(current.marks)) {
+		const remembered = Number(depth);
+		if (!depths.includes(remembered)) marks[remembered] = paint;
+	}
+
 	depths.forEach((depthM, index) => {
-		const source = depths[index + towards];
-		moved[depthM] = {
-			colour:
-				source === undefined ? defaultColourFor(method, depthM) : markPaint(style, source).colour,
-			plain: markPaint(style, depthM).plain
-		};
+		// The middle of the band this mark is about to govern, which is water whose
+		// colour the old method has already decided.
+		const band =
+			method === 'upwards'
+				? { from: (depths[index - 1] ?? -1) + 1, to: depthM }
+				: { from: depthM, to: (depths[index + 1] ?? style.maxDepthM + 1) - 1 };
+		const source = governorOf(style, Math.round((band.from + band.to) / 2));
+		const carried = source === undefined ? undefined : current.marks[source]?.colour;
+		const plain = current.marks[depthM]?.plain ?? depthM === named;
+		// Nothing explicit to carry and no weight to remember reads as the catalogue's
+		// own colour, which is what the two defaults already agree on band for band.
+		if (carried !== undefined || plain) {
+			marks[depthM] = { colour: carried ?? defaultColourFor(method, depthM), plain };
+		}
 	});
-	return withPaint(style, { ...current, method, marks: { ...current.marks, ...moved } });
+
+	return { ...style, emphasised: depths, paint: { ...current, method, marks } };
 };
 
 export const withEdgeOwnColour = (style: IsobathStyle, edgeOwnColour: boolean): IsobathStyle =>
