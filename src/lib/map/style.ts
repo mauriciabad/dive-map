@@ -178,6 +178,18 @@ const heavyDepths = (style: IsobathStyle): readonly number[] =>
  */
 const BEYOND_WASH = 'rgba(3, 41, 59, 0.8)';
 
+/**
+ * What the national shelf survey is owed for the deep water.
+ *
+ * Its licence is CC BY 4.0 with one extra clause, that the source is named as the
+ * ministry rather than as the survey, so the ministry is what this says. Hung on
+ * the sources themselves rather than added to MapView's list, because the credit
+ * belongs to two archives and MapLibre already shows a source's own attribution
+ * whenever that source is on the map.
+ */
+const MAPA_CREDIT =
+	'<a href="https://www.mapa.gob.es/" target="_blank" rel="noopener">Ministerio de Agricultura, Pesca y Alimentación</a> Cartografiado Marino, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>';
+
 export const SATELLITE_SOURCE_ID = 'satellite';
 export const ICGC_TERRITORIAL_SOURCE_ID = 'satellite-icgc-territorial';
 export const ICGC_SATELLITE_SOURCE_ID = 'satellite-icgc';
@@ -534,7 +546,125 @@ const isobathFilter = ({
  * style for each frame of a drag measured at 100 ms a frame against 0.7 ms for
  * pushing these three.
  */
-export const ISOBATH_LAYER_IDS: readonly string[] = ['isobath-glow', 'isobath', 'isobath-label'];
+export const ISOBATH_LAYER_IDS: readonly string[] = [
+	'isobath-deep-glow',
+	'isobath-deep',
+	'isobath-deep-label',
+	'isobath-glow',
+	'isobath',
+	'isobath-label'
+];
+
+/**
+ * How coarse the national contours go, which is not the ladder the ICGC ones use.
+ *
+ * The national survey off this coast runs from 50 m to 250 m, five metre steps on
+ * the shelf and fifty down the slope. So the diver's interval setting has nothing
+ * to say about them: it tops out well above the shallowest line here, and every
+ * step it offers would draw all of them or none. This is a fixed ladder instead,
+ * cut to the archive's own zoom breaks, which hold the five metre contours back
+ * to z13. Four lines at a coast-wide zoom, forty at a dive site.
+ */
+const DEEP_INTERVAL: ExpressionSpecification = [
+	'step',
+	['zoom'],
+	100,
+	10,
+	50,
+	13,
+	10,
+	15,
+	5
+];
+
+const deepIsobathFilter: ExpressionSpecification = [
+	'==',
+	['%', ['to-number', ['get', 'depth']], DEEP_INTERVAL],
+	0
+];
+
+/** The fifties, which carry the weight and the numbers out here. */
+const DEEP_HEAVY: ExpressionSpecification = ['==', ['%', ['to-number', ['get', 'depth']], 50], 0];
+
+const deepIsobathWidth: DataDrivenPropertyValueSpecification<number> = [
+	'interpolate',
+	['linear'],
+	['zoom'],
+	9,
+	['case', DEEP_HEAVY, 0.9, 0.5],
+	14,
+	['case', DEEP_HEAVY, 1.9, 1.0],
+	18,
+	['case', DEEP_HEAVY, 3.6, 1.7]
+];
+
+/**
+ * The national shelf survey's contours, drawn in the water the ICGC one never
+ * reached. Issue #41.
+ *
+ * They are tiled already clipped to that water, so the join is a hard one: ICGC
+ * contours stop and these start, with no attempt to stitch a 1 m ladder onto a
+ * 5 m one. That is what the owner asked for, and the alternative is inventing
+ * agreement between two surveys that measured on different decades and different
+ * echo sounders.
+ *
+ * Colour comes off the same ramp the ICGC contours use, so a diver who repaints
+ * their 50 m line repaints these too, and everything past the deepest painted band
+ * takes that band's colour. There is nothing to set beyond that and nothing worth
+ * setting: the shallowest line out here is 50 m and the rest is past any scuba
+ * plan, so these are a picture of the shape of the margin rather than a depth
+ * anybody reads off a number.
+ */
+const deepIsobathLayers = (options: StyleOptions): readonly LayerSpecification[] => [
+	{
+		id: 'isobath-deep-glow',
+		type: 'line',
+		source: 'isobaths-deep',
+		'source-layer': 'isobaths',
+		filter: deepIsobathFilter,
+		layout: { visibility: vis(options, 'isobaths'), 'line-join': 'round' },
+		paint: isobathCasing(options)
+	},
+	{
+		id: 'isobath-deep',
+		type: 'line',
+		source: 'isobaths-deep',
+		'source-layer': 'isobaths',
+		filter: deepIsobathFilter,
+		layout: { visibility: vis(options, 'isobaths'), 'line-join': 'round' },
+		paint: {
+			'line-color': isobathColour(options.isobaths),
+			// Heavier than the 0.45 the ICGC metre lines carry. Those sit on painted
+			// habitat and there are hundreds of them; these sit on the deep-water wash,
+			// which is the darkest thing on the map, and there are eleven.
+			'line-opacity': 0.8,
+			'line-width': deepIsobathWidth
+		}
+	},
+	{
+		id: 'isobath-deep-label',
+		type: 'symbol',
+		source: 'isobaths-deep',
+		'source-layer': 'isobaths',
+		minzoom: 10,
+		filter: ['all', deepIsobathFilter, DEEP_HEAVY],
+		layout: {
+			visibility: options.isobaths.labels ? vis(options, 'isobaths') : 'none',
+			'symbol-placement': 'line',
+			'text-field': ['concat', ['to-string', ['get', 'depth']], ' m'],
+			'text-font': ['Alegreya Sans Bold'],
+			'text-size': ['interpolate', ['linear'], ['zoom'], 10, 9, 18, 13],
+			'text-letter-spacing': 0.06,
+			'text-max-angle': 90,
+			'symbol-spacing': 200
+		},
+		paint: {
+			'text-color': PALETTE.paper,
+			'text-halo-color': PALETTE.isobathMajor,
+			'text-halo-width': 1.6
+		}
+	}
+];
 
 const isobathLayers = (options: StyleOptions): readonly LayerSpecification[] => [
 	{
@@ -1285,12 +1415,22 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			url: `pmtiles://${asset('/tiles/seabed-dem.pmtiles')}`,
 			encoding: 'mapbox',
 			tileSize: 512,
-			maxzoom: 14
+			maxzoom: 14,
+			// The archive is ICGC out to where their survey stops and the national
+			// shelf survey past it, so both licences are owed a line. MapView carries
+			// the ICGC one already; this is the half it does not know about.
+			attribution: MAPA_CREDIT
 		},
 		isobaths: {
 			type: 'vector',
 			url: `pmtiles://${asset('/tiles/isobaths.pmtiles')}`,
 			maxzoom: 16
+		},
+		'isobaths-deep': {
+			type: 'vector',
+			url: `pmtiles://${asset('/tiles/isobaths-deep.pmtiles')}`,
+			maxzoom: 15,
+			attribution: MAPA_CREDIT
 		},
 		habitats: {
 			type: 'vector',
@@ -1463,6 +1603,9 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			}
 		},
 
+		// Under the ICGC contours, which is the order the two surveys rank in. Where
+		// they somehow overlap, the better one is the one on top.
+		...deepIsobathLayers(options),
 		...isobathLayers(options),
 
 		// Before the surveyed land, so that where the two datasets disagree by a few

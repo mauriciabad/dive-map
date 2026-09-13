@@ -511,9 +511,11 @@ describe('what each ground paints a seagrass code with', () => {
 	});
 });
 
-// The isobath settings reach a live map through their own three layers rather
-// than through a style MapLibre has to diff, so that a dragged slider repaints at
-// the frame rate. What must hold is that nothing else moves with them.
+// The isobath settings reach a live map through their own six layers rather than
+// through a style MapLibre has to diff, so that a dragged slider repaints at the
+// frame rate. What must hold is that nothing else moves with them. The national
+// contours are three of the six: they take their colour off the same ramp, so a
+// painted band has to reach them in the same push.
 describe('pushing the isobath layers at a live map', () => {
 	const pushes = (from: StyleOptions, to: StyleOptions): readonly string[] => {
 		const written: string[] = [];
@@ -528,14 +530,20 @@ describe('pushing the isobath layers at a live map', () => {
 
 	it('writes only the colour when only a colour was painted', () => {
 		const painted = { ...DEFAULT_ISOBATHS, ...withColour(DEFAULT_ISOBATHS, 18, '#123456') };
-		expect(pushes(options(), options({ isobaths: painted }))).toEqual(['isobath line-color']);
+		expect(pushes(options(), options({ isobaths: painted }))).toEqual([
+			'isobath-deep line-color',
+			'isobath line-color'
+		]);
 	});
 
 	it('writes the weight and the labels a line loses when its tick comes off', () => {
 		const thin = withEmphasis(DEFAULT_ISOBATHS, 30, false);
 		// Not the colour. A tick coming off a line changes what the line weighs and
 		// whether it is labelled, and the band it governs keeps what it was painted.
+		// The deep casing rides the same halo and width helper as the shallow one, so
+		// it moves too. Its own line does not: nothing out past 50 m is ever ticked.
 		expect(pushes(options(), options({ isobaths: thin }))).toEqual([
+			'isobath-deep-glow line-width',
 			'isobath-glow line-width',
 			'isobath line-opacity',
 			'isobath line-width',
@@ -555,7 +563,7 @@ describe('pushing the isobath layers at a live map', () => {
 			layout: (id, property) => written.push(`${id} ${property}`)
 		};
 		applyIsobathLayers(writer, buildStyle(options()), undefined);
-		expect(written.filter((at) => at.endsWith('filter'))).toHaveLength(3);
+		expect(written.filter((at) => at.endsWith('filter'))).toHaveLength(6);
 		expect(written.some((at) => at === 'isobath line-color')).toBe(true);
 		expect(written.some((at) => at === 'isobath-label visibility')).toBe(true);
 	});
