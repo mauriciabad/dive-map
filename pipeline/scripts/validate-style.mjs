@@ -18,7 +18,10 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const out = join(root, 'data', 'build', 'style-check');
 mkdirSync(out, { recursive: true });
 
-writeFileSync(join(out, 'app-paths.mjs'), "export const asset = (f) => f;\nexport const base = '';\n");
+writeFileSync(
+	join(out, 'app-paths.mjs'),
+	"export const asset = (f) => f;\nexport const base = '';\n"
+);
 
 /**
  * Every module the style actually pulls in, found by following the imports.
@@ -48,7 +51,8 @@ const compile = (file) => {
 	for (const [, dependency] of js.matchAll(/from ["']\.\/([\w-]+)\.mjs["']/g)) {
 		if (dependency === 'app-paths' || compiled.has(dependency)) continue;
 		const hit = sources.find((path) => basename(path, '.ts') === dependency);
-		if (hit === undefined) throw new Error(`${name} imports ${dependency}, which is not under src/`);
+		if (hit === undefined)
+			throw new Error(`${name} imports ${dependency}, which is not under src/`);
 		compile(hit);
 	}
 	return name;
@@ -68,7 +72,9 @@ compile(join(root, 'src', 'lib', 'map', 'style.ts'));
 compile(join(root, 'src', 'lib', 'domain', 'card.ts'));
 
 const { buildStyle } = await import(pathToFileURL(join(out, 'style.mjs')).href);
-const { DEFAULT_ISOBATHS, DEFAULT_LAYERS } = await import(pathToFileURL(join(out, 'card.mjs')).href);
+const { DEFAULT_ISOBATHS, DEFAULT_LAYERS } = await import(
+	pathToFileURL(join(out, 'card.mjs')).href
+);
 
 let failed = 0;
 for (const ground of ['habitats', 'substrate']) {
@@ -77,7 +83,14 @@ for (const ground of ['habitats', 'substrate']) {
 		{ ...DEFAULT_ISOBATHS, intervalM: 1, labels: false },
 		{ ...DEFAULT_ISOBATHS, intervalM: 10, maxDepthM: 50, emphasised: [10, 20, 30] }
 	]) {
-		const style = buildStyle({ isobaths, visible: DEFAULT_LAYERS, groundLayer: ground });
+		// worldPainted true so the hillshade is in the style being validated rather
+		// than switched off, which is the state this script exists to check.
+		const style = buildStyle({
+			isobaths,
+			visible: DEFAULT_LAYERS,
+			groundLayer: ground,
+			worldPainted: true
+		});
 		const errors = validateStyleMin(style);
 		const label = `${ground} @ ${isobaths.intervalM}m`;
 		if (errors.length > 0) {
@@ -85,7 +98,9 @@ for (const ground of ['habitats', 'substrate']) {
 			console.error(`FAIL ${label}`);
 			for (const e of errors) console.error(`  ${e.message}`);
 		} else {
-			console.log(`ok   ${label}: ${style.layers.length} layers, ${Object.keys(style.sources).length} sources`);
+			console.log(
+				`ok   ${label}: ${style.layers.length} layers, ${Object.keys(style.sources).length} sources`
+			);
 		}
 	}
 }
@@ -95,7 +110,8 @@ const style = buildStyle({
 	smoothed: true,
 	isobaths: DEFAULT_ISOBATHS,
 	visible: DEFAULT_LAYERS,
-	groundLayer: 'habitats'
+	groundLayer: 'habitats',
+	worldPainted: true
 });
 writeFileSync(join(out, 'style.json'), JSON.stringify(style, null, 2));
 console.log(`\nlayers: ${style.layers.map((l) => l.id).join(', ')}`);

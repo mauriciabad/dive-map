@@ -298,6 +298,14 @@ export interface StyleOptions {
 	readonly textures?: TextureChoices;
 	/** How strongly the ortophoto paints. Absent is full strength. */
 	readonly photoStrength?: PhotoStrength;
+	/**
+	 * Whether the `world` source has painted yet. Only the hillshade reads it, and
+	 * only because until the land is down that layer lights the DEM's nodata plane
+	 * as a hard rectangle over inland Catalonia. Required rather than optional so
+	 * that a new caller has to decide: an offscreen map that is captured after it
+	 * settles has no race to lose and passes true.
+	 */
+	readonly worldPainted: boolean;
 }
 
 /**
@@ -821,16 +829,29 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 		...groundLayers(options),
 
 		{
+			// Held back until the `world` source has painted, because until then this
+			// layer lights the DEM's nodata plane as if it were ground.
+			//
+			// `gdalwarp` writes every cell the survey never reached as 0, and the
+			// encoding makes 0 a real, flat 0 m surface, so inland Catalonia comes out
+			// as a lit rectangle. Measured on the three tiles that do it, 92.9, 96.1
+			// and 98.5 per cent of their cells are that plane against about 1 per cent
+			// real land elevation. That is why clipping the DEM to the coastline does
+			// not fix it: it would rewrite the 1 per cent and leave the rectangle. A
+			// hillshade layer takes no per-pixel mask either.
+			//
+			// What actually covers the plane is `world-land`, out of a 487 KB archive
+			// that loses the race to a 33 MB one on a cold load. So the flash is a
+			// race rather than a data problem, and the fix is to not start until the
+			// winner is on screen. See issue #22.
 			id: 'hillshade',
 			type: 'hillshade',
 			source: 'seabed-dem',
-			// The DEM lands before the basemap on a cold load, and this layer has no
-			// per-pixel mask, so it lights the flat land cells of the archive too: a
-			// hard rectangle over inland Catalonia until the land paints over it. The
+			// Kept at 9 on its own merit now that the flash is handled above: the
 			// opening view sits at 7.56 and the relief says nothing legible there
 			// anyway, nine DEM tiles across a whole coastline.
 			minzoom: 9,
-			layout: { visibility: vis(options, 'hillshade') },
+			layout: { visibility: options.worldPainted ? vis(options, 'hillshade') : 'none' },
 			paint: {
 				// Low sun from the north-west. A high sun flattens a seabed whose whole
 				// relief is a few tens of metres.

@@ -235,6 +235,7 @@ describe('the layers a tap is allowed to hit', () => {
 		const style = buildStyle({
 			locale: 'ca',
 			smoothed: true,
+			worldPainted: true,
 			isobaths: DEFAULT_ISOBATHS,
 			visible: [...DEFAULT_LAYERS],
 			groundLayer

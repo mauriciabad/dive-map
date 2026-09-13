@@ -9,6 +9,7 @@ const options = (extra: Partial<StyleOptions> = {}): StyleOptions => ({
 	visible: DEFAULT_LAYERS,
 	groundLayer: 'habitats',
 	smoothed: true,
+	worldPainted: true,
 	...extra
 });
 
@@ -138,5 +139,27 @@ describe('what the osm layers read off a feature', () => {
 			if (key.startsWith(DANGER_TAG_PREFIX)) continue;
 			expect(emitted).toContain(key);
 		}
+	});
+});
+
+describe('the hillshade over the DEM nodata plane', () => {
+	const visibilityOf = (extra: Partial<StyleOptions>): unknown => {
+		const layer = buildStyle(options(extra)).layers.find((l) => l.id === 'hillshade');
+		if (layer === undefined) throw new Error('no hillshade layer');
+		return layer.layout?.visibility;
+	};
+
+	it('stays dark until the land that covers the plane has painted', () => {
+		expect(visibilityOf({ worldPainted: false })).toBe('none');
+	});
+
+	it('lights up once the land is down', () => {
+		expect(visibilityOf({ worldPainted: true })).toBe('visible');
+	});
+
+	it('stays off when the diver turned it off, painted or not', () => {
+		const without = DEFAULT_LAYERS.filter((id) => id !== 'hillshade');
+		expect(visibilityOf({ worldPainted: true, visible: without })).toBe('none');
+		expect(visibilityOf({ worldPainted: false, visible: without })).toBe('none');
 	});
 });

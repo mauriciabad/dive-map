@@ -104,6 +104,7 @@ describe('the hatch the panel explains by name', () => {
 		const style = buildStyle({
 			locale: 'ca',
 			smoothed: true,
+			worldPainted: true,
 			isobaths: DEFAULT_ISOBATHS,
 			visible: [...DEFAULT_LAYERS],
 			groundLayer

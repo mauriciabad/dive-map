@@ -85,6 +85,13 @@ export class MapState {
 
 	/** Set once the map has loaded its first tiles, so the shell can stop showing skeletons. */
 	ready = $state(false);
+
+	/**
+	 * Set once the `world` source has painted. The hillshade waits on it, because
+	 * before the land is down it lights the DEM's nodata plane. See `style.ts`.
+	 */
+	worldPainted = $state(false);
+
 	error = $state<string | undefined>(undefined);
 
 	/** What this browser asked for, kept so `reset` knows what shipped means here. */
