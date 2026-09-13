@@ -7,24 +7,28 @@ import { type Camera, parseCamera } from './configuration.ts';
  *
  * A diver texting "meet me here" needs the place in the message, not a
  * description of it. Two things are worth addressing: where the map is pointed,
- * and which feature is open. Both go in the fragment, in OSM's own shape:
+ * and which feature is open. Both go in the query, in OSM's own field shape:
  *
- *     #map=15.2/41.92751/3.21654
- *     #map=15.2/41.92751/3.21654/120
- *     #osm=node/1234567
- *     #map=16/41.9/3.2&osm=way/987
+ *     ?map=15.2/41.92751/3.21654
+ *     ?map=15.2/41.92751/3.21654/120
+ *     ?osm=node/1234567
+ *     ?map=16/41.9/3.2&osm=way/987
  *
- * The fragment rather than a query for one practical reason: this site answers
- * on its own root at divemap.mauri.app and under /dive-map/ on the project URL,
- * and it is prerendered static files either way. A fragment never reaches a
- * server, so a link works on both without anything being configured, and it is
- * the shape people already recognise from openstreetmap.org.
+ * The query is appended to whatever path the page is already on, which is what
+ * this site needs: it answers on its own root at divemap.mauri.app and under
+ * /dive-map/ on the project URL, and it is prerendered static files either way.
+ * A static host serves the same index.html whatever the query says, so one link
+ * works from both without anything being configured.
+ *
+ * The slashes inside a field are written raw. RFC 3986 allows them in a query
+ * and `URLSearchParams` reads them back, and `map=15.2%2F41.92751%2F3.21654` is
+ * not a thing anybody should have to paste into a message.
  *
  * `map=` is zoom, latitude, longitude, and a bearing only when the map is turned.
  * Five decimals is a little over a metre, which is finer than any fix a phone
  * hands over and short enough to paste into a message.
  *
- * Nothing here trusts what it is given. A hand-edited fragment is exactly as
+ * Nothing here trusts what it is given. A hand-edited query is exactly as
  * hostile as a hand-edited stored blob, so the camera goes through the same
  * `parseCamera` the stored one does and picks up the same limits.
  */
@@ -67,12 +71,16 @@ const readOsm = (value: string): OsmRef | undefined => {
 };
 
 /**
- * What the fragment of a URL points at. Anything it cannot read is dropped
+ * What a URL points at, read from its query. Anything it cannot read is dropped
  * rather than refused, so a link that picked up a stray character on its way
  * through a chat app still lands the diver somewhere.
+ *
+ * A leading `#` is stripped as well as a leading `?`, which is what lets this
+ * read a link written while the scheme lived in the fragment. Nothing writes one
+ * any more.
  */
-export const parseAddress = (hash: string): Address => {
-	const fields = new URLSearchParams(hash.replace(/^#/, ''));
+export const parseAddress = (query: string): Address => {
+	const fields = new URLSearchParams(query.replace(/^#/, ''));
 	const map = fields.get('map');
 	const osm = fields.get('osm');
 	return {
@@ -85,13 +93,18 @@ export const parseAddress = (hash: string): Address => {
 const trimmed = (value: number, decimals: number): string => String(Number(value.toFixed(decimals)));
 
 /**
- * The fragment for what is on screen, `#` included, or the empty string when
- * there is nothing worth addressing.
+ * The query for what is on screen, `?` included, or the empty string when there
+ * is nothing worth addressing at all.
+ *
+ * `existing` is whatever the URL already carries, and everything in it that is
+ * not one of this scheme's two fields is kept. A link that arrived with a tag on
+ * it from wherever it was posted keeps the tag; `map` and `osm` are rewritten or
+ * dropped. The two go first so the part a person reads is next to the `?`.
  *
  * A bearing of zero is left out. Almost every share is of a north-up map, and
  * the field costs four characters to say so.
  */
-export const formatAddress = ({ camera, osm }: Address): string => {
+export const formatAddress = ({ camera, osm }: Address, existing = ''): string => {
 	const fields: string[] = [];
 	if (camera !== undefined) {
 		const place = [
@@ -103,7 +116,12 @@ export const formatAddress = ({ camera, osm }: Address): string => {
 		fields.push(`map=${place.join('/')}`);
 	}
 	if (osm !== undefined) fields.push(`osm=${osm.type}/${osm.id}`);
-	return fields.length === 0 ? '' : `#${fields.join('&')}`;
+	const foreign = new URLSearchParams(existing);
+	foreign.delete('map');
+	foreign.delete('osm');
+	const rest = foreign.toString();
+	if (rest.length > 0) fields.push(rest);
+	return fields.length === 0 ? '' : `?${fields.join('&')}`;
 };
 
 /** Everything a feature covers, which is a single point for most of them. */

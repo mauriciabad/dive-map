@@ -36,7 +36,17 @@
 	 * once, here, before the map is built. See `Start` in state/configuration.ts
 	 * for the order of the rest.
 	 */
-	const address = parseAddress(location.hash);
+	const queried = parseAddress(location.search);
+	/*
+	 * The fragment is the fallback, and only that. The scheme lived there for one
+	 * release and links written then are still out on somebody's phone, so they are
+	 * still read; the first write below moves the tab onto the query and the
+	 * fragment never comes back.
+	 */
+	const address =
+		queried.camera === undefined && queried.osm === undefined
+			? parseAddress(location.hash)
+			: queried;
 	const opened: Start =
 		address.camera === undefined ? opening.start : { kind: 'address', camera: address.camera };
 
@@ -48,17 +58,17 @@
 	 * router keeps its position in the history stack in that state object and loses
 	 * count when something writes over it.
 	 */
-	const remember = (hash: string): void => {
-		if (hash === location.hash) return;
+	const remember = (query: string): void => {
+		if (query === location.search && location.hash === '') return;
 		/*
 		 * `svelte/no-navigation-without-resolve` wants the argument to be a bare
 		 * `resolve()` call, so that nothing hard-codes a path that breaks under the
 		 * base this site is served from on the project URL. The base is honoured
-		 * here, by the `resolve('/')` the fragment is appended to; the rule cannot
-		 * see through the template, and a fragment is not a route it could resolve.
+		 * here, by the `resolve('/')` the query is appended to; the rule cannot see
+		 * through the template, and a query is not a route it could resolve.
 		 */
 		// eslint-disable-next-line svelte/no-navigation-without-resolve
-		replaceState(`${resolve('/')}${location.search}${hash}`, {});
+		replaceState(`${resolve('/')}${query}`, {});
 	};
 
 	/**
@@ -110,12 +120,12 @@
 		 * The open feature rides along, so sharing a dive site shares its card and
 		 * not merely the water around it.
 		 */
-		const hash = view.ready
-			? formatAddress({ camera: view.camera, osm: view.selection?.feature?.ref })
+		const query = view.ready
+			? formatAddress({ camera: view.camera, osm: view.selection?.feature?.ref }, location.search)
 			: undefined;
 		const pending = setTimeout(() => {
 			configurations.remember(working);
-			if (hash !== undefined) remember(hash);
+			if (query !== undefined) remember(query);
 		}, 400);
 		const flush = (): void => {
 			clearTimeout(pending);
@@ -267,30 +277,16 @@
 				});
 			};
 
+			/*
+			 * Only on a cold open now. A query pasted into the address bar is a page
+			 * load, so it comes back through here rather than through a listener; the
+			 * `hashchange` one that used to sit at this spot could only ever fire for
+			 * the scheme this no longer writes.
+			 */
 			if (address.osm !== undefined) show(address.osm);
 
-			/*
-			 * A fragment can also arrive without a page load: pasted into the address
-			 * bar, or followed from a link to this same map. The camera is applied here
-			 * too, which it is not on a cold open, because on a cold open the map was
-			 * built pointed at it already and jumping again would undo the guard that
-			 * pulls a camera back to the survey.
-			 */
-			const onhash = (): void => {
-				const next = parseAddress(location.hash);
-				if (next.camera !== undefined) {
-					map.jumpTo({
-						center: [next.camera.centre.lng, next.camera.centre.lat],
-						zoom: next.camera.zoom,
-						bearing: next.camera.bearing
-					});
-				}
-				if (next.osm !== undefined) show(next.osm);
-			};
-			window.addEventListener('hashchange', onhash);
 			return () => {
 				gone = true;
-				window.removeEventListener('hashchange', onhash);
 			};
 		})
 	);
