@@ -231,6 +231,7 @@
 	<FeatureCard
 		pick={view.selection}
 		locale={view.locale}
+		textures={view.textures}
 		onclose={() => {
 			view.select(undefined);
 		}}

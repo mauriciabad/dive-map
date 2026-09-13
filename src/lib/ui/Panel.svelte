@@ -38,6 +38,13 @@
 		 * point.
 		 */
 		readonly titleTone?: 'label' | 'name';
+		/**
+		 * Names what the panel is showing, for a panel that swaps its whole contents.
+		 * Changing it puts the scroll back to the top, because arriving halfway down a
+		 * screen you have never seen, with the way back above the fold, is how a panel
+		 * loses somebody.
+		 */
+		readonly showing?: string;
 		/** Needed when the button that opens the panel lives in another subtree. */
 		readonly id?: string;
 		/** Pinned under the scroll area: the one action the panel exists to run. */
@@ -51,6 +58,7 @@
 		onclose,
 		anchor = 'top-left',
 		titleTone = 'label',
+		showing,
 		id,
 		footer,
 		children
@@ -126,7 +134,15 @@
 	 * Children are observed too: a panel section can grow without the scroller
 	 * itself changing size.
 	 */
+	let body = $state<HTMLElement | undefined>(undefined);
+
+	$effect(() => {
+		if (showing === undefined) return;
+		body?.scrollTo({ top: 0 });
+	});
+
 	const fadeWhenCut = (node: HTMLElement) => {
+		body = node;
 		const measure = (): void => {
 			overflowing = node.scrollTop + node.clientHeight < node.scrollHeight - 1;
 		};
@@ -136,6 +152,7 @@
 		node.addEventListener('scroll', measure, { passive: true });
 		measure();
 		return () => {
+			body = undefined;
 			node.removeEventListener('scroll', measure);
 			watcher.disconnect();
 		};

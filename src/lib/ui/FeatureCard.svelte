@@ -17,6 +17,7 @@
 		texturePath
 	} from './feature-card';
 	import { osmUrl } from '$lib/domain/osm';
+	import { type TextureChoices, textureOf } from '$lib/domain/habitat';
 	import { type Locale, localisedName } from '$lib/i18n/locale';
 	import { t } from '$lib/i18n/messages';
 
@@ -24,10 +25,16 @@
 		/** The tapped feature, or undefined when nothing is selected. */
 		readonly pick: FeaturePick | undefined;
 		readonly locale: Locale;
+		/**
+		 * The diver's texture choices. The card is read with the map right beside
+		 * it, so a swatch showing the catalogue's texture while the polygon under
+		 * the thumb is painted with another would be the card contradicting itself.
+		 */
+		readonly textures: TextureChoices;
 		readonly onclose: () => void;
 	}
 
-	const { pick, locale, onclose }: Props = $props();
+	const { pick, locale, textures, onclose }: Props = $props();
 </script>
 
 {#if pick !== undefined}
@@ -101,7 +108,7 @@
 						<li>
 							<span
 								class="swatch"
-								style:background-image="url({asset(texturePath(seabedClass.texture))})"
+								style:background-image="url({asset(texturePath(textureOf(seabedClass, textures)))})"
 								aria-hidden="true"
 							></span>
 							<span class="seabed-name">{seabedClass[locale]}</span>
