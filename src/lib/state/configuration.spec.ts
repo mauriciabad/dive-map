@@ -184,8 +184,54 @@ describe('parsing a stored configuration', () => {
 
 	/** A3 portrait handed back here would claim somebody chose it. */
 	it('leaves out a sheet it cannot read rather than inventing one', () => {
-		expect(configurationFrom({ ...ca, print: { sheet: { kind: 'napkin' } } })?.print).toBeUndefined();
+		expect(
+			configurationFrom({ ...ca, print: { sheet: { kind: 'napkin' } } })?.print
+		).toBeUndefined();
 		expect(configurationFrom({ ...ca })?.print).toBeUndefined();
+	});
+
+	it('takes back a texture chosen for a class', () => {
+		const textures = { 'habitats-20': 'ch_shipwood', 'substrate-6': 'ch_stones' };
+		expect(configurationFrom({ ...ca, textures })?.textures).toEqual(textures);
+	});
+
+	/**
+	 * The case that paints a hole in the seabed: a fill-pattern naming an image the
+	 * map never registered draws nothing at all. Dropping the entry leaves the class
+	 * on the catalogue's own texture, which is the only safe answer.
+	 */
+	it('drops a choice naming a texture that is not built and keeps the rest', () => {
+		const back = configurationFrom({
+			...ca,
+			textures: { 'habitats-20': 'ch_unicorn', 'habitats-12': 'ch_stones' }
+		});
+		expect(back?.textures).toEqual({ 'habitats-12': 'ch_stones' });
+	});
+
+	it('drops a choice naming a class no catalogue has', () => {
+		const back = configurationFrom({
+			...ca,
+			textures: { 'habitats-99': 'ch_stones', 'seagrass-1': 'ch_stones', '30512': 'ch_stones' }
+		});
+		expect(back?.textures).toEqual({});
+	});
+
+	it('reads a blob written before the field existed as no choices at all', () => {
+		const before: Record<string, unknown> = { ...ca };
+		Reflect.deleteProperty(before, 'textures');
+		expect(configurationFrom(before)?.textures).toEqual({});
+	});
+
+	it('refuses a textures field that is not a set of choices', () => {
+		expect(configurationFrom({ ...ca, textures: ['ch_stones'] })?.textures).toEqual({});
+		expect(configurationFrom({ ...ca, textures: 'ch_stones' })?.textures).toEqual({});
+		expect(configurationFrom({ ...ca, textures: { 'habitats-20': 7 } })?.textures).toEqual({});
+	});
+
+	it('never lets the hatch for unsurveyed water be chosen for a class', () => {
+		expect(
+			configurationFrom({ ...ca, textures: { 'habitats-20': 'unsurveyed' } })?.textures
+		).toEqual({});
 	});
 });
 

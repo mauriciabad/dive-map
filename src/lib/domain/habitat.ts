@@ -27,6 +27,13 @@ export interface Localised {
 
 export interface HabitatClass extends Localised {
 	readonly raster: number;
+	/**
+	 * Which catalogue this class belongs to. Carried rather than passed around,
+	 * because both catalogues number their rasters from 1 and a caller that has to
+	 * remember which list a class came out of will eventually hand over the wrong
+	 * one. It is what makes `seabedKey` total.
+	 */
+	readonly ground: Ground;
 	/** CODI_LPRE3, or CODI_LPRE4 for the three EUNIS-4 classes. Absent for raster 30. */
 	readonly code: string | undefined;
 	/** Habitat of Community Interest code, where the class has one. */
@@ -39,6 +46,7 @@ export interface HabitatClass extends Localised {
 export const HABITATS: readonly HabitatClass[] = [
 	{
 		raster: 1,
+		ground: 'habitats',
 		code: '30102',
 		ca: 'Roca infralitoral superior moderadament exposada',
 		es: 'Roca infralitoral superior moderadamente expuesta',
@@ -49,6 +57,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 2,
+		ground: 'habitats',
 		code: '30103',
 		ca: 'Roca infralitoral superior protegida',
 		es: 'Roca infralitoral superior protegida',
@@ -59,6 +68,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 3,
+		ground: 'habitats',
 		code: '30104',
 		ca: 'Roca infralitoral inferior',
 		es: 'Roca infralitoral inferior',
@@ -69,6 +79,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 4,
+		ground: 'habitats',
 		code: '30105',
 		ca: 'Hàbitats singulars de la roca infralitoral',
 		es: 'Hábitats singulares de roca infralitoral',
@@ -79,6 +90,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 5,
+		ground: 'habitats',
 		code: '30201',
 		ca: 'Roca circalitoral dominada per algues',
 		es: 'Roca circalitoral dominada por algas',
@@ -89,6 +101,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 6,
+		ground: 'habitats',
 		code: '3020104',
 		ca: "Coral·ligen amb dominància d'algues",
 		es: 'Coralígeno con dominancia de algas',
@@ -99,6 +112,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 7,
+		ground: 'habitats',
 		code: '30202',
 		ca: 'Roca circalitoral dominada per invertebrats',
 		es: 'Roca circalitoral dominada por invertebrados',
@@ -109,6 +123,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 8,
+		ground: 'habitats',
 		code: '3020225',
 		ca: "Coral·ligen amb dominància d'invertebrats",
 		es: 'Coralígeno con dominancia de invertebrados',
@@ -119,6 +134,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 9,
+		ground: 'habitats',
 		code: '30301',
 		ca: 'Túnels i coves semifosques',
 		es: 'Túneles y cuevas semioscuras',
@@ -129,6 +145,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 10,
+		ground: 'habitats',
 		code: '30302',
 		ca: 'Túnels i coves fosques',
 		es: 'Túneles y cuevas oscuras',
@@ -139,6 +156,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 11,
+		ground: 'habitats',
 		code: '30401',
 		ca: 'Còdols i graves infralitorals i circalitorals',
 		es: 'Cantos y gravas infralitorales y circalitorales',
@@ -149,6 +167,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 12,
+		ground: 'habitats',
 		code: '30402',
 		ca: 'Sorres i sorres fangoses infralitorals i circalitorals',
 		es: 'Arenas y arenas fangosas infralitorales y circalitorales',
@@ -159,6 +178,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 13,
+		ground: 'habitats',
 		code: '30403',
 		ca: 'Fangs i fangs sorrencs infralitorals i circalitorals',
 		es: 'Fangos y fangos arenosos infralitorales y circalitorales',
@@ -169,6 +189,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 14,
+		ground: 'habitats',
 		code: '30404',
 		ca: 'Argiles terrígenes compactades infralitorals',
 		es: 'Arcillas terrígenas compactadas infralitorales',
@@ -179,6 +200,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 15,
+		ground: 'habitats',
 		code: '30405',
 		ca: 'Fons detrítics biogènics infralitorals i circalitorals',
 		es: 'Fondos detríticos biógenos infralitorales y circalitorales',
@@ -189,6 +211,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 16,
+		ground: 'habitats',
 		code: '3040506',
 		ca: 'Fons de grapissar (maerl)',
 		es: 'Fondos de maërl',
@@ -199,6 +222,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 17,
+		ground: 'habitats',
 		code: '30504',
 		ca: 'Alguers de Zostera noltii',
 		es: 'Praderas de Zostera noltii',
@@ -209,6 +233,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 18,
+		ground: 'habitats',
 		code: '30509',
 		ca: 'Alguers de Cymodocea nodosa de zones obertes, relativament profundes, sobre sorres',
 		es: 'Praderas de Cymodocea nodosa de zonas abiertas profundas, sobre arenas',
@@ -219,6 +244,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 19,
+		ground: 'habitats',
 		code: '30510',
 		ca: 'Alguers de Cymodocea nodosa de zones obertes poc profundes',
 		es: 'Praderas de Cymodocea nodosa de zonas abiertas someras, sobre arena fangosa o mata muerta de Posidonia oceanica',
@@ -229,6 +255,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 20,
+		ground: 'habitats',
 		code: '30512',
 		ca: 'Alguers de Posidonia oceanica',
 		es: 'Praderas de Posidonia oceanica',
@@ -239,6 +266,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 21,
+		ground: 'habitats',
 		code: '30513',
 		ca: "Alguers en badies i llacunes i herbeis d'algues verdes rizomatoses",
 		es: 'Praderas de fanerógamas y algas verdes rizomatosas',
@@ -249,6 +277,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 22,
+		ground: 'habitats',
 		code: '70101',
 		ca: "Infraestructures d'aqüicultura",
 		es: 'Infraestructuras acuícolas',
@@ -259,6 +288,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 23,
+		ground: 'habitats',
 		code: '70102',
 		ca: 'Conduccions i cables submarins',
 		es: 'Conducciones y cables submarinos',
@@ -269,6 +299,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 24,
+		ground: 'habitats',
 		code: '70103',
 		ca: 'Esculls artificials',
 		es: 'Arrecifes artificiales',
@@ -279,6 +310,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 25,
+		ground: 'habitats',
 		code: '70104',
 		ca: 'Derelictes',
 		es: 'Pecios',
@@ -289,6 +321,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 26,
+		ground: 'habitats',
 		code: '70105',
 		ca: 'Parcs eòlics marins',
 		es: 'Parques eólicos marinos',
@@ -299,6 +332,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 27,
+		ground: 'habitats',
 		code: '70106',
 		ca: 'Observatoris submarins permanents',
 		es: 'Observatorios submarinos permanentes',
@@ -309,6 +343,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 28,
+		ground: 'habitats',
 		code: '70107',
 		ca: 'Plataformes petrolíferes',
 		es: 'Plataformas petrolíferas',
@@ -319,6 +354,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 29,
+		ground: 'habitats',
 		code: '70108',
 		ca: 'Espigons i substrats durs de ports i marines',
 		es: 'Sustrato duro portuario',
@@ -329,6 +365,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 30,
+		ground: 'habitats',
 		code: undefined,
 		ca: 'Espigons anti-erosió',
 		es: 'Espigones antierosión',
@@ -339,6 +376,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 31,
+		ground: 'habitats',
 		code: '70109',
 		ca: 'Boies i ancoratges',
 		es: 'Fondeos y balizas',
@@ -349,6 +387,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 32,
+		ground: 'habitats',
 		code: '70201',
 		ca: 'Fangs i sorres fangoses portuàries',
 		es: 'Fangos y arenas fangosas portuarias',
@@ -359,6 +398,7 @@ export const HABITATS: readonly HabitatClass[] = [
 	},
 	{
 		raster: 33,
+		ground: 'habitats',
 		code: '70202',
 		ca: 'Sorres i graves provinents de regeneració de platges',
 		es: 'Gravas y arenas de rellenos artificiales',
@@ -371,6 +411,7 @@ export const HABITATS: readonly HabitatClass[] = [
 
 export interface SubstrateClass extends Localised {
 	readonly raster: number;
+	readonly ground: Ground;
 	readonly code: string;
 	/**
 	 * Editorial, not published: the substrate spec has no such field. Each value is
@@ -384,6 +425,7 @@ export interface SubstrateClass extends Localised {
 export const SUBSTRATES: readonly SubstrateClass[] = [
 	{
 		raster: 1,
+		ground: 'substrate',
 		code: '301',
 		ca: 'Roca',
 		es: 'Roca',
@@ -393,6 +435,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 	},
 	{
 		raster: 2,
+		ground: 'substrate',
 		code: '302',
 		ca: 'Roca parcialment recoberta per sediments',
 		es: 'Roca parcialmente cubierta por sedimentos',
@@ -402,6 +445,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 	},
 	{
 		raster: 3,
+		ground: 'substrate',
 		code: '30404',
 		ca: 'Argiles terrígenes compactades infralitorals',
 		es: 'Arcillas terrígenas compactadas infralitorales',
@@ -411,6 +455,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 	},
 	{
 		raster: 4,
+		ground: 'substrate',
 		code: '30202',
 		ca: 'Esculls biogènics',
 		es: 'Arrecifes biógenos',
@@ -420,6 +465,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 	},
 	{
 		raster: 5,
+		ground: 'substrate',
 		code: '30401',
 		ca: 'Sediments grollers (còdols i graves)',
 		es: 'Sedimentos gruesos (cantos y gravas)',
@@ -429,6 +475,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 	},
 	{
 		raster: 6,
+		ground: 'substrate',
 		code: '30402',
 		ca: 'Arena i arena fangosa',
 		es: 'Arena y arena fangosa',
@@ -438,6 +485,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 	},
 	{
 		raster: 7,
+		ground: 'substrate',
 		code: '30403',
 		ca: 'Fangs i fangs sorrencs',
 		es: 'Fangos y fangos arenosos',
@@ -447,6 +495,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 	},
 	{
 		raster: 8,
+		ground: 'substrate',
 		code: '30405',
 		ca: 'Sediments mixtes',
 		es: 'Sedimentos mixtos',
@@ -456,6 +505,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 	},
 	{
 		raster: 9,
+		ground: 'substrate',
 		code: '701',
 		ca: 'Rocós antròpic',
 		es: 'Sustrato duro artificial',
@@ -465,6 +515,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 	},
 	{
 		raster: 10,
+		ground: 'substrate',
 		code: '70102a',
 		ca: 'Emissaris i altres conduccions',
 		es: 'Emisarios y otras conducciones',
@@ -474,6 +525,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 	},
 	{
 		raster: 11,
+		ground: 'substrate',
 		code: '70102b',
 		ca: 'Cables',
 		es: 'Cables',
@@ -483,6 +535,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 	},
 	{
 		raster: 12,
+		ground: 'substrate',
 		code: '70103',
 		ca: 'Esculls (biòtops) artificials',
 		es: 'Arrecifes artificiales',
@@ -492,6 +545,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 	},
 	{
 		raster: 13,
+		ground: 'substrate',
 		code: '70104',
 		ca: 'Derelictes',
 		es: 'Pecios',
@@ -501,6 +555,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 	},
 	{
 		raster: 14,
+		ground: 'substrate',
 		code: '70107',
 		ca: 'Instal·lacions petrolieres',
 		es: 'Instalaciones petrolíferas',
@@ -510,6 +565,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 	},
 	{
 		raster: 15,
+		ground: 'substrate',
 		code: '70109',
 		ca: 'Morts de boies i ancoratges',
 		es: 'Muertos de boyas y fondeos',
@@ -519,6 +575,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 	},
 	{
 		raster: 16,
+		ground: 'substrate',
 		code: '70101',
 		ca: "Infraestructures d'aqüicultura",
 		es: 'Infraestructuras acuícolas',
@@ -528,6 +585,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 	},
 	{
 		raster: 17,
+		ground: 'substrate',
 		code: '70106',
 		ca: 'Observatoris científics permanents',
 		es: 'Observatorios científicos permanentes',
@@ -537,6 +595,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 	},
 	{
 		raster: 18,
+		ground: 'substrate',
 		code: '702',
 		ca: "Fons sedimentaris d'origen antròpic",
 		es: 'Sustrato sedimentario artificial',
@@ -546,6 +605,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 	},
 	{
 		raster: 19,
+		ground: 'substrate',
 		code: '702a',
 		ca: "Fons sedimentaris d'origen antròpic (abocaments)",
 		es: 'Sustrato sedimentario artificial (vertidos)',
@@ -555,6 +615,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 	},
 	{
 		raster: 20,
+		ground: 'substrate',
 		code: '702b',
 		ca: "Fons sedimentaris d'origen antròpic (rases de dragatge)",
 		es: 'Sustrato sedimentario artificial (zanjas de dragado)',
@@ -609,5 +670,65 @@ export const seabedClassByCode = (code: string): SeabedClass | undefined =>
 export const catalogueOf = (ground: Ground): readonly SeabedClass[] =>
 	ground === 'habitats' ? HABITATS : SUBSTRATES;
 
-export const textureForCode = (code: string): string | undefined =>
-	seabedClassByCode(code)?.texture;
+/**
+ * One class, named so it survives being written to a device and read back.
+ *
+ * Both catalogues number their rasters from 1, so the raster alone is ambiguous
+ * and the published code is worse: habitat 30202 is circalittoral rock dominated
+ * by invertebrates and substrate 30202 is a biogenic reef. The catalogue and the
+ * raster together are the only pair that means one thing, and both come off the
+ * published spec, so a key written last season still resolves next season.
+ */
+export type SeabedKey = `${Ground}-${number}`;
+
+export const seabedKey = (seabed: SeabedClass): SeabedKey => `${seabed.ground}-${seabed.raster}`;
+
+const CLASS_KEYS: ReadonlySet<string> = new Set([...HABITATS, ...SUBSTRATES].map(seabedKey));
+
+/** Whether a string off a stored blob names a class this version of the catalogue has. */
+export const isSeabedKey = (value: string): value is SeabedKey => CLASS_KEYS.has(value);
+
+/**
+ * What a diver chose to paint each class with, over the top of the catalogue.
+ *
+ * A class with no entry keeps the texture the catalogue gives it, which is why
+ * this is the whole of the saved state rather than a copy of all 53 classes: a
+ * configuration saved today still follows the catalogue for everything the diver
+ * did not touch.
+ */
+export type TextureChoices = Readonly<Record<SeabedKey, string>>;
+
+export const NO_TEXTURE_CHOICES: TextureChoices = {};
+
+export const textureOf = (seabed: SeabedClass, chosen: TextureChoices): string =>
+	chosen[seabedKey(seabed)] ?? seabed.texture;
+
+/** The same choices with one class put back on whatever its catalogue gives it. */
+export const withoutChoice = (chosen: TextureChoices, key: SeabedKey): TextureChoices => {
+	const kept: Record<SeabedKey, string> = {};
+	for (const [at, texture] of Object.entries(chosen)) {
+		if (at !== key && isSeabedKey(at)) kept[at] = texture;
+	}
+	return kept;
+};
+
+/**
+ * Every texture a class may be painted with, which is every texture the two
+ * catalogues between them already name. Twenty-one of them carry fifty-three
+ * classes.
+ *
+ * This is deliberately the same set `texturePalette` registers with MapLibre and
+ * nothing wider. A choice naming a texture the map never loaded paints nothing at
+ * all, so the picker may only offer what is certain to be in the image registry.
+ * Widening the built set means widening this list and the registry together, and
+ * a set much larger than this one cannot simply be registered up front: the whole
+ * palette is decoded and held, and twenty-two textures at 1024 is already about
+ * 88 MB of bitmap.
+ */
+export const SEABED_TEXTURES: readonly string[] = [
+	...new Set([...HABITATS, ...SUBSTRATES].map((c) => c.texture))
+];
+
+const KNOWN_TEXTURES: ReadonlySet<string> = new Set(SEABED_TEXTURES);
+
+export const isSeabedTexture = (value: string): boolean => KNOWN_TEXTURES.has(value);

@@ -13,6 +13,13 @@ import {
 	type LngLat,
 	newCard
 } from '$lib/domain/card';
+import {
+	NO_TEXTURE_CHOICES,
+	type SeabedClass,
+	type TextureChoices,
+	seabedKey,
+	withoutChoice
+} from '$lib/domain/habitat';
 import { type Locale, negotiate } from '$lib/i18n/locale';
 import { type Camera, type Configuration, shippedConfiguration } from './configuration.ts';
 
@@ -29,6 +36,13 @@ export class MapState {
 	groundLayer = $state<'habitats' | 'substrate'>('habitats');
 	/** The survey is a 10m raster. Off shows it as measured, staircase and all. */
 	smoothed = $state(true);
+	/**
+	 * What the diver chose to paint each seabed class with, over the catalogue.
+	 *
+	 * Replaced whole rather than mutated, so the style rebuild and the legend both
+	 * see one change rather than a field appearing under them mid-render.
+	 */
+	textures = $state<TextureChoices>(NO_TEXTURE_CHOICES);
 
 	readonly print = new PrintState();
 
@@ -81,6 +95,7 @@ export class MapState {
 			smoothed: this.smoothed,
 			isobaths: this.isobaths,
 			locale: this.locale,
+			textures: this.textures,
 			print: this.print.settings
 		};
 	}
@@ -97,6 +112,7 @@ export class MapState {
 		this.smoothed = configuration.smoothed;
 		this.isobaths = configuration.isobaths;
 		this.locale = configuration.locale;
+		this.textures = configuration.textures;
 		// Through the print state's own transitions rather than over its fields, so a
 		// stored pixel sheet carrying a scale ratio comes back framed by zoom. The
 		// latitude is the live one because that is where the ratio has to hold.
@@ -155,6 +171,25 @@ export class MapState {
 
 	toggleLabels(): void {
 		this.isobaths = { ...this.isobaths, labels: !this.isobaths.labels };
+	}
+
+	/**
+	 * Paint one class with one texture. Choosing the class's own texture clears the
+	 * choice instead of storing a copy of it, so a class the diver put back follows
+	 * the catalogue again rather than being pinned to whatever it says today.
+	 */
+	setTexture(seabed: SeabedClass, texture: string): void {
+		const key = seabedKey(seabed);
+		const kept = withoutChoice(this.textures, key);
+		this.textures = texture === seabed.texture ? kept : { ...kept, [key]: texture };
+	}
+
+	clearTextures(): void {
+		this.textures = NO_TEXTURE_CHOICES;
+	}
+
+	get anyTextureChosen(): boolean {
+		return Object.keys(this.textures).length > 0;
 	}
 
 	/** The card as it would print right now: the live camera plus the sheet settings. */

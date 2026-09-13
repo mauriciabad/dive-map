@@ -7,7 +7,14 @@ import {
 	type MarkerLayerId,
 	markerLayerId
 } from '$lib/domain/card';
-import type { Ground } from '$lib/domain/habitat';
+import {
+	type Ground,
+	NO_TEXTURE_CHOICES,
+	type SeabedKey,
+	type TextureChoices,
+	isSeabedKey,
+	isSeabedTexture
+} from '$lib/domain/habitat';
 import { DIVE_FEATURE_KINDS } from '$lib/domain/osm';
 import { type PrintSettings, parsePrintSettings } from '$lib/domain/print';
 import { type Locale, isLocale } from '$lib/i18n/locale';
@@ -24,11 +31,6 @@ import type { KeyValueStore } from './storage.ts';
  * are already on the map; a configuration is a way of looking at them.
  *
  * The camera is per tab instead, which is what `Working` below carries.
- *
- * One more thing lands in `Configuration` later and the shape takes it as a plain
- * field, the way the print sheet did: the per-seabed-class texture choice from
- * issue #3. It needs no change to the stored format and no version bump for
- * anyone who never set one.
  */
 export interface Configuration {
 	readonly layers: readonly LayerId[];
@@ -37,6 +39,15 @@ export interface Configuration {
 	readonly smoothed: boolean;
 	readonly isobaths: IsobathStyle;
 	readonly locale: Locale;
+	/**
+	 * What the diver chose to paint each seabed class with. Empty means every class
+	 * takes the texture its catalogue gives it, which is what the map ships with.
+	 *
+	 * Only the classes that were changed are in here, so a configuration saved a
+	 * season ago still follows the catalogue for the rest. No version bump: a blob
+	 * written before this field existed reads as no choices at all.
+	 */
+	readonly textures: TextureChoices;
 	/**
 	 * The sheet a card is cut to, when one was saved alongside the rest.
 	 *
@@ -113,7 +124,8 @@ export const shippedConfiguration = (locale: Locale): Configuration => ({
 	ground: 'habitats',
 	smoothed: true,
 	isobaths: DEFAULT_ISOBATHS,
-	locale
+	locale,
+	textures: NO_TEXTURE_CHOICES
 });
 
 /**
@@ -229,6 +241,29 @@ const parseIsobaths = (value: unknown): IsobathStyle => {
 };
 
 /**
+ * An entry naming a class this version of the catalogue does not have, or a
+ * texture it cannot paint, is dropped and that class keeps the catalogue's own.
+ * The same line `parseLayers` takes, and for the same reason: the stored blob is
+ * left alone, so a choice this version cannot honour is still there for a version
+ * that can, and nothing is ever repainted with a default somebody did not pick.
+ *
+ * A texture that is no longer built is exactly this case. `isSeabedTexture` is
+ * the same list the map registers with MapLibre, so a choice that survives here
+ * is certain to be in the image registry. A `fill-pattern` naming an image that
+ * is not paints nothing at all, which on a boat is a hole in the seabed.
+ */
+const parseTextures = (value: unknown): TextureChoices => {
+	if (!isRecord(value)) return NO_TEXTURE_CHOICES;
+	const chosen: Record<SeabedKey, string> = {};
+	for (const [key, texture] of Object.entries(value)) {
+		if (!isSeabedKey(key)) continue;
+		if (typeof texture !== 'string' || !isSeabedTexture(texture)) continue;
+		chosen[key] = texture;
+	}
+	return chosen;
+};
+
+/**
  * A field this version cannot make sense of falls back to what the map ships
  * with, rather than failing the whole configuration. A diver who saved eight
  * settings and finds seven of them restored is better served than one who is
@@ -247,6 +282,7 @@ export const parseConfiguration = (value: unknown, locale: Locale): Configuratio
 		smoothed: booleanOr(value['smoothed'], true),
 		isobaths: parseIsobaths(value['isobaths']),
 		locale: typeof stored === 'string' && isLocale(stored) ? stored : locale,
+		textures: parseTextures(value['textures']),
 		...(print === undefined ? {} : { print })
 	};
 };

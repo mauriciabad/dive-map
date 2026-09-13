@@ -1,9 +1,12 @@
 import {
 	type Ground,
 	type SeabedClass,
+	type TextureChoices,
 	byProminence,
 	catalogueOf,
-	seabedClassByCode
+	seabedClassByCode,
+	seabedKey,
+	textureOf
 } from '$lib/domain/habitat';
 import {
 	PATTERN_CSS_SIZE,
@@ -16,11 +19,16 @@ import type { TextureSample } from './controls/types';
 /**
  * What the legend panel shows, worked out away from the markup.
  *
- * Twenty textures carry thirty-three habitat classes, so the legend is keyed by
+ * Twenty-one textures carry fifty-three classes, so the legend is keyed by
  * texture rather than by class: a diver looking at a patch of seabed asks what
  * that pattern means, and six classes share `metal`. Every class of the ground's
  * catalogue is listed either way, because a legend that only names what happens
  * to be on screen cannot answer what the next headland is painted with.
+ *
+ * Rows group by the texture a class is painted with now, not by the one the
+ * catalogue gives it, so choosing a texture for one class moves it out of the row
+ * it shared and into the row it now belongs to. That regrouping is the legend
+ * telling the truth about what the pixels do.
  */
 
 export interface LegendEntry {
@@ -29,6 +37,8 @@ export interface LegendEntry {
 	readonly seabed: SeabedClass;
 	/** Only the habitat catalogue carries one; lifted here so the markup never narrows the union. */
 	readonly hic: string | undefined;
+	/** True when the diver chose this class's texture rather than taking the catalogue's. */
+	readonly chosen: boolean;
 }
 
 export interface LegendRow {
@@ -51,10 +61,11 @@ interface Draft {
 	readonly elsewhere: LegendEntry[];
 }
 
-const entryOf = (seabed: SeabedClass, origin: Ground): LegendEntry => ({
-	key: `${origin}-${seabed.raster}`,
+const entryOf = (seabed: SeabedClass, chosen: TextureChoices): LegendEntry => ({
+	key: seabedKey(seabed),
 	seabed,
-	hic: 'hic' in seabed ? seabed.hic : undefined
+	hic: 'hic' in seabed ? seabed.hic : undefined,
+	chosen: chosen[seabedKey(seabed)] !== undefined
 });
 
 const draftAt = (rows: Map<string, Draft>, texture: string): Draft => {
@@ -65,20 +76,23 @@ const draftAt = (rows: Map<string, Draft>, texture: string): Draft => {
 	return fresh;
 };
 
-export const buildLegend = (ground: Ground, present: ReadonlySet<string>): Legend => {
+export const buildLegend = (
+	ground: Ground,
+	present: ReadonlySet<string>,
+	chosen: TextureChoices
+): Legend => {
 	const own = catalogueOf(ground);
-	const entries = own.map((seabed) => entryOf(seabed, ground));
+	const entries = own.map((seabed) => entryOf(seabed, chosen));
 	// The substrate layer returns 30509, 30512 and 30513, which only the habitat
 	// catalogue defines and which the style really does paint. A code the ground's
 	// own catalogue claims keeps the ground's meaning, as patternFor does.
 	const claimed = new Set(
 		own.flatMap((seabed) => (seabed.code === undefined ? [] : [seabed.code]))
 	);
-	const other: Ground = ground === 'habitats' ? 'substrate' : 'habitats';
 	for (const code of present) {
 		if (claimed.has(code)) continue;
 		const seabed = seabedClassByCode(code);
-		if (seabed !== undefined) entries.push(entryOf(seabed, other));
+		if (seabed !== undefined) entries.push(entryOf(seabed, chosen));
 	}
 	entries.sort((a, b) => byProminence(a.seabed, b.seabed));
 
@@ -89,10 +103,10 @@ export const buildLegend = (ground: Ground, present: ReadonlySet<string>): Legen
 	// class each texture has on screen, the second fills the rows.
 	const rows = new Map<string, Draft>();
 	for (const entry of entries) {
-		if (isHere(entry)) draftAt(rows, entry.seabed.texture);
+		if (isHere(entry)) draftAt(rows, textureOf(entry.seabed, chosen));
 	}
 	for (const entry of entries) {
-		const draft = draftAt(rows, entry.seabed.texture);
+		const draft = draftAt(rows, textureOf(entry.seabed, chosen));
 		(isHere(entry) ? draft.inFrame : draft.elsewhere).push(entry);
 	}
 

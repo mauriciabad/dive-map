@@ -2,15 +2,26 @@ import { describe, expect, it } from 'vitest';
 import live from './fixtures/live-codes.json' with { type: 'json' };
 import {
 	HABITATS,
+	SEABED_TEXTURES,
 	SUBSTRATES,
+	type SeabedClass,
 	byProminence,
 	habitatByCode,
+	isSeabedTexture,
 	legendFor,
 	seabedClassByCode,
-	textureForCode
+	seabedKey,
+	substrateByCode,
+	textureOf
 } from './habitat.ts';
 
 const liveCodes: Record<string, Record<string, number>> = live;
+
+const mustResolve = (code: string, where: ReadonlyMap<string, SeabedClass>): SeabedClass => {
+	const seabed = where.get(code);
+	if (seabed === undefined) throw new Error(`${code} is not in the catalogue`);
+	return seabed;
+};
 
 describe('seabed catalogue', () => {
 	it('carries both published catalogues in full', () => {
@@ -52,6 +63,34 @@ describe('seabed catalogue', () => {
 	});
 
 	it('maps Posidonia to the seagrass texture', () => {
-		expect(textureForCode('30512')).toBe('ch_grass');
+		expect(textureOf(mustResolve('30512', habitatByCode), {})).toBe('ch_grass');
+	});
+});
+
+describe('texture choices', () => {
+	it('names every class once across both catalogues', () => {
+		const keys = [...HABITATS, ...SUBSTRATES].map(seabedKey);
+		expect(new Set(keys).size).toBe(keys.length);
+	});
+
+	// Habitat 30202 is circalittoral rock and substrate 30202 is a biogenic reef.
+	// Keying on the published code instead would silently repaint both.
+	it('keeps two classes that share a published code apart', () => {
+		expect(seabedKey(mustResolve('30202', habitatByCode))).not.toBe(
+			seabedKey(mustResolve('30202', substrateByCode))
+		);
+	});
+
+	it('paints a chosen texture and leaves every other class alone', () => {
+		const chosen = { 'habitats-20': 'ch_shipwood' } as const;
+		expect(textureOf(mustResolve('30512', habitatByCode), chosen)).toBe('ch_shipwood');
+		expect(textureOf(mustResolve('30402', habitatByCode), chosen)).toBe('ch_sand');
+	});
+
+	it('offers exactly the textures the catalogues already paint with', () => {
+		expect(SEABED_TEXTURES).toHaveLength(21);
+		const catalogued = new Set([...HABITATS, ...SUBSTRATES].map((c) => c.texture));
+		expect([...catalogued].filter((name) => !isSeabedTexture(name))).toEqual([]);
+		expect(isSeabedTexture('unsurveyed')).toBe(false);
 	});
 });

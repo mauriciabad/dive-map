@@ -117,7 +117,7 @@
 		</Field>
 	{:else}
 		{#if inFrame.codes !== undefined}
-			{@const legend = buildLegend(view.groundLayer, inFrame.codes)}
+			{@const legend = buildLegend(view.groundLayer, inFrame.codes, view.textures)}
 			<Field label={t(view.locale, 'legendInFrame')}>
 				{#if legend.inFrame.length === 0}
 					<Note>{t(view.locale, 'legendNothingInFrame')}</Note>
