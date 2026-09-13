@@ -44,6 +44,23 @@ export interface MarkerStyle {
 	readonly disc: boolean;
 	/** Drawn on top and never dropped in a crowd: the dive, and what threatens it. */
 	readonly key: boolean;
+	/**
+	 * The zoom this kind starts drawing at.
+	 *
+	 * Nothing used to hide as the map pulled back, so the opening view painted
+	 * every mark on two hundred kilometres of coast into one screen: 384 mooring
+	 * piles, 155 buoys and 141 lights, none of which anyone is reading from out
+	 * there. The rule is when the mark first answers a question. A dive site and
+	 * what threatens it draw from the start, because choosing a coast is the
+	 * question the opening view is for. A bathing zone, a light and a dive centre
+	 * arrive at 11, where you are choosing a bay. The furniture of the water's
+	 * edge, moorings and buoys and slipways, arrives at 12, and the ladder at 13,
+	 * because a ladder is something you look for once you are standing over it.
+	 *
+	 * MapLibre evaluates a zoom expression in a filter at integer zooms only, so
+	 * these are integers and mean exactly what they say.
+	 */
+	readonly from: number;
 }
 
 /**
@@ -81,24 +98,30 @@ const BEACON = '#f5dd93';
 const SHORE = '#4ecfae';
 
 export const MARKERS: Record<DiveFeatureKind, MarkerStyle> = {
-	'dive-site': { icon: 'markerDiveSite', colour: CREAM, disc: true, key: true },
-	wreck: { icon: 'markerWreck', colour: CREAM, disc: false, key: true },
-	rock: { icon: 'markerRock', colour: HAZARD, disc: false, key: true },
-	'restricted-area': { icon: 'markerRestricted', colour: REGULATION, disc: false, key: false },
-	'swimming-area': { icon: 'markerSwimmer', colour: SHORE, disc: false, key: false },
-	mooring: { icon: 'markerMooring', colour: AMBER, disc: false, key: false },
-	buoy: { icon: 'markerBuoy', colour: BEACON, disc: false, key: false },
-	light: { icon: 'markerLight', colour: BEACON, disc: false, key: false },
-	'dive-centre': { icon: 'markerDiveCentre', colour: SHORE, disc: false, key: false },
-	slipway: { icon: 'markerSlipway', colour: SHORE, disc: false, key: false },
-	ladder: { icon: 'markerLadder', colour: SHORE, disc: false, key: false },
+	'dive-site': { icon: 'markerDiveSite', colour: CREAM, disc: true, key: true, from: 0 },
+	wreck: { icon: 'markerWreck', colour: CREAM, disc: false, key: true, from: 0 },
+	rock: { icon: 'markerRock', colour: HAZARD, disc: false, key: true, from: 0 },
+	'restricted-area': {
+		icon: 'markerRestricted',
+		colour: REGULATION,
+		disc: false,
+		key: false,
+		from: 11
+	},
+	'swimming-area': { icon: 'markerSwimmer', colour: SHORE, disc: false, key: false, from: 11 },
+	mooring: { icon: 'markerMooring', colour: AMBER, disc: false, key: false, from: 12 },
+	buoy: { icon: 'markerBuoy', colour: BEACON, disc: false, key: false, from: 12 },
+	light: { icon: 'markerLight', colour: BEACON, disc: false, key: false, from: 11 },
+	'dive-centre': { icon: 'markerDiveCentre', colour: SHORE, disc: false, key: false, from: 11 },
+	slipway: { icon: 'markerSlipway', colour: SHORE, disc: false, key: false, from: 12 },
+	ladder: { icon: 'markerLadder', colour: SHORE, disc: false, key: false, from: 13 },
 	/*
 	 * A harbour is an area with a name on it, and the name is how anyone finds it:
 	 * nobody looks for Port de l'Estartit by spotting a symbol. A pin would also
 	 * land in the middle of the basin, which is the one part of a harbour with
 	 * nothing in it.
 	 */
-	harbour: { icon: undefined, colour: CREAM, disc: false, key: false }
+	harbour: { icon: undefined, colour: CREAM, disc: false, key: false, from: 11 }
 };
 
 /** MapLibre image id for a kind's glyph. */
@@ -123,6 +146,18 @@ export const DISC_KINDS = kindsWhere((style) => style.disc);
 
 /** Kinds the map names rather than draws. */
 export const LABEL_ONLY_KINDS = kindsWhere((style) => !drawn(style));
+
+/**
+ * The zoom each kind starts drawing at, as one lookup the style reads inside a
+ * filter. Same shape as the colour and halo lookups for the same reason: one
+ * literal rather than a tuple TypeScript cannot prove, and still valid when a
+ * group has been switched off down to nothing.
+ */
+export const markerFrom = (kinds: readonly DiveFeatureKind[]): Record<string, number> => {
+	const lookup: Record<string, number> = {};
+	for (const kind of kinds) lookup[kind] = MARKERS[kind].from;
+	return lookup;
+};
 
 /** Every image the style asks for by name, plate first. */
 export const MARKER_IMAGES: readonly { readonly id: string; readonly icon: IconName }[] = [

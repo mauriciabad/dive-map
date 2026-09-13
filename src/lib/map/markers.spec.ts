@@ -10,6 +10,7 @@ import {
 	MARKERS,
 	MARKER_IMAGES,
 	MINOR_KINDS,
+	markerFrom,
 	markerImageId
 } from './markers';
 
@@ -53,5 +54,26 @@ describe('the marker table', () => {
 
 	it('keeps the plate for the dive site alone, which is what makes it findable', () => {
 		expect(DISC_KINDS).toEqual(['dive-site']);
+	});
+
+	it('draws the dive at the opening view and holds the furniture back', () => {
+		// The opening view is the whole coast at about z7.5. What answers a question
+		// from out there is where the diving is; what does not is 384 mooring piles.
+		for (const kind of KEY_KINDS) expect(MARKERS[kind].from).toBe(0);
+		for (const kind of MINOR_KINDS) expect(MARKERS[kind].from).toBeGreaterThanOrEqual(11);
+	});
+
+	it('states every start zoom as a whole number, which is all a filter reads', () => {
+		// MapLibre evaluates a zoom expression inside a filter at integer zooms only,
+		// so a kind starting at 11.5 would start at 11 or 12 and the table would be
+		// lying about which.
+		for (const kind of DIVE_FEATURE_KINDS) {
+			expect(Number.isInteger(MARKERS[kind].from)).toBe(true);
+		}
+	});
+
+	it('looks up only the kinds it was handed, so a group switched off is empty', () => {
+		expect(markerFrom(['mooring', 'dive-site'])).toEqual({ mooring: 12, 'dive-site': 0 });
+		expect(markerFrom([])).toEqual({});
 	});
 });
