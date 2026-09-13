@@ -170,7 +170,19 @@
 			 * A tap cannot open the panel, because double-tap-and-drag is how you
 			 * zoom one-handed and a tap handler eats the first half of it. Touch gets
 			 * a long press; a mouse keeps its click.
+			 *
+			 * Telling the two apart by `detail` was the wrong test and is why the
+			 * gesture was still broken. A tap's synthetic click carries detail 1,
+			 * exactly like a mouse click, so every tap opened the panel and the first
+			 * half of a double-tap-and-drag laid a sheet over the second half. What
+			 * is reliable is that a finger has just been on the glass: a mouse never
+			 * fires a touch event, and the synthetic click follows the lift inside a
+			 * few hundred milliseconds.
 			 */
+			const AFTER_TOUCH = 900;
+			const DOUBLE_TAP = 400;
+			let touchedAt = 0;
+			let liftedAt = 0;
 			let held: ReturnType<typeof setTimeout> | undefined;
 			const cancel = () => {
 				if (held !== undefined) clearTimeout(held);
@@ -178,12 +190,18 @@
 			};
 
 			const onclick = (e: MapMouseEvent) => {
-				if (e.originalEvent.detail === 0) return;
+				if (performance.now() - touchedAt < AFTER_TOUCH) return;
 				inspect(e.point, e.lngLat);
 			};
 			const ontouchstart = (e: MapTouchEvent) => {
 				cancel();
+				const now = performance.now();
+				touchedAt = now;
 				if (e.points.length !== 1) return;
+				// The second tap of a double tap is the first half of the zoom, so it
+				// gets no long press at all. A hold that opened the panel there would
+				// put the sheet under the drag that is about to follow.
+				if (now - liftedAt < DOUBLE_TAP) return;
 				const point = e.point;
 				const at = e.lngLat;
 				held = setTimeout(() => {
@@ -191,20 +209,29 @@
 					inspect(point, at);
 				}, 450);
 			};
+			const ontouchmove = () => {
+				touchedAt = performance.now();
+				cancel();
+			};
+			const ontouchend = () => {
+				liftedAt = performance.now();
+				touchedAt = liftedAt;
+				cancel();
+			};
 
 			map.on('click', onclick);
 			map.on('touchstart', ontouchstart);
-			map.on('touchend', cancel);
-			map.on('touchcancel', cancel);
-			map.on('touchmove', cancel);
+			map.on('touchend', ontouchend);
+			map.on('touchcancel', ontouchend);
+			map.on('touchmove', ontouchmove);
 			map.on('movestart', cancel);
 			return () => {
 				cancel();
 				map.off('click', onclick);
 				map.off('touchstart', ontouchstart);
-				map.off('touchend', cancel);
-				map.off('touchcancel', cancel);
-				map.off('touchmove', cancel);
+				map.off('touchend', ontouchend);
+				map.off('touchcancel', ontouchend);
+				map.off('touchmove', ontouchmove);
 				map.off('movestart', cancel);
 			};
 		})
