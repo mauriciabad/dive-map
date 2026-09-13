@@ -2,11 +2,6 @@
 /**
  * Build the real map style and validate it against the MapLibre style spec.
  *
- * The live-position layers are deliberately left out: they pull in the whole geo
- * module graph, which this stub loader cannot follow, and they carry no
- * data-driven expressions to get wrong. `pnpm run check` and the browser checks
- * cover them.
- *
  * The style is the one artifact where a typo costs nothing at compile time and
  * everything at runtime: a bad expression makes a layer silently vanish rather
  * than throw. This loads the actual TypeScript module, so it checks what ships.
@@ -15,39 +10,62 @@
  */
 import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec';
 import ts from 'typescript';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const out = join(root, 'data', 'build', 'style-check');
 mkdirSync(out, { recursive: true });
 
-const STUBS = {
-	'$app/paths': "export const asset = (f) => f;\nexport const base = '';\n"
-};
+writeFileSync(join(out, 'app-paths.mjs'), "export const asset = (f) => f;\nexport const base = '';\n");
 
-const compile = (rel, name) => {
-	const src = readFileSync(join(root, rel), 'utf8')
+/**
+ * Every module the style actually pulls in, found by following the imports.
+ *
+ * This used to be a list typed out by hand, and a list typed out by hand goes
+ * stale the first time anything moves: extracting the palette and adding the
+ * live-position layers both left an import with nothing behind it, and the whole
+ * check had been dying on a missing module rather than validating anything. The
+ * imports are scanned off the compiled output, so a `import type` erased by the
+ * transpiler correctly pulls in nothing.
+ */
+const compiled = new Set();
+
+const compile = (file) => {
+	const name = basename(file, '.ts');
+	if (compiled.has(name)) return name;
+	compiled.add(name);
+	const src = readFileSync(file, 'utf8')
 		.replace(/from '\$app\/paths'/g, "from './app-paths.mjs'")
 		.replace(/from '\$lib\/([\w/-]+)'/g, (_, p) => `from './${p.split('/').pop()}.mjs'`)
-		.replace(/from '\.\/([\w-]+)\.ts'/g, "from './$1.mjs'");
+		.replace(/from '\.\/([\w-]+)(?:\.ts)?'/g, "from './$1.mjs'");
 	const js = ts.transpileModule(src, {
 		compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext }
 	}).outputText;
 	writeFileSync(join(out, `${name}.mjs`), js);
+
+	for (const [, dependency] of js.matchAll(/from ["']\.\/([\w-]+)\.mjs["']/g)) {
+		if (dependency === 'app-paths' || compiled.has(dependency)) continue;
+		const hit = sources.find((path) => basename(path, '.ts') === dependency);
+		if (hit === undefined) throw new Error(`${name} imports ${dependency}, which is not under src/`);
+		compile(hit);
+	}
+	return name;
 };
 
-writeFileSync(join(out, 'app-paths.mjs'), STUBS['$app/paths']);
-for (const [rel, name] of [
-	['src/lib/domain/units.ts', 'units'],
-	['src/lib/domain/print.ts', 'print'],
-	['src/lib/domain/habitat.ts', 'habitat'],
-	['src/lib/domain/card.ts', 'card'],
-	['src/lib/map/style.ts', 'style']
-]) {
-	compile(rel, name);
-}
+const sources = [];
+const walk = (dir) => {
+	for (const entry of readdirSync(dir, { withFileTypes: true })) {
+		const path = join(dir, entry.name);
+		if (entry.isDirectory()) walk(path);
+		else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.spec.ts')) sources.push(path);
+	}
+};
+walk(join(root, 'src', 'lib'));
+
+compile(join(root, 'src', 'lib', 'map', 'style.ts'));
+compile(join(root, 'src', 'lib', 'domain', 'card.ts'));
 
 const { buildStyle } = await import(pathToFileURL(join(out, 'style.mjs')).href);
 const { DEFAULT_ISOBATHS, DEFAULT_LAYERS } = await import(pathToFileURL(join(out, 'card.mjs')).href);
