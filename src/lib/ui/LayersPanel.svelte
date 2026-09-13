@@ -62,6 +62,19 @@
 				if (!view.shows(ground)) view.toggle(ground);
 			}}
 		/>
+		<!--
+			Beside the ground it redraws rather than among the layer switches. It does
+			not decide whether the seabed is painted, only which of the two habitat
+			archives paints it: the survey is a 10 m raster, and off is the boundary
+			as measured, staircase and all.
+		-->
+		<Toggle
+			label={t(view.locale, 'smoothing')}
+			pressed={view.smoothed}
+			onchange={() => {
+				view.smoothed = !view.smoothed;
+			}}
+		/>
 		<Note>{t(view.locale, 'accuracyNote')}</Note>
 		<Action
 			label={t(view.locale, 'legendOpen')}
