@@ -44,7 +44,8 @@
 			isobaths: view.isobaths,
 			visible: [...view.visible],
 			groundLayer: view.groundLayer,
-			smoothed: view.smoothed
+			smoothed: view.smoothed,
+			textures: view.textures
 		})
 	);
 

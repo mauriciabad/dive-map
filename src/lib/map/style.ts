@@ -5,7 +5,13 @@ import type {
 	LayerSpecification,
 	StyleSpecification
 } from 'maplibre-gl';
-import { HABITATS, SUBSTRATES } from '$lib/domain/habitat';
+import {
+	HABITATS,
+	NO_TEXTURE_CHOICES,
+	SUBSTRATES,
+	type TextureChoices,
+	textureOf
+} from '$lib/domain/habitat';
 import { POSITION_SOURCES, positionLayers } from '$lib/geo/style-layers';
 export { PALETTE } from './palette.ts';
 import { PALETTE } from './palette.ts';
@@ -95,13 +101,14 @@ const DEPTH_VEIL: ExpressionSpecification = [
  * fallback every Posidonia and Cymodocea bed would render as bare sand.
  */
 const patternFor = (
-	ground: 'habitats' | 'substrate'
+	ground: 'habitats' | 'substrate',
+	chosen: TextureChoices
 ): DataDrivenPropertyValueSpecification<string> => {
 	const lookup: Record<string, string> = {};
 	const ordered = ground === 'habitats' ? [SUBSTRATES, HABITATS] : [HABITATS, SUBSTRATES];
 	for (const catalogue of ordered) {
 		for (const c of catalogue) {
-			if (c.code !== undefined) lookup[c.code] = c.texture;
+			if (c.code !== undefined) lookup[c.code] = textureOf(c, chosen);
 		}
 	}
 	return ['coalesce', ['get', ['get', 'code'], ['literal', lookup]], 'ch_sand'];
@@ -216,6 +223,8 @@ export interface StyleOptions {
 	readonly groundLayer: 'habitats' | 'substrate';
 	/** Off shows the survey's own 10m raster staircase, which is what it actually measured. */
 	readonly smoothed: boolean;
+	/** A diver's own texture per seabed class. Absent means every class keeps the catalogue's own. */
+	readonly textures?: TextureChoices;
 }
 
 const vis = (options: StyleOptions, id: LayerId): 'visible' | 'none' =>
@@ -249,7 +258,7 @@ const groundLayers = (options: StyleOptions): LayerSpecification[] =>
 					'source-layer': ground,
 					layout: { visibility },
 					paint: {
-						'fill-pattern': patternFor(ground),
+						'fill-pattern': patternFor(ground, options.textures ?? NO_TEXTURE_CHOICES),
 						'fill-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.55, 13, 0.92]
 					}
 				},
