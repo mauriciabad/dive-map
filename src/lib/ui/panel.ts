@@ -22,7 +22,7 @@ export const SECTIONS: readonly SectionTab[] = [
 	{ id: 'isobaths', icon: 'isobath', key: 'isobaths' },
 	{ id: 'print', icon: 'print', key: 'print' },
 	{ id: 'language', icon: 'language', key: 'language' },
-	{ id: 'configs', icon: 'tag', key: 'configs' }
+	{ id: 'configs', icon: 'save', key: 'configs' }
 ];
 
 /**

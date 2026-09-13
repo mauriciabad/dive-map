@@ -24,15 +24,25 @@ export const ICONS = {
 	layers: { d: ['M3 8.5 12 4l9 4.5-9 4.5z', 'M3 13l9 4.5 9-4.5', 'M3 17l9 4.5 9-4.5'] },
 
 	/**
-	 * Three closed contours nested inside one another, the way isobaths ring a
-	 * shoal on the chart. The previous set of open arcs read as a signal meter.
+	 * Two closed isobaths ringing a shoal, wide and well apart, drawn from the
+	 * reference at `docs/wireframes/isobath-icon-reference.png`. They are ellipses
+	 * because that is the shape a shoal actually contours into, and the gaps are
+	 * what say contour: the nested set this replaces closed up into one blob at
+	 * panel size, which is the only size it is ever read at.
+	 *
+	 * The outer one does not close. It comes round and runs out to the right with
+	 * both ends flaring away, the way a contour leaves the frame rather than ending,
+	 * which is also what keeps the set from reading as a target.
+	 *
+	 * The summit is a sounding dot rather than a third ring: a ring that small
+	 * closes into a blob at panel size, and a dot is what a chart puts there anyway.
 	 */
 	isobath: {
 		d: [
-			'M12 2.6c5.2 0 9.4 3.8 9.4 8.9 0 5.5-4.3 9.9-9.7 9.9-5.1 0-9.1-3.9-9.1-8.9 0-5.6 4.1-9.9 9.4-9.9z',
-			'M11.9 6.4c3.2 0 5.8 2.3 5.8 5.4 0 3.3-2.7 6-6 6-3 0-5.4-2.3-5.4-5.3 0-3.4 2.5-6.1 5.6-6.1z',
-			'M11.7 10.3c1.4 0 2.4 1 2.4 2.3 0 1.4-1.1 2.5-2.5 2.5-1.2 0-2.2-1-2.2-2.2 0-1.4 1-2.6 2.3-2.6z'
-		]
+			'M22.4 5.6q-1.9.6-2.7 2.3a9.4 7.2 0 1 0 0 8.2q.8 1.7 2.7 2.3',
+			'M6.6 12a5.4 4 0 1 0 10.8 0a5.4 4 0 1 0-10.8 0'
+		],
+		dots: [[12, 12, 1.6]]
 	},
 
 	/**
@@ -77,11 +87,40 @@ export const ICONS = {
 	/** A pencil, for annotations. */
 	annotate: { d: ['M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19z', 'M14.5 6.5l3 3'] },
 
-	/** A framed sheet, for print. */
-	print: { d: ['M6 3h12v18H6z', 'M9 8h6', 'M9 12h6', 'M9 16h3'] },
+	/**
+	 * A printer with the sheet coming out of it. The framed page this replaces was
+	 * the sheet and not the act, so it said the same thing as the crop overlay.
+	 */
+	print: {
+		d: ['M7 8.4V3.6h10v4.8', 'M7.4 20.4v-5.2h9.2v5.2z'],
+		fill: ['M3.8 8.4h16.4v6.8H3.8z']
+	},
 
-	/** Two swatches, each with its line of caption: the legend. */
-	legend: { d: ['M4 5h6v6H4z', 'M14 8h6', 'M4 14h6v6H4z', 'M14 17h6'] },
+	/** A map pin: what the legend is a list of. */
+	legend: {
+		d: ['M12 21.6c4.5-5.5 6.8-9.2 6.8-11.8a6.8 6.8 0 1 0-13.6 0c0 2.6 2.3 6.3 6.8 11.8z'],
+		dots: [[12, 9.4, 2.2]]
+	},
+
+	/**
+	 * A coast seen from above: solid land in one corner, open water with its crests
+	 * in the other. This switch draws or drops the whole land side of the map rather
+	 * than the shore line, so the drawing is the mass and the water it ends at, and
+	 * the land runs off the edges of the box because a coast is not an island.
+	 */
+	land: {
+		d: ['M12.8 14.6q2.2-1.7 4.4 0t4.4 0', 'M8.6 20q2.6-2 5.2 0t5.2 0'],
+		fill: ['M2.4 2.6h16.2c-1 4-4.6 5.4-7.4 7.6-2.8 2.2-3.4 4.6-8.8 5.6z']
+	},
+
+	/**
+	 * A floppy disk, for the saved configurations. Shutter solid, because at panel
+	 * size a stroked one is a grey smudge and the shutter is what says floppy.
+	 */
+	save: {
+		d: ['M4.4 4.4h11.4l3.8 3.8v11.4H4.4z', 'M7.6 19.6v-6.2h8.8v6.2'],
+		fill: ['M9.4 4.4h5.2v4.4H9.4z']
+	},
 
 	/** Crop corners, for the framing overlay. */
 	frame: { d: ['M4 9V4h5', 'M15 4h5v5', 'M20 15v5h-5', 'M9 20H4v-5'] },
@@ -92,15 +131,33 @@ export const ICONS = {
 		dots: [[8.2, 8.6, 1.5]]
 	},
 
-	/** Two crests and a trough: the wave marks an old chart scatters over open water. */
-	flourish: { d: ['M3 9q3-3 5 0t5 0 5 0 3 0', 'M3 15q3-3 5 0t5 0 5 0 3 0'] },
+	/**
+	 * Sparkles, and nothing else. This layer paints wave crests over the water the
+	 * survey never reached, and none of it is data: it is the decoration an old
+	 * chart carries. The switch should say decoration before a diver has to work
+	 * out whether the crests mean anything.
+	 */
+	flourish: {
+		d: [
+			'M9.4 3.2q.9 5 5.9 5.9-5 .9-5.9 5.9-.9-5-5.9-5.9 5-.9 5.9-5.9z',
+			'M19.2 3.4q.35 2 2.35 2.35-2 .35-2.35 2.35-.35-2-2.35-2.35 2-.35 2.35-2.35z',
+			'M17.6 13.4q.5 2.9 3.4 3.4-2.9.5-3.4 3.4-.5-2.9-3.4-3.4 2.9-.5 3.4-3.4z'
+		]
+	},
 
+	/**
+	 * A Latin A beside a han character: one thing written in two scripts, which is
+	 * what the panel does. The globe this replaces said region, and a diver on this
+	 * coast reads the globe as where am I rather than what language is this in.
+	 */
 	language: {
 		d: [
-			'M3 12h18',
-			'M12 3a15 15 0 0 1 0 18',
-			'M12 3a15 15 0 0 0 0 18',
-			'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18'
+			'M2.6 19 7 5.2 11.4 19',
+			'M4.4 14.8h5.2',
+			'M17.2 5.2v1.6',
+			'M13.4 9.2h7.6',
+			'M17.2 9.2c0 4.4-1.4 7.4-3.8 9.6',
+			'M15.8 13.6c1.8 2.4 3.6 4 5.6 5.2'
 		]
 	},
 
@@ -156,18 +213,29 @@ export const ICONS = {
 	 * without reading the label.
 	 */
 
-	/** The plate a marker sits on. Only the dive site earns one; see markers.ts. */
-	markerDisc: { d: [], fill: ['M12 1.8a10.2 10.2 0 1 0 0 20.4 10.2 10.2 0 0 0 0-20.4'] },
+	/**
+	 * The plate a marker sits on. Only the dive site earns one; see markers.ts.
+	 *
+	 * A rectangle, because the one kind that takes a plate is the dive site and its
+	 * plate is the field of the diver-down flag. Drawn as a disc, the mark was a
+	 * red circle with a little flag inside it, which is a picture of a flag rather
+	 * than the flag. The flag is the thing every boat on this coast already reads,
+	 * so the mark is the flag: this is its red, and `markerDiveSite` is the white
+	 * stripe across it.
+	 */
+	markerPlate: { d: [], fill: ['M3 5.4h18v13.2H3z'] },
 
 	/**
-	 * The diver-down flag, which is the one mark every boat on this coast already
-	 * reads. The staff and the outline are the drawing; the two triangles either
-	 * side of the diagonal band are gaps, so the red plate underneath shows through
-	 * them and the flag comes out red with a white stripe across it.
+	 * The white stripe of the diver-down flag, corner to corner over the plate.
+	 *
+	 * Nothing else: no staff, no outline. The plate underneath is the red field, so
+	 * the two layers together are the flag itself at any size, and the staff that
+	 * used to hold it up only ate pixels the band needed. Held a few tenths inside
+	 * the plate's corners so the stripe's own dark halo has somewhere to sit.
 	 */
 	markerDiveSite: {
-		d: ['M5.8 4.4v15.2', 'M5.8 6.2h11.8v7.8H5.8z'],
-		fill: ['M5.8 6.2h3.5l8.3 7.8h-3.5z']
+		d: [],
+		fill: ['M3.4 5.9v3.9l17.2 8.3v-3.9z']
 	},
 
 	/** A hull gone over with its mast still up, the chart's own way of saying wreck. */
