@@ -1,5 +1,5 @@
 import { assetPolicy, precachePaths } from './assets.ts';
-import { isStaleCache, runtimeCache, shellCache } from './cache-names.ts';
+import { CHUNK_CACHE, isStaleCache, runtimeCache, shellCache } from './cache-names.ts';
 import {
 	cacheStorageChunkStore,
 	createRangeReader,
@@ -73,7 +73,7 @@ export function registerServiceWorker(
 	const runtime = runtimeCache(manifest.version);
 	const precached = new Set(precacheList(manifest));
 	const ranges = createRangeReader({
-		store: cacheStorageChunkStore(runtime),
+		store: cacheStorageChunkStore(CHUNK_CACHE),
 		fetch: (input, init) => fetch(input, init)
 	});
 

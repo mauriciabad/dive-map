@@ -3,12 +3,13 @@ import { PMTiles } from 'pmtiles';
 import { describe, expect, it } from 'vitest';
 import { CATALOGUE_TEXTURES, SEABED_TEXTURES } from '$lib/domain/habitat';
 import { assetPolicy, precachePaths } from './assets.ts';
-import { isStaleCache } from './cache-names.ts';
+import { CHUNK_CACHE, isStaleCache } from './cache-names.ts';
 import { cachedRangeSource } from './pmtiles-source.ts';
 import { precacheList, routeRequest, type FetchRoute } from './service-worker.ts';
 import {
 	contentTag,
 	createRangeReader,
+	lengthTag,
 	memoryChunkStore,
 	parseRangeHeader,
 	rangeResponse,
@@ -313,6 +314,63 @@ describe('an ETag that moves on every deploy', () => {
 	});
 });
 
+/** Everything the deploy sweep used to cover, now that chunks outlive a deploy. */
+describe('a server that sends no ETag', () => {
+	const SHORTER = ARCHIVE.slice(0, ARCHIVE.length - 16).map((byte, index) =>
+		index === 100 ? byte ^ 0xff : byte
+	);
+
+	interface Served {
+		bytes: Uint8Array<ArrayBuffer>;
+		requests: number;
+	}
+
+	function taglessServer(served: Served): typeof globalThis.fetch {
+		return (_input, init) => {
+			served.requests += 1;
+			const range = parseRangeHeader(new Headers(init?.headers).get('Range'));
+			if (range === null) return Promise.resolve(new Response(served.bytes, { status: 200 }));
+			const start = range.offset;
+			const end = Math.min(start + range.length, served.bytes.length);
+			return Promise.resolve(
+				new Response(served.bytes.slice(start, end), {
+					status: 206,
+					headers: { 'Content-Range': `bytes ${start}-${end - 1}/${served.bytes.length}` }
+				})
+			);
+		};
+	}
+
+	it('identifies the archive by the length every range response states', async () => {
+		const served: Served = { bytes: ARCHIVE, requests: 0 };
+		const reader = createRangeReader({
+			store: memoryChunkStore(),
+			fetch: taglessServer(served),
+			chunkSize: 256
+		});
+
+		const read = await reader.read(URL_UNDER_TEST, 0, 600);
+		expect(read.etag).toBe(lengthTag(ARCHIVE.length));
+	});
+
+	it('purges and refetches when the archive behind the URL changes length', async () => {
+		const served: Served = { bytes: ARCHIVE, requests: 0 };
+		const store = memoryChunkStore();
+		const before = createRangeReader({ store, fetch: taglessServer(served), chunkSize: 256 });
+		await before.read(URL_UNDER_TEST, 0, 600);
+
+		served.bytes = SHORTER;
+		served.requests = 0;
+		const after = createRangeReader({ store, fetch: taglessServer(served), chunkSize: 256 });
+		const reread = await after.read(URL_UNDER_TEST, 0, 1200);
+
+		expect(reread.etag).toBe(lengthTag(SHORTER.length));
+		expect(reread.fromCache).toBe(false);
+		expect(hex(reread.data)).toBe(hex(SHORTER.slice(0, 1200).buffer));
+		expect(hex(reread.data)).not.toBe(hex(ARCHIVE.slice(0, 1200).buffer));
+	});
+});
+
 describe('asset policy', () => {
 	it('precaches the small textures and leaves the print sizes to first use', () => {
 		expect(assetPolicy('/textures/256/ch_sand.webp')).toBe('precache');
@@ -378,14 +436,21 @@ describe('service worker routing', () => {
 		expect(route(`${origin}/`, 'POST')).toBe('ignore');
 	});
 
-	it('drops the caches a deploy replaced and keeps the areas a diver pinned', () => {
+	/**
+	 * `divemap-chunks` in that list is issue #36. It used to be the versioned runtime
+	 * cache, so every deploy deleted the archive bytes a diver had already paid for,
+	 * and on a site that deploys forty times a day the map was empty by the time the
+	 * boat left. A chunk proves itself by its content tag instead.
+	 */
+	it('drops the caches a deploy replaced and keeps the areas and chunks a diver paid for', () => {
 		const names = [
 			'divemap-shell-old',
 			'divemap-runtime-old',
 			'divemap-shell-1700000000000',
 			'divemap-runtime-1700000000000',
 			'divemap-area-abc',
-			'divemap-areas'
+			'divemap-areas',
+			CHUNK_CACHE
 		];
 		expect(names.filter((name) => isStaleCache(name, manifest.version))).toEqual([
 			'divemap-shell-old',

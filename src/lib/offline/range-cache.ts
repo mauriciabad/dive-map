@@ -30,6 +30,20 @@ export function contentTag(etag: string | null | undefined): string | null {
 	return size === undefined ? trimmed : `"${size}"`;
 }
 
+/**
+ * The same tag for a server that sends no ETag at all, read off the length every range
+ * response states in its `Content-Range`.
+ *
+ * Hex, because that is the shape `contentTag` reduces a Pages ETag to, and the two then
+ * agree byte for byte on one archive. Without this a host with no ETag stores chunks
+ * carrying no identity, and nothing would ever notice the archive behind them changing.
+ * That mattered less while a deploy swept the store; now that chunks outlive a deploy it
+ * is the only thing standing between a diver and a mixture of two archives.
+ */
+export function lengthTag(total: number): string {
+	return `"${total.toString(16)}"`;
+}
+
 export interface StoredChunk {
 	/** Pinned to ArrayBuffer, not ArrayBufferLike, so the bytes can be a Response body directly. */
 	readonly bytes: Uint8Array<ArrayBuffer>;
@@ -111,13 +125,20 @@ export function createRangeReader(options: RangeReaderOptions): RangeReader {
 
 		if (response.status === 206) {
 			const bytes = new Uint8Array(await response.arrayBuffer());
-			const total = parseContentRangeTotal(response.headers.get('Content-Range'));
-			return { bytes, total: total ?? start + bytes.length, etag };
+			// Only a stated total identifies the archive. The fallback is this chunk's own end,
+			// which differs per chunk and would read as a different archive on every read.
+			const stated = parseContentRangeTotal(response.headers.get('Content-Range'));
+			const tag = stated === null ? etag : (etag ?? lengthTag(stated));
+			return { bytes, total: stated ?? start + bytes.length, etag: tag };
 		}
 		if (response.status === 200) {
 			// A server that ignores Range sends the whole body, so cut our window out of it.
 			const whole = new Uint8Array(await response.arrayBuffer());
-			return { bytes: whole.slice(start, start + chunkSize), total: whole.length, etag };
+			return {
+				bytes: whole.slice(start, start + chunkSize),
+				total: whole.length,
+				etag: etag ?? lengthTag(whole.length)
+			};
 		}
 		throw new Error(`Range request for ${url} failed with status ${response.status}`);
 	}
