@@ -53,17 +53,82 @@ export interface Deployment {
 export type FetchRoute = 'ignore' | 'range' | 'runtime' | 'shell' | 'network-first';
 
 /**
+ * What the shell must hold to boot, and what it would merely like to have.
+ *
+ * This split is what keeps an update alive. `cache.addAll` is all or nothing, so a
+ * single response that is not ok throws away the entire installing worker: no
+ * waiting worker, no notice, no update, and the browser goes on serving the old
+ * build with nothing anywhere to say why. One 404 from a deploy landing mid-install,
+ * or one request dropped on a boat, out of two hundred and thirty-six.
+ *
+ * `build` and `prerendered` are this version's own HTML and bundle. A shell missing
+ * any of them cannot start the app, so an install that cannot fetch them all really
+ * has failed and should. The static files are not like that. Fonts, icons, avatars,
+ * textures and the habitat data all have a runtime route that fetches and caches
+ * them on first use, so one that misses the install costs a request later and
+ * nothing else.
+ */
+export interface PrecachePlan {
+	readonly required: readonly string[];
+	readonly optional: readonly string[];
+}
+
+/**
  * Cache keys, which are served paths and carry the base. What a path is *for* is
  * decided by its own part, which does not.
  */
+export function precachePlan(manifest: ServiceWorkerManifest): PrecachePlan {
+	const required = [...new Set([...manifest.build, ...manifest.prerendered])];
+	const taken = new Set(required);
+	return {
+		required,
+		optional: precachePaths(manifest.base, manifest.files).filter((path) => !taken.has(path))
+	};
+}
+
 export function precacheList(manifest: ServiceWorkerManifest): string[] {
-	return [
-		...new Set([
-			...manifest.build,
-			...manifest.prerendered,
-			...precachePaths(manifest.base, manifest.files)
-		])
-	];
+	const plan = precachePlan(manifest);
+	return [...plan.required, ...plan.optional];
+}
+
+/**
+ * Every precache fetch revalidates. This is the fix for issue #46.
+ *
+ * GitHub Pages serves the HTML and everything in `static` with `max-age=600`, and a
+ * plain fetch during install is free to answer any of them out of the browser's HTTP
+ * cache. It does. The installing worker fills this version's shell with the previous
+ * version's index.html and the previous version's data, activates, and serves them
+ * under this version's name. The version moves and the build does not, and reloading
+ * cannot help because the stale copy is now the cached one. On a day with sixty
+ * deploys the ten-minute window is almost never clear.
+ *
+ * `no-cache` rather than `reload` because it still revalidates rather than
+ * re-downloads: the textures and fonts that did not change answer 304 and cost a
+ * round trip instead of their bytes, which on a phone at the dock is the difference
+ * that matters.
+ */
+async function fetchFresh(path: string): Promise<Response> {
+	return fetch(new Request(path, { cache: 'no-cache' }));
+}
+
+async function precache(cache: Cache, plan: PrecachePlan): Promise<void> {
+	await Promise.all(
+		plan.required.map(async (path) => {
+			const response = await fetchFresh(path);
+			if (!response.ok) throw new Error(`${path} answered ${response.status}`);
+			await cache.put(path, response);
+		})
+	);
+	await Promise.all(
+		plan.optional.map(async (path) => {
+			try {
+				const response = await fetchFresh(path);
+				if (response.ok) await cache.put(path, response);
+			} catch {
+				// Its runtime route will fetch it on first use.
+			}
+		})
+	);
 }
 
 export function routeRequest(
@@ -94,7 +159,8 @@ export function registerServiceWorker(
 ): void {
 	const shell = shellCache(manifest.version);
 	const runtime = runtimeCache(manifest.version);
-	const precached = new Set(precacheList(manifest));
+	const plan = precachePlan(manifest);
+	const precached = new Set([...plan.required, ...plan.optional]);
 	const deployment: Deployment = { origin: scope.location.origin, base: manifest.base };
 	const ranges = createRangeReader({
 		store: cacheStorageChunkStore(CHUNK_CACHE),
@@ -111,11 +177,19 @@ export function registerServiceWorker(
 		 * ETag after one retry". The app then cannot start until someone clears site
 		 * data by hand, which is not something to ask of anyone, least of all on a
 		 * boat.
+		 *
+		 * Waiting for a page to say when was tried instead and is worse on both
+		 * counts. A reload does not release a waiting worker, so every browser
+		 * holding the build before this one would have stayed on it until its last
+		 * tab closed, and `skipWaiting` called later from a message has to wait for
+		 * the running worker to finish whatever it is serving, which on a map is
+		 * whenever the tiles stop. When to reload is the page's question, and the
+		 * page answers it in offline/registration.ts.
 		 */
 		event.waitUntil(
 			(async () => {
 				const cache = await caches.open(shell);
-				await cache.addAll([...precached]);
+				await precache(cache, plan);
 				await scope.skipWaiting();
 			})()
 		);
