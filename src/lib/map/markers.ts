@@ -6,8 +6,8 @@ import type { IconName } from '$lib/ui/icons';
  * read. The two of them showing different colours for the same thing is the bug
  * this exists to make impossible.
  *
- * Colour is the family, the drawing is the kind. Five families across ten kinds
- * beats ten hues nobody can hold in their head, and it keeps the meaning intact
+ * Colour is the family, the drawing is the kind. Five families across twelve kinds
+ * beats twelve hues nobody can hold in their head, and it keeps the meaning intact
  * for a colour-blind reader, who still gets a buoy that is not a wreck. The
  * seabed textures follow the same rule.
  *
@@ -23,6 +23,11 @@ import type { IconName } from '$lib/ui/icons';
  * so it takes the warm hazard red already in the palette. A restricted area is a
  * rule rather than an object, so it takes magenta, which is what every nautical
  * chart reserves for regulation.
+ *
+ * A bathing zone is not in that family at all, which is the correction this table
+ * carries. It is water people are in, so it goes with the ladder and the slipway
+ * in teal, and the special marks strung around it go with the lights in yellow,
+ * because a buoy is something you navigate by rather than something you avoid.
  */
 
 export interface MarkerStyle {
@@ -59,6 +64,15 @@ export const MARKER_INK = '#14100c';
 /** The plate's rim. Brass, so the plate still has an edge over deep water. */
 export const MARKER_RIM = '#cfa25a';
 
+/**
+ * The plate itself, under the dive site alone. Diver-down red, because the glyph
+ * on it is the diver-down flag and the plate is that flag's field: the two
+ * triangles the drawing leaves open are where this shows through, so the mark
+ * comes out red with a white stripe, which is what the owner asked for and what
+ * every boat on this coast already reads.
+ */
+export const MARKER_PLATE = '#c2352f';
+
 const CREAM = '#efe4cf';
 const AMBER = '#e8a92f';
 const HAZARD = '#ef6f43';
@@ -71,7 +85,9 @@ export const MARKERS: Record<DiveFeatureKind, MarkerStyle> = {
 	wreck: { icon: 'markerWreck', colour: CREAM, disc: false, key: true },
 	rock: { icon: 'markerRock', colour: HAZARD, disc: false, key: true },
 	'restricted-area': { icon: 'markerRestricted', colour: REGULATION, disc: false, key: false },
+	'swimming-area': { icon: 'markerSwimmer', colour: SHORE, disc: false, key: false },
 	mooring: { icon: 'markerMooring', colour: AMBER, disc: false, key: false },
+	buoy: { icon: 'markerBuoy', colour: BEACON, disc: false, key: false },
 	light: { icon: 'markerLight', colour: BEACON, disc: false, key: false },
 	'dive-centre': { icon: 'markerDiveCentre', colour: SHORE, disc: false, key: false },
 	slipway: { icon: 'markerSlipway', colour: SHORE, disc: false, key: false },

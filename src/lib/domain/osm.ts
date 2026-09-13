@@ -47,6 +47,8 @@ export type DiveFeature =
 	  })
 	| (Base & { readonly kind: 'rock'; readonly waterLevel: string | undefined })
 	| (Base & { readonly kind: 'restricted-area'; readonly category: string | undefined })
+	| (Base & { readonly kind: 'swimming-area'; readonly category: string | undefined })
+	| (Base & { readonly kind: 'buoy'; readonly category: string | undefined })
 	| (Base & {
 			readonly kind: 'light';
 			readonly character: string | undefined;
@@ -73,7 +75,9 @@ export const DIVE_FEATURE_KINDS = [
 	'wreck',
 	'rock',
 	'restricted-area',
+	'swimming-area',
 	'mooring',
+	'buoy',
 	'light',
 	'dive-centre',
 	'slipway',
@@ -102,6 +106,17 @@ const parseDepth = (raw: string | undefined): Depth | undefined => {
 
 const entries = (raw: string | undefined): readonly DiveEntry[] =>
 	semicolonList(raw).filter((v): v is DiveEntry => v === 'shore' || v === 'boat');
+
+/**
+ * Categories of restricted area that mark water people are meant to be in.
+ *
+ * A bathing zone carries the same `seamark:type=restricted_area` as a live firing
+ * range, and drawing both with a no-entry sign told a diver the wrong thing about
+ * the twenty-eight recreation zones on this coast. The rule the zone carries is
+ * about boats, not about swimmers, so these become their own kind and take the
+ * swimmer.
+ */
+const SWIMMING_ZONES: ReadonlySet<string> = new Set(['swimming', 'recreation_zone']);
 
 /** Prefix on the per-site hazard flags, one tag per danger. */
 export const DANGER_TAG_PREFIX = 'scuba_diving:dangers:';
@@ -205,14 +220,14 @@ export function parseDiveFeature(ref: OsmRef, tags: OsmTags): DiveFeature | unde
 			};
 		case 'rock':
 			return { ...base, kind: 'rock', waterLevel: tags['seamark:rock:water_level'] };
-		case 'restricted_area':
+		case 'restricted_area': {
+			const category = tags['seamark:restricted_area:category'];
+			return category !== undefined && SWIMMING_ZONES.has(category)
+				? { ...base, kind: 'swimming-area', category }
+				: { ...base, kind: 'restricted-area', category };
+		}
 		case 'buoy_special_purpose':
-			return {
-				...base,
-				kind: 'restricted-area',
-				category:
-					tags['seamark:restricted_area:category'] ?? tags['seamark:buoy_special_purpose:category']
-			};
+			return { ...base, kind: 'buoy', category: tags['seamark:buoy_special_purpose:category'] };
 		case 'light_minor':
 		case 'light_major':
 		case 'beacon_lateral':

@@ -24,6 +24,7 @@ const ca = {
 	smoothing: 'Contorns suavitzats',
 	relief: 'Ombrejat del relleu',
 	depthTint: 'Vel de fondària',
+	zeroIsobathHint: 'El 0 m és la línia de costa.',
 	depthTintOverPhoto:
 		'Apagat mentre hi ha la fotografia a sota. L’aigua de la foto ja diu la fondària, i l’isòbata de sobre la diu exacta.',
 	satellite: 'Satèl·lit',
@@ -191,6 +192,8 @@ const ca = {
 	kindWreck: 'Derelicte',
 	kindRock: 'Roca submergida',
 	kindRestrictedArea: 'Zona restringida',
+	kindSwimmingArea: 'Zona de bany',
+	kindBuoy: 'Balisa',
 	kindLight: 'Far',
 	kindHarbour: 'Port',
 	kindSlipway: 'Rampa',
@@ -222,6 +225,8 @@ const ca = {
 	zoneSwimming: 'Zona de bany',
 	zoneRecreation: 'Zona recreativa',
 	zoneSpeedLimit: 'Límit de velocitat',
+	buoyOdas: 'Boia oceanogràfica',
+	buoyLanby: 'Boia far',
 	configs: 'Configuracions',
 	configsWhatIsSaved:
 		'Una configuració desa les capes, les marques, les isòbates, el fons, el full d’impressió i l’idioma. No desa on mires: carregar-ne una no et mou de lloc.',
@@ -293,6 +298,7 @@ const es: Catalogue = {
 	smoothing: 'Contornos suavizados',
 	relief: 'Sombreado del relieve',
 	depthTint: 'Velo de profundidad',
+	zeroIsobathHint: 'El 0 m es la línea de costa.',
 	depthTintOverPhoto:
 		'Apagado mientras está la fotografía debajo. El agua de la foto ya dice la profundidad, y la isóbata de encima la dice exacta.',
 	satellite: 'Satélite',
@@ -461,6 +467,8 @@ const es: Catalogue = {
 	kindWreck: 'Pecio',
 	kindRock: 'Roca sumergida',
 	kindRestrictedArea: 'Zona restringida',
+	kindSwimmingArea: 'Zona de baño',
+	kindBuoy: 'Baliza',
 	kindLight: 'Faro',
 	kindHarbour: 'Puerto',
 	kindSlipway: 'Rampa',
@@ -492,6 +500,8 @@ const es: Catalogue = {
 	zoneSwimming: 'Zona de baño',
 	zoneRecreation: 'Zona recreativa',
 	zoneSpeedLimit: 'Límite de velocidad',
+	buoyOdas: 'Boya oceanográfica',
+	buoyLanby: 'Boya faro',
 	configs: 'Configuraciones',
 	configsWhatIsSaved:
 		'Una configuración guarda las capas, las marcas, las isóbatas, el fondo, la hoja de impresión y el idioma. No guarda dónde miras: cargar una no te mueve de sitio.',
@@ -561,6 +571,7 @@ const en: Catalogue = {
 	smoothing: 'Smoothed outlines',
 	relief: 'Relief shading',
 	depthTint: 'Depth veil',
+	zeroIsobathHint: '0 m is the shoreline.',
 	depthTintOverPhoto:
 		'Off while the photograph is underneath. The water in the picture already says how deep it looks, and the isobath over it says how deep it is.',
 	satellite: 'Satellite',
@@ -726,6 +737,8 @@ const en: Catalogue = {
 	kindWreck: 'Wreck',
 	kindRock: 'Submerged rock',
 	kindRestrictedArea: 'Restricted area',
+	kindSwimmingArea: 'Swimming area',
+	kindBuoy: 'Buoy',
 	kindLight: 'Light',
 	kindHarbour: 'Harbour',
 	kindSlipway: 'Slipway',
@@ -757,6 +770,8 @@ const en: Catalogue = {
 	zoneSwimming: 'Swimming zone',
 	zoneRecreation: 'Recreation zone',
 	zoneSpeedLimit: 'Speed limit',
+	buoyOdas: 'Data buoy',
+	buoyLanby: 'Light buoy',
 	configs: 'Configurations',
 	configsWhatIsSaved:
 		'A configuration saves the layers, the marks, the isobaths, the bottom, the print sheet and the language. It does not save where you are looking, so loading one never moves you.',

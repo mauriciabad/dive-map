@@ -35,6 +35,13 @@ export const ICONS = {
 		]
 	},
 
+	/**
+	 * Bands closing up as they descend to a solid floor: darker with depth. The
+	 * sounding arrow this replaces is the isobath labels' own icon, so the two
+	 * switches said the same thing and neither said depth veil.
+	 */
+	depthVeil: { d: ['M3 5h18', 'M3 9.5h18', 'M3 13h18', 'M3 15.8h18'], fill: ['M3 18h18v3H3z'] },
+
 	/** Seagrass fronds rising off the bottom. */
 	habitat: {
 		d: [
@@ -130,19 +137,14 @@ export const ICONS = {
 	markerDisc: { d: [], fill: ['M12 1.8a10.2 10.2 0 1 0 0 20.4 10.2 10.2 0 0 0 0-20.4'] },
 
 	/**
-	 * Bubbles rising. Somebody is down there, which is what a dive site is.
-	 *
-	 * The gaps are the drawing. Two shapes closer than twice the halo merge into
-	 * one lozenge at marker size, which is why this one sits on a plate and takes
-	 * almost no halo of its own.
+	 * The diver-down flag, which is the one mark every boat on this coast already
+	 * reads. The staff and the outline are the drawing; the two triangles either
+	 * side of the diagonal band are gaps, so the red plate underneath shows through
+	 * them and the flag comes out red with a white stripe across it.
 	 */
 	markerDiveSite: {
-		d: [],
-		dots: [
-			[9.2, 16.2, 2.8],
-			[13.6, 11.3, 2.05],
-			[16.8, 7.2, 1.35]
-		]
+		d: ['M5.8 4.4v15.2', 'M5.8 6.2h11.8v7.8H5.8z'],
+		fill: ['M5.8 6.2h3.5l8.3 7.8h-3.5z']
 	},
 
 	/** A hull gone over with its mast still up, the chart's own way of saying wreck. */
@@ -166,6 +168,29 @@ export const ICONS = {
 	/** The one mark that has to mean stop without being read. */
 	markerRestricted: {
 		d: ['M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2', 'M6 6 18 18']
+	},
+
+	/**
+	 * Somebody swimming at the surface, which is what a bathing zone is. The same
+	 * wave the rock and the slipway are drawn against, so the three read as one set.
+	 *
+	 * Head, torso and arm all touch. Two strokes closer than twice the halo merge
+	 * into a blob at marker size, and a swimmer whose head has come off is worse
+	 * than no swimmer.
+	 */
+	markerSwimmer: {
+		d: ['M2.4 20.2q2.9-2.2 5.8 0t5.8 0 5.8 0', 'M7.4 13.2h7', 'M8.8 13 12.8 7.2 18.4 10.2'],
+		dots: [[6, 12.6, 2.4]]
+	},
+
+	/**
+	 * A can buoy with the cross topmark that makes it a special mark: the yellow
+	 * thing strung around a bathing zone. The mast carries the cross, so the whole
+	 * drawing is one connected shape and nothing merges into the can.
+	 */
+	markerBuoy: {
+		d: ['M2.4 20.4q2.9-2.2 5.8 0t5.8 0 5.8 0', 'M12 11V4.4', 'M9.8 4 14.2 8.4', 'M14.2 4 9.8 8.4'],
+		fill: ['M8.2 11h7.6l-1.3 6.8H9.5z']
 	},
 
 	/** A lamp throwing its beam, which is all a light is to someone on deck. */

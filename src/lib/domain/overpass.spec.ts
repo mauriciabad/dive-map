@@ -80,8 +80,9 @@ describe('the reduction', () => {
 			new Set([
 				'harbour',
 				'mooring',
+				'buoy',
 				'light',
-				'restricted-area',
+				'swimming-area',
 				'wreck',
 				'dive-site',
 				'dive-centre',

@@ -8,7 +8,7 @@ import {
 	type OsmTags,
 	parseDiveFeature
 } from '$lib/domain/osm';
-import { GROUND_FILL_LAYERS } from '$lib/map/style';
+import { GROUND_DEPTH_LAYER, GROUND_FILL_LAYERS } from '$lib/map/style';
 import type { Depth } from '$lib/domain/units';
 import { type Locale, localisedName } from '$lib/i18n/locale';
 import { type MessageKey, t } from '$lib/i18n/messages';
@@ -36,7 +36,7 @@ export const OSM_PICK_LAYERS = [
 	'osm-restricted'
 ] as const;
 
-export const GROUND_PICK_LAYERS = GROUND_FILL_LAYERS;
+export const GROUND_PICK_LAYERS = [...GROUND_FILL_LAYERS, GROUND_DEPTH_LAYER] as const;
 
 export const SEABED_LIMIT = 3;
 
@@ -74,7 +74,9 @@ const KIND_PRIORITY: Record<DiveFeatureKind, number> = {
 	slipway: 6,
 	'dive-centre': 7,
 	harbour: 8,
-	'restricted-area': 9
+	buoy: 9,
+	'swimming-area': 10,
+	'restricted-area': 11
 };
 
 /**
@@ -142,6 +144,8 @@ export const KIND_LABEL: Record<DiveFeatureKind, MessageKey> = {
 	wreck: 'kindWreck',
 	rock: 'kindRock',
 	'restricted-area': 'kindRestrictedArea',
+	'swimming-area': 'kindSwimmingArea',
+	buoy: 'kindBuoy',
 	light: 'kindLight',
 	harbour: 'kindHarbour',
 	slipway: 'kindSlipway',
@@ -166,8 +170,10 @@ export const heroDepthOf = (feature: DiveFeature): HeroDepth | undefined => {
 		case 'wreck':
 			return { label: 'depth', metres: feature.wreckDepth };
 		case 'mooring':
+		case 'buoy':
 		case 'rock':
 		case 'restricted-area':
+		case 'swimming-area':
 		case 'light':
 		case 'harbour':
 		case 'slipway':
@@ -217,6 +223,14 @@ const ZONE_LABEL: Record<string, MessageKey> = {
 	swimming: 'zoneSwimming',
 	recreation_zone: 'zoneRecreation',
 	speed_limit: 'zoneSpeedLimit'
+};
+
+/** The special marks this coast actually carries, out of the IALA list. */
+const BUOY_LABEL: Record<string, MessageKey> = {
+	recreation_zone: 'zoneRecreation',
+	speed_limit: 'zoneSpeedLimit',
+	odas: 'buoyOdas',
+	lanby: 'buoyLanby'
 };
 
 const labelled = (
@@ -278,7 +292,9 @@ export const detailRowsOf = (feature: DiveFeature, locale: Locale): readonly Det
 			return level === undefined ? [] : [{ label: 'waterLevel', values: [level] }];
 		}
 		case 'mooring':
+		case 'buoy':
 		case 'restricted-area':
+		case 'swimming-area':
 		case 'harbour':
 		case 'slipway':
 		case 'ladder':
@@ -292,7 +308,10 @@ const categoryText = (feature: DiveFeature, locale: Locale): string | undefined 
 		case 'mooring':
 			return labelled(MOORING_LABEL, locale, feature.category);
 		case 'restricted-area':
+		case 'swimming-area':
 			return labelled(ZONE_LABEL, locale, feature.category);
+		case 'buoy':
+			return labelled(BUOY_LABEL, locale, feature.category);
 		case 'dive-site':
 		case 'wreck':
 		case 'rock':
