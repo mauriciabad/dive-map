@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { featureFilter } from '@maplibre/maplibre-gl-style-spec';
 import {
 	GROUND_BY_LAYER,
+	PHOTOGRAPHS,
 	type LayerWriter,
 	type StyleOptions,
 	applyIsobathLayers,
@@ -72,36 +73,64 @@ describe('the ortophoto and the paint over it', () => {
 	});
 
 	/**
-	 * The owner asked for ICGC and got IGN, because an earlier attempt could not
-	 * find an ICGC template that served a tile. ICGC is the body that made the
-	 * bathymetry this whole map is drawn from, so its photograph is the one that
-	 * lines up with the survey. IGN stays underneath to fill in past the coast,
-	 * which means the order of these two layers is the feature and not an accident.
+	 * The owner asked for ICGC four times and kept getting IGN. Twice the cause was
+	 * a template that served no tile, and once it was `orto-costa` on its own: that
+	 * layer is a ribbon along the shore, so a few kilometres inland every tile came
+	 * back as the 334-byte transparent no-data PNG and the whole screen fell through
+	 * to PNOA under a credit line naming ICGC.
+	 *
+	 * The answer the owner chose is these two and no others. PNOA carries the land
+	 * because it is the only one of the four with any, and the 5 cm coastal flight
+	 * carries the water. So this ordering is the feature, not an accident.
 	 */
-	it('draws the Catalan photograph over the national one, both on the one switch', () => {
+	it('draws the 5 cm coastal photograph over the national one by default', () => {
 		const ids = buildStyle(withSatellite()).layers.map((l) => l.id);
-		expect(ids.indexOf('satellite-icgc')).toBeGreaterThan(ids.indexOf('satellite'));
+		expect(ids.indexOf('satellite-icgc-bathymetry')).toBeGreaterThan(ids.indexOf('satellite'));
+	});
+
+	it('puts up those two and leaves the other photographs down', () => {
+		const up = (id: string) =>
+			buildStyle(withSatellite()).layers.find((l) => l.id === id)?.layout?.visibility;
+		expect(up('satellite')).toBe('visible');
+		expect(up('satellite-icgc-bathymetry')).toBe('visible');
+		expect(up('satellite-icgc-territorial')).toBe('none');
+		expect(up('satellite-icgc')).toBe('none');
 	});
 
 	/**
-	 * `orto-costa` is a ribbon along the shore. On its own it left the map showing
-	 * PNOA a few kilometres inland under a credit line naming ICGC: at the camera
-	 * the app had last been left on, a field outside Palafrugell, all 35 coastal
-	 * tiles the screen asked for came back as the 334-byte transparent no-data PNG.
-	 * The territorial layer is what covers that ground, and it has to sit between
-	 * the two so the coastal strip still wins its 10 cm where it has any.
+	 * A picker stores a set, never an order. Listing a 25 cm photograph after the
+	 * 5 cm one must not put it on top, so the stack is always drawn in catalogue
+	 * order and the option is read as membership.
 	 */
-	it('stacks the three photographs coarsest first', () => {
-		const ids = buildStyle(withSatellite()).layers.map((l) => l.id);
-		expect(ids.indexOf('satellite-icgc-territorial')).toBeGreaterThan(ids.indexOf('satellite'));
-		expect(ids.indexOf('satellite-icgc')).toBeGreaterThan(
+	it('paints picked photographs coarsest first whatever order they were asked for', () => {
+		const ids = buildStyle(
+			withSatellite({ photographs: ['satellite-icgc-bathymetry', 'satellite-icgc-territorial'] })
+		).layers.map((l) => l.id);
+		expect(ids.indexOf('satellite-icgc-bathymetry')).toBeGreaterThan(
 			ids.indexOf('satellite-icgc-territorial')
 		);
 	});
 
+	it('lets a diver ask for a photograph the default leaves out', () => {
+		const layer = buildStyle(
+			withSatellite({ photographs: ['satellite-icgc'] })
+		).layers.find((l) => l.id === 'satellite-icgc');
+		expect(layer?.layout?.visibility).toBe('visible');
+	});
+
+	/**
+	 * Every photograph stays in the style and the unpicked ones are merely hidden,
+	 * so turning one back on is a visibility diff rather than a style rebuild that
+	 * would drop every warm tile on screen.
+	 */
+	it('keeps every photograph in the style whatever the picker says', () => {
+		const ids = buildStyle(withSatellite({ photographs: [] })).layers.map((l) => l.id);
+		for (const photo of PHOTOGRAPHS) expect(ids).toContain(photo.id);
+	});
+
 	it('puts every photograph away together', () => {
-		for (const id of ['satellite', 'satellite-icgc-territorial', 'satellite-icgc']) {
-			const layer = buildStyle(options()).layers.find((l) => l.id === id);
+		for (const photo of PHOTOGRAPHS) {
+			const layer = buildStyle(options()).layers.find((l) => l.id === photo.id);
 			expect(layer?.layout?.visibility).toBe('none');
 		}
 	});
