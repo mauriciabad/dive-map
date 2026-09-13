@@ -374,7 +374,7 @@ describe('service worker routing', () => {
 		expect(route('https://tiles.example.com/a.pmtiles')).toBe('ignore');
 		// The ortophoto is somebody else's photograph on somebody else's server, and a
 		// saved area is for the survey. Cross-origin is what keeps it out.
-		expect(route('https://www.ign.es/wmts/pnoa-ma?service=WMTS')).toBe('ignore');
+		expect(route('https://www.ign.es/wms-inspire/pnoa-ma?service=WMS')).toBe('ignore');
 		expect(route(`${origin}/`, 'POST')).toBe('ignore');
 	});
 

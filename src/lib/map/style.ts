@@ -188,18 +188,34 @@ export const SATELLITE_SOURCE_ID = 'satellite';
 export const ICGC_SATELLITE_SOURCE_ID = 'satellite-icgc';
 
 /**
- * PNOA Máxima Actualidad, the national ortophoto, over IGN's WMTS. It covers the
- * whole Spanish coast down to 25 cm and serves tiles to z20 at Tamariu. It is the
- * backing photograph, not the one this map is about.
+ * PNOA Máxima Actualidad, the national ortophoto. It covers the whole Spanish
+ * coast down to 25 cm and serves to z20 at Tamariu. It is the backing
+ * photograph, not the one this map is about.
+ *
+ * The INSPIRE WMS rather than the WMTS at the same host, and that is the whole
+ * point of it. PNOA is flown over land, so it has nothing over the sea, and the
+ * WMTS answers for the sea anyway: a 256 px opaque JPEG of flat near-black, a
+ * different shade per tile. Measured off Begur at z14, three sea tiles came back
+ * at luminance 7.8, 7.6 and 28.1, which is what put a black rectangle with a
+ * visible tile grid over the water the moment a diver switched the photograph
+ * on, in the half of the map they are here for.
+ *
+ * The WMS with `transparent=true` answers the same three tiles with a 334-byte
+ * fully transparent PNG, and `image/vnd.jpeg-png` keeps the JPEG where there is
+ * something to send: 15.6 KB over Begur against the WMTS's 17.9 KB. Which is the
+ * same arrangement the ICGC layer above already runs on, for the same reason.
+ * Over twelve land tiles it is also the faster of the two, at a median 455 ms
+ * against 581 ms, so the tile cache was not buying anything either.
  *
  * Neither source here is ours. Neither is precached: the service worker ignores
  * every cross-origin request, so an area saved for the boat holds the survey and
  * not somebody else's photograph.
  */
 const SATELLITE_TILES =
-	'https://www.ign.es/wmts/pnoa-ma?service=WMTS&request=GetTile&version=1.0.0' +
-	'&layer=OI.OrthoimageCoverage&style=default&tilematrixset=GoogleMapsCompatible' +
-	'&format=image/jpeg&TileMatrix={z}&TileCol={x}&TileRow={y}';
+	'https://www.ign.es/wms-inspire/pnoa-ma?service=WMS&request=GetMap&version=1.1.1' +
+	'&layers=OI.OrthoimageCoverage&styles=&srs=EPSG:3857' +
+	'&format=image/vnd.jpeg-png&transparent=true' +
+	'&width=256&height=256&bbox={bbox-epsg-3857}';
 
 /**
  * ICGC's Ortofoto de costa, which is the photograph that belongs on this map.
