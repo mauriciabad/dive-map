@@ -1,5 +1,6 @@
 <script lang="ts">
 	import {
+		AttributionControl,
 		Map as MapLibre,
 		Marker,
 		NavigationControl,
@@ -30,6 +31,8 @@
 		sizeForScreen,
 		texturePalette
 	} from './textures';
+	import type { Locale } from '$lib/i18n/locale';
+	import { t } from '$lib/i18n/messages';
 	import type { MapState } from '$lib/state/map-view.svelte';
 	import type { LngLat } from '$lib/domain/card';
 
@@ -47,6 +50,68 @@
 
 	let map: MapLibre | undefined;
 	let applied: unknown;
+
+	// MapLibre renders attribution as HTML, so these are real links rather than the
+	// names of places you cannot get to.
+	const ATTRIBUTION = [
+		'<a href="https://www.icgc.cat/" target="_blank" rel="noopener">ICGC</a> batimetria i línia de costa, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>',
+		'<a href="https://mediambient.gencat.cat/ca/05_ambits_dactuacio/patrimoni_natural/sistemes_dinformacio/habitats/habitats-marins/" target="_blank" rel="noopener">Hàbitats marins</a> © Generalitat de Catalunya, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>',
+		'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
+	].join(' · ');
+
+	/** The strings MapLibre draws itself, under the ids it looks them up by. */
+	const controlStrings = (locale: Locale): Record<string, string> => ({
+		'Map.Title': t(locale, 'mapRegion'),
+		'NavigationControl.ZoomIn': t(locale, 'zoomIn'),
+		'NavigationControl.ZoomOut': t(locale, 'zoomOut'),
+		'NavigationControl.ResetBearing': t(locale, 'resetNorth'),
+		'AttributionControl.ToggleAttribution': t(locale, 'mapCredits')
+	});
+
+	/** MapLibre's own chrome, held so its labels can be made to follow the language. */
+	let chrome:
+		| { readonly attribution: AttributionControl; readonly navigation: NavigationControl }
+		| undefined;
+
+	/**
+	 * MapLibre's own chrome, added in the order its corners expect.
+	 *
+	 * The attribution control is built here rather than by the map constructor for
+	 * one reason: `relabel` needs to hold it. Bottom-right stacks in reverse, so
+	 * attribution first is what keeps the scale bar to the left of the credits.
+	 */
+	const addChrome = (m: MapLibre): void => {
+		const attribution = new AttributionControl({ customAttribution: ATTRIBUTION });
+		const navigation = new NavigationControl({ visualizePitch: false });
+		m.addControl(attribution, 'bottom-right');
+		m.addControl(navigation, 'top-right');
+		m.addControl(new ScaleControl({ maxWidth: 140, unit: 'metric' }), 'bottom-right');
+		chrome = { attribution, navigation };
+	};
+
+	/**
+	 * Say the map's own furniture again, in the language just chosen.
+	 *
+	 * Every string here is read once, when the thing that shows it is built, out of
+	 * a table on the map that MapLibre offers no public way to replace. So the
+	 * table is written and each control is asked to read its own title again.
+	 * Removing and adding the controls instead would relabel them and reorder the
+	 * corner: MapLibre appends at the top positions, so a rebuilt zoom stack lands
+	 * under the locate button. A diver who switches language on the boat gets the
+	 * new words and the same map.
+	 */
+	const relabel = (m: MapLibre, locale: Locale): void => {
+		Object.assign(m._locale, controlStrings(locale));
+		// The canvas label is read while MapLibre builds the container and never
+		// again, and no control owns it, so it is written here.
+		m.getCanvas().setAttribute('aria-label', t(locale, 'mapRegion'));
+		if (chrome === undefined) return;
+		const { attribution, navigation } = chrome;
+		attribution._setElementTitle(attribution._compactButton, 'ToggleAttribution');
+		navigation._setButtonTitle(navigation._zoomInButton, 'ZoomIn');
+		navigation._setButtonTitle(navigation._zoomOutButton, 'ZoomOut');
+		navigation._setButtonTitle(navigation._compass, 'ResetBearing');
+	};
 
 	const style = $derived(
 		buildStyle({
@@ -148,19 +213,13 @@
 			bearing,
 			maxPitch: 0,
 			canvasContextAttributes: { preserveDrawingBuffer: true },
-			attributionControl: {
-				// MapLibre renders attribution as HTML, so these are real links rather
-				// than the names of places you cannot get to.
-				customAttribution: [
-					'<a href="https://www.icgc.cat/" target="_blank" rel="noopener">ICGC</a> batimetria i línia de costa, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>',
-					'<a href="https://mediambient.gencat.cat/ca/05_ambits_dactuacio/patrimoni_natural/sistemes_dinformacio/habitats/habitats-marins/" target="_blank" rel="noopener">Hàbitats marins</a> © Generalitat de Catalunya, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>',
-					'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
-				].join(' · ')
-			}
+			locale: controlStrings(untrack(() => view.locale)),
+			// Added below instead, with the rest of MapLibre's own chrome, so a
+			// language chosen mid-dive can rebuild all of it together.
+			attributionControl: false
 		});
 
-		m.addControl(new NavigationControl({ visualizePitch: false }), 'top-right');
-		m.addControl(new ScaleControl({ maxWidth: 140, unit: 'metric' }), 'bottom-right');
+		addChrome(m);
 		// Not inside 'load'. Offline is the normal mode on a boat, and a load that
 		// never fires would leave every one of our controls unmounted while
 		// MapLibre's own zoom buttons sat there looking fine.
@@ -219,6 +278,7 @@
 		map = m;
 		return () => {
 			publishMap(undefined);
+			chrome = undefined;
 			pin?.remove();
 			pin = undefined;
 			m.remove();
@@ -236,6 +296,11 @@
 		const wanted = texturePalette(view.textures);
 		const m = map;
 		if (m !== undefined) void loadPatterns(m, wanted);
+	});
+
+	$effect(() => {
+		const locale = view.locale;
+		if (map !== undefined) relabel(map, locale);
 	});
 
 	/**

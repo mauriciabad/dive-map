@@ -125,6 +125,16 @@
 		})
 	);
 
+	/*
+	 * The document's language. `app.html` can only carry a guess, because the page
+	 * is one prerendered file served to everybody, and a screen reader picks its
+	 * voice from this attribute: Catalan labels read in an English voice stay that
+	 * way for the whole dive unless it follows the language actually chosen.
+	 */
+	$effect(() => {
+		document.documentElement.lang = view.locale;
+	});
+
 	/** Wet fingers need slack; the seabed needs more, so a site on a habitat
 	 *  boundary names both sides rather than whichever pixel was under the thumb. */
 	const box = (x: number, y: number, r: number): [[number, number], [number, number]] => [
