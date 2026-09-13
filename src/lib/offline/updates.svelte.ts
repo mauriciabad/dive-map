@@ -1,16 +1,5 @@
-import type { Locale } from '$lib/i18n/locale';
 
 export type UpdateStatus = 'idle' | 'ready' | 'taking';
-
-/**
- * These belong in src/lib/i18n/messages.ts and are here only so that adding them
- * does not collide with the other edits in flight against that file.
- */
-export const UPDATE_MESSAGES: Record<Locale, { readonly ready: string; readonly take: string }> = {
-	ca: { ready: 'Hi ha una versió nova del mapa', take: 'Actualitzar' },
-	es: { ready: 'Hay una versión nueva del mapa', take: 'Actualizar' },
-	en: { ready: 'A new version of the map is ready', take: 'Update' }
-};
 
 /**
  * Whether a new version has landed under a map somebody is using, and is waiting

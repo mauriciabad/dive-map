@@ -21,7 +21,7 @@
 	import { POSITION_ZOOM, SURVEY_CENTRE, grantedFix, nearSurvey } from '$lib/state/opening';
 	import { negotiate } from '$lib/i18n/locale';
 	import { t } from '$lib/i18n/messages';
-	import { UPDATE_MESSAGES, updates } from '$lib/offline/updates.svelte';
+	import { updates } from '$lib/offline/updates.svelte';
 
 	const view = new MapState(navigator.languages);
 
@@ -417,13 +417,13 @@
 	     rather than say anything about it. -->
 	{#if updates.status !== 'idle' && view.error === undefined}
 		<div class="update" role="status">
-			<span>{UPDATE_MESSAGES[view.locale].ready}</span>
+			<span>{t(view.locale, 'updateReady')}</span>
 			<button
 				type="button"
 				disabled={updates.status === 'taking'}
 				onclick={() => {
 					updates.take();
-				}}>{UPDATE_MESSAGES[view.locale].take}</button
+				}}>{t(view.locale, 'updateTake')}</button
 			>
 		</div>
 	{/if}
