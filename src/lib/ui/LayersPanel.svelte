@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Panel from './Panel.svelte';
+	import Action from './controls/Action.svelte';
 	import Field from './controls/Field.svelte';
 	import Note from './controls/Note.svelte';
 	import Segmented from './controls/Segmented.svelte';
@@ -8,6 +9,7 @@
 	import type { IconName } from './icons';
 	import { PANEL_ID } from './panel';
 	import type { LayerId } from '$lib/domain/card';
+	import type { Ground } from '$lib/domain/habitat';
 	import { type MessageKey, t } from '$lib/i18n/messages';
 	import type { MapState } from '$lib/state/map-view.svelte';
 
@@ -17,8 +19,6 @@
 	}
 
 	const { view, onclose }: Props = $props();
-
-	type Ground = 'habitats' | 'substrate';
 
 	interface LayerRow {
 		readonly id: LayerId;
@@ -57,6 +57,13 @@
 			}}
 		/>
 		<Note>{t(view.locale, 'accuracyNote')}</Note>
+		<Action
+			label={t(view.locale, 'legendOpen')}
+			icon="legend"
+			onclick={() => {
+				view.openPanel('legend');
+			}}
+		/>
 	</Field>
 
 	<div class="rows">

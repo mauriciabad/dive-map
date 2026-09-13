@@ -19,3 +19,9 @@ export interface Reading {
 	readonly label: string;
 	readonly value: string;
 }
+
+/** A texture file and the width one repeat of it occupies on screen, for a `Swatch`. */
+export interface TextureSample {
+	readonly url: string;
+	readonly repeatCssPx: number;
+}

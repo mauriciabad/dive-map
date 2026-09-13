@@ -2,6 +2,7 @@
 	import IsobathsPanel from './IsobathsPanel.svelte';
 	import LanguagePanel from './LanguagePanel.svelte';
 	import LayersPanel from './LayersPanel.svelte';
+	import LegendPanel from './LegendPanel.svelte';
 	import MapControls from './MapControls.svelte';
 	import type { PanelState } from './panel';
 	import PrintPanel from '$lib/print/PrintPanel.svelte';
@@ -41,6 +42,8 @@
 
 {#if open === 'layers'}
 	<LayersPanel {view} onclose={close} />
+{:else if open === 'legend'}
+	<LegendPanel {view} onclose={close} />
 {:else if open === 'isobaths'}
 	<IsobathsPanel {view} onclose={close} />
 {:else if open === 'print'}

@@ -12,6 +12,9 @@
 /** How much a diver cares. Drives legend order and which classes get a label. */
 export type Prominence = 'signature' | 'notable' | 'background' | 'infrastructure';
 
+/** The two ground layers. The state, the style and the legend all mean this by it. */
+export type Ground = 'habitats' | 'substrate';
+
 /**
  * The three languages a card prints. Both catalogues extend this, so a class that
  * drops one is a compile error here rather than a blank label on a boat.
@@ -369,17 +372,32 @@ export const HABITATS: readonly HabitatClass[] = [
 export interface SubstrateClass extends Localised {
 	readonly raster: number;
 	readonly code: string;
+	/**
+	 * Editorial, not published: the substrate spec has no such field. Each value is
+	 * the one carried by the habitat class with the same published code, and where
+	 * no habitat shares the code, the one carried by its nearest twin.
+	 */
+	readonly prominence: Prominence;
 	readonly texture: string;
 }
 
 export const SUBSTRATES: readonly SubstrateClass[] = [
-	{ raster: 1, code: '301', ca: 'Roca', es: 'Roca', en: 'Rock', texture: 'ch_rock' },
+	{
+		raster: 1,
+		code: '301',
+		ca: 'Roca',
+		es: 'Roca',
+		en: 'Rock',
+		prominence: 'notable',
+		texture: 'ch_rock'
+	},
 	{
 		raster: 2,
 		code: '302',
 		ca: 'Roca parcialment recoberta per sediments',
 		es: 'Roca parcialmente cubierta por sedimentos',
 		en: 'Rock partly covered by sediment',
+		prominence: 'notable',
 		texture: 'ch_rocks'
 	},
 	{
@@ -388,6 +406,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		ca: 'Argiles terrígenes compactades infralitorals',
 		es: 'Arcillas terrígenas compactadas infralitorales',
 		en: 'Compacted infralittoral terrigenous clay',
+		prominence: 'background',
 		texture: 'ch_dirt'
 	},
 	{
@@ -396,6 +415,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		ca: 'Esculls biogènics',
 		es: 'Arrecifes biógenos',
 		en: 'Biogenic reefs',
+		prominence: 'signature',
 		texture: 'ch_cobblestone'
 	},
 	{
@@ -404,6 +424,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		ca: 'Sediments grollers (còdols i graves)',
 		es: 'Sedimentos gruesos (cantos y gravas)',
 		en: 'Coarse sediment (cobbles and gravel)',
+		prominence: 'background',
 		texture: 'ch_cobblestone'
 	},
 	{
@@ -412,6 +433,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		ca: 'Arena i arena fangosa',
 		es: 'Arena y arena fangosa',
 		en: 'Sand and muddy sand',
+		prominence: 'background',
 		texture: 'ch_sand'
 	},
 	{
@@ -420,6 +442,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		ca: 'Fangs i fangs sorrencs',
 		es: 'Fangos y fangos arenosos',
 		en: 'Mud and sandy mud',
+		prominence: 'background',
 		texture: 'ch_dirt_mud'
 	},
 	{
@@ -428,6 +451,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		ca: 'Sediments mixtes',
 		es: 'Sedimentos mixtos',
 		en: 'Mixed sediment',
+		prominence: 'background',
 		texture: 'ch_sandy'
 	},
 	{
@@ -436,6 +460,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		ca: 'Rocós antròpic',
 		es: 'Sustrato duro artificial',
 		en: 'Anthropogenic rock',
+		prominence: 'infrastructure',
 		texture: 'ch_bluestones'
 	},
 	{
@@ -444,15 +469,25 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		ca: 'Emissaris i altres conduccions',
 		es: 'Emisarios y otras conducciones',
 		en: 'Outfalls and other pipelines',
+		prominence: 'infrastructure',
 		texture: 'metal'
 	},
-	{ raster: 11, code: '70102b', ca: 'Cables', es: 'Cables', en: 'Cables', texture: 'metal' },
+	{
+		raster: 11,
+		code: '70102b',
+		ca: 'Cables',
+		es: 'Cables',
+		en: 'Cables',
+		prominence: 'infrastructure',
+		texture: 'metal'
+	},
 	{
 		raster: 12,
 		code: '70103',
 		ca: 'Esculls (biòtops) artificials',
 		es: 'Arrecifes artificiales',
 		en: 'Artificial reefs',
+		prominence: 'signature',
 		texture: 'ch_stones'
 	},
 	{
@@ -461,6 +496,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		ca: 'Derelictes',
 		es: 'Pecios',
 		en: 'Wrecks',
+		prominence: 'signature',
 		texture: 'ch_shipwood'
 	},
 	{
@@ -469,6 +505,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		ca: 'Instal·lacions petrolieres',
 		es: 'Instalaciones petrolíferas',
 		en: 'Oil installations',
+		prominence: 'infrastructure',
 		texture: 'metal'
 	},
 	{
@@ -477,6 +514,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		ca: 'Morts de boies i ancoratges',
 		es: 'Muertos de boyas y fondeos',
 		en: 'Mooring blocks and anchorages',
+		prominence: 'infrastructure',
 		texture: 'metal'
 	},
 	{
@@ -485,6 +523,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		ca: "Infraestructures d'aqüicultura",
 		es: 'Infraestructuras acuícolas',
 		en: 'Aquaculture infrastructure',
+		prominence: 'infrastructure',
 		texture: 'metal'
 	},
 	{
@@ -493,6 +532,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		ca: 'Observatoris científics permanents',
 		es: 'Observatorios científicos permanentes',
 		en: 'Permanent scientific observatories',
+		prominence: 'infrastructure',
 		texture: 'metal'
 	},
 	{
@@ -501,6 +541,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		ca: "Fons sedimentaris d'origen antròpic",
 		es: 'Sustrato sedimentario artificial',
 		en: 'Anthropogenic sedimentary bottoms',
+		prominence: 'background',
 		texture: 'ch_dirt_dark'
 	},
 	{
@@ -509,6 +550,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		ca: "Fons sedimentaris d'origen antròpic (abocaments)",
 		es: 'Sustrato sedimentario artificial (vertidos)',
 		en: 'Anthropogenic sedimentary bottoms (dumping)',
+		prominence: 'background',
 		texture: 'ch_dirt_dark'
 	},
 	{
@@ -517,6 +559,7 @@ export const SUBSTRATES: readonly SubstrateClass[] = [
 		ca: "Fons sedimentaris d'origen antròpic (rases de dragatge)",
 		es: 'Sustrato sedimentario artificial (zanjas de dragado)',
 		en: 'Anthropogenic sedimentary bottoms (dredge trenches)',
+		prominence: 'background',
 		texture: 'ch_dirt_lines_02'
 	}
 ];
@@ -541,14 +584,15 @@ export const PROMINENCE_ORDER: readonly Prominence[] = [
 	'infrastructure'
 ];
 
+/** The one legend order: how much a diver cares, then the catalogue's own order. */
+export const byProminence = (a: SeabedClass, b: SeabedClass): number =>
+	PROMINENCE_ORDER.indexOf(a.prominence) - PROMINENCE_ORDER.indexOf(b.prominence) ||
+	a.raster - b.raster;
+
 /** Legend entries a card shows, most diver-relevant first, capped for A3 legibility. */
 export const legendFor = (present: ReadonlySet<string>, limit: number): readonly HabitatClass[] =>
 	HABITATS.filter((h) => h.code !== undefined && present.has(h.code))
-		.sort(
-			(a, b) =>
-				PROMINENCE_ORDER.indexOf(a.prominence) - PROMINENCE_ORDER.indexOf(b.prominence) ||
-				a.raster - b.raster
-		)
+		.sort(byProminence)
 		.slice(0, limit);
 
 /**
@@ -561,6 +605,9 @@ export type SeabedClass = HabitatClass | SubstrateClass;
 
 export const seabedClassByCode = (code: string): SeabedClass | undefined =>
 	substrateByCode.get(code) ?? habitatByCode.get(code);
+
+export const catalogueOf = (ground: Ground): readonly SeabedClass[] =>
+	ground === 'habitats' ? HABITATS : SUBSTRATES;
 
 export const textureForCode = (code: string): string | undefined =>
 	seabedClassByCode(code)?.texture;

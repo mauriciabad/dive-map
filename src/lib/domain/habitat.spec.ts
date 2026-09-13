@@ -3,6 +3,7 @@ import live from './fixtures/live-codes.json' with { type: 'json' };
 import {
 	HABITATS,
 	SUBSTRATES,
+	byProminence,
 	habitatByCode,
 	legendFor,
 	seabedClassByCode,
@@ -43,6 +44,11 @@ describe('seabed catalogue', () => {
 	it('caps the legend so an A3 sheet stays readable', () => {
 		const every = new Set(HABITATS.flatMap((h) => (h.code === undefined ? [] : [h.code])));
 		expect(legendFor(every, 8)).toHaveLength(8);
+	});
+
+	it('sorts a wreck ahead of sand on the substrate layer too', () => {
+		const order = [...SUBSTRATES].sort(byProminence).map((s) => s.raster);
+		expect(order.indexOf(13)).toBeLessThan(order.indexOf(6));
 	});
 
 	it('maps Posidonia to the seagrass texture', () => {

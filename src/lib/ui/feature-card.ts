@@ -1,10 +1,4 @@
-import {
-	HABITATS,
-	SUBSTRATES,
-	type SeabedClass,
-	legendFor,
-	seabedClassByCode
-} from '$lib/domain/habitat';
+import { type SeabedClass, byProminence, seabedClassByCode } from '$lib/domain/habitat';
 import {
 	type DiveEntry,
 	type DiveFeature,
@@ -128,28 +122,19 @@ export const pickFrom = (
 	};
 };
 
-const CATALOGUE: readonly SeabedClass[] = [...SUBSTRATES, ...HABITATS];
-
 /**
- * The ground layer can be the substrate layer, whose codes ('301' Roca and the
- * rest) are SubstrateClass and invisible to legendFor. Take legendFor's ordering
- * and cap first, then fill from the catalogues for whatever it could not see.
+ * The classes under the tap, most diver-relevant first and capped at what the
+ * card has room for. The codes come from whichever ground layer is drawn, so
+ * they are resolved against both catalogues rather than against one.
  */
 export const seabedFrom = (
 	codes: ReadonlySet<string>,
 	limit = SEABED_LIMIT
-): readonly SeabedClass[] => {
-	const chosen: SeabedClass[] = [...legendFor(codes, limit)];
-	const covered = new Set(chosen.map((c) => c.code));
-	for (const entry of CATALOGUE) {
-		if (entry.code === undefined || covered.has(entry.code) || !codes.has(entry.code)) continue;
-		const resolved = seabedClassByCode(entry.code);
-		if (resolved === undefined) continue;
-		covered.add(entry.code);
-		chosen.push(resolved);
-	}
-	return chosen.slice(0, limit);
-};
+): readonly SeabedClass[] =>
+	[...codes]
+		.flatMap((code) => seabedClassByCode(code) ?? [])
+		.sort(byProminence)
+		.slice(0, limit);
 
 export const KIND_LABEL: Record<DiveFeatureKind, MessageKey> = {
 	'dive-site': 'kindDiveSite',

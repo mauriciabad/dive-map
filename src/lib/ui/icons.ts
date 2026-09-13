@@ -69,6 +69,9 @@ export const ICONS = {
 	/** A framed sheet, for print. */
 	print: { d: ['M6 3h12v18H6z', 'M9 8h6', 'M9 12h6', 'M9 16h3'] },
 
+	/** Two swatches, each with its line of caption: the legend. */
+	legend: { d: ['M4 5h6v6H4z', 'M14 8h6', 'M4 14h6v6H4z', 'M14 17h6'] },
+
 	/** Crop corners, for the framing overlay. */
 	frame: { d: ['M4 9V4h5', 'M15 4h5v5', 'M20 15v5h-5', 'M9 20H4v-5'] },
 
