@@ -42,8 +42,25 @@ const WHEEL_NOTCH = 40;
 /** How long a gesture that has given itself away keeps its verdict, in ms. */
 const GESTURE_MEMORY = 400;
 
+/**
+ * How much zoom a pinch buys, against MapLibre's own 1/100.
+ *
+ * MapLibre keeps two rates and picks between them by what it decided the event
+ * was. A mouse wheel arrives in whole notches of about a hundred pixels and takes
+ * the slow rate; a pinch arrives as a stream of small fractional deltas and takes
+ * this one. Doubling it halves the finger travel a pinch needs, which is what the
+ * owner asked for, and it cannot touch the wheel because the wheel never reads
+ * this number.
+ *
+ * `setZoomRate` is the public name for the pinch one. It is set here rather than
+ * in the map's options because this is the file that decides what a trackpad
+ * means, and two places deciding that is how they come apart.
+ */
+const PINCH_ZOOM_RATE = 1 / 50;
+
 export const trackpadGestures: MapAttachment = (map) => {
 	const container = map.getContainer();
+	map.scrollZoom.setZoomRate(PINCH_ZOOM_RATE);
 	let trackpadUntil = 0;
 	let alongX = 0;
 	let alongY = 0;
