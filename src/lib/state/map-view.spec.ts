@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { haloOf, paintOf } from '$lib/domain/isobaths';
 import { MapState } from './map-view.svelte.ts';
 
 describe('what the photograph does to the layers under it', () => {
@@ -57,5 +58,48 @@ describe('what the photograph does to the layers under it', () => {
 		expect([view.shows('depth-tint'), view.shows('hillshade')]).toEqual([false, false]);
 		view.toggle('satellite');
 		expect([view.shows('depth-tint'), view.shows('hillshade')]).toEqual([true, true]);
+	});
+});
+
+describe('what the photograph does to the contour outline', () => {
+	const outlined = (view: MapState): boolean => haloOf(view.isobaths).on;
+
+	it('draws it when a photograph arrives and drops it when the photograph goes', () => {
+		const view = new MapState();
+		expect(outlined(view)).toBe(false);
+		view.toggle('satellite');
+		expect(outlined(view)).toBe(true);
+		view.toggle('satellite');
+		expect(outlined(view)).toBe(false);
+	});
+
+	it('leaves an outline the diver drew over the chart alone', () => {
+		const view = new MapState();
+		view.toggleHalo();
+		view.toggle('satellite');
+		view.toggle('satellite');
+		expect(outlined(view)).toBe(true);
+	});
+
+	it('lets go of an outline the diver dropped while the photograph was up', () => {
+		const view = new MapState();
+		view.toggle('satellite');
+		view.toggleHalo();
+		view.toggle('satellite');
+		expect(outlined(view)).toBe(false);
+		view.toggle('satellite');
+		expect(outlined(view)).toBe(true);
+	});
+
+	it('keeps the colour and the strength across all of that', () => {
+		const view = new MapState();
+		view.toggle('satellite');
+		view.isobaths = {
+			...view.isobaths,
+			paint: { ...paintOf(view.isobaths), halo: { ...haloOf(view.isobaths), opacity: 0.8 } }
+		};
+		view.toggle('satellite');
+		view.toggle('satellite');
+		expect(haloOf(view.isobaths).opacity).toBe(0.8);
 	});
 });

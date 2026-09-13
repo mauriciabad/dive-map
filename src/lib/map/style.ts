@@ -449,7 +449,7 @@ const isobathWidth = (
 ];
 
 /**
- * The stroke under every contour, and what the ortophoto does to it.
+ * The stroke under every contour, and what the outline switch does to it.
  *
  * Over the painted seabed it is a soft dark shadow dropped a pixel and a half,
  * and that is all the separation the palette needs. The depth bands run from
@@ -461,6 +461,10 @@ const isobathWidth = (
  * number. So the shadow becomes a halo instead: centred rather than dropped, and
  * 0.7 px proud of the line on each side at every zoom.
  *
+ * Which stroke is drawn is `halo.on` and nothing else. The base map works that
+ * switch rather than this expression, so a diver can keep the outline over the
+ * chart or drop it over a photograph and get what they asked for either way.
+ *
  * 0.7 and not more. At 1.2 the thin metre contours came out as threads of halo
  * with a hint of colour in them, because the halo was then wider than the 0.7 px
  * line it was carrying. Compared side by side over the photograph at zoom 16.4,
@@ -470,24 +474,20 @@ const isobathWidth = (
  * The colour and strength are the diver's, and `DEFAULT_HALO` says why white at
  * part opacity beat the near-opaque black this started as.
  */
-const HALO_WIDENING_OVER_PHOTO = 1.4;
+const HALO_WIDENING = 1.4;
 
 const isobathCasing = (options: StyleOptions): NonNullable<LineLayerSpecification['paint']> => {
 	const halo = haloOf(options.isobaths);
-	const overPhoto = options.visible.includes('satellite') && halo.on;
 	return {
-		// Opacity as its own property over the photograph, so a diver dragging the
+		// Opacity as its own property on the outline, so a diver dragging the
 		// strength slider changes one number rather than the map rebuilding a colour
-		// string. The chart branch keeps its alpha in the colour, so it asks for 1
+		// string. The shadow branch keeps its alpha in the colour, so it asks for 1
 		// here: MapLibre multiplies the two.
-		'line-color': overPhoto ? halo.colour : 'rgba(4, 16, 24, 0.55)',
-		'line-opacity': overPhoto ? halo.opacity : 1,
-		'line-blur': overPhoto ? 0.6 : 2.2,
-		'line-translate': overPhoto ? [0, 0] : [0, 1.6],
-		'line-width': isobathWidth(
-			heavyDepths(options.isobaths),
-			overPhoto ? HALO_WIDENING_OVER_PHOTO : 0
-		)
+		'line-color': halo.on ? halo.colour : 'rgba(4, 16, 24, 0.55)',
+		'line-opacity': halo.on ? halo.opacity : 1,
+		'line-blur': halo.on ? 0.6 : 2.2,
+		'line-translate': halo.on ? [0, 0] : [0, 1.6],
+		'line-width': isobathWidth(heavyDepths(options.isobaths), halo.on ? HALO_WIDENING : 0)
 	};
 };
 

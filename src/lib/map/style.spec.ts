@@ -152,29 +152,27 @@ describe('the ortophoto and the paint over it', () => {
 	});
 
 	/**
-	 * The halo exists because a photograph puts the contours over ground nobody
+	 * The outline exists because a photograph puts the contours over ground nobody
 	 * chose. It started near-opaque black, which fixed the pale bands over bright
 	 * sand and lost every line over dark water. White at part opacity is the
 	 * owner's call, and it is the default a diver lands on.
 	 */
-	it('carries a white part-opacity halo under the contours over a photograph', () => {
-		const paint = paintOf(withSatellite(), 'isobath-glow');
+	it('carries a white part-opacity outline under the contours when it is on', () => {
+		const paint = paintOf(withSatellite({ isobaths: withHalo({ on: true }) }), 'isobath-glow');
 		expect(paint['line-color']).toBe('#ffffff');
-		expect(paint['line-opacity']).toBe(0.55);
+		expect(paint['line-opacity']).toBe(0.2);
 	});
 
-	it('draws the contours the chart way when the halo is switched off', () => {
+	it('drops back to the shadow when the outline is switched off', () => {
 		const off = paintOf(withSatellite({ isobaths: withHalo({ on: false }) }), 'isobath-glow');
-		const chart = paintOf(options(), 'isobath-glow');
-		expect(off['line-color']).toEqual(chart['line-color']);
-		expect(off['line-opacity']).toEqual(chart['line-opacity']);
-		expect(off['line-translate']).toEqual(chart['line-translate']);
-		expect(off['line-blur']).toEqual(chart['line-blur']);
+		expect(off['line-color']).toBe('rgba(4, 16, 24, 0.55)');
+		expect(off['line-opacity']).toBe(1);
+		expect(off['line-translate']).toEqual([0, 1.6]);
 	});
 
 	it('takes the colour and the strength a diver picked', () => {
 		const paint = paintOf(
-			withSatellite({ isobaths: withHalo({ colour: '#02090e', opacity: 0.92 }) }),
+			withSatellite({ isobaths: withHalo({ on: true, colour: '#02090e', opacity: 0.92 }) }),
 			'isobath-glow'
 		);
 		expect(paint['line-color']).toBe('#02090e');
@@ -182,13 +180,15 @@ describe('the ortophoto and the paint over it', () => {
 	});
 
 	/**
-	 * The halo is the photograph's problem alone. Over the chart the contours keep
-	 * the soft dropped shadow they have always had, whatever the halo is set to.
+	 * The outline is the switch's business and no longer the photograph's. A diver
+	 * who draws it over the chart gets it over the chart, which is what makes
+	 * `MapState` and not this expression the thing that answers to the base map.
 	 */
-	it('leaves the chart alone whatever the halo says', () => {
-		const loud = paintOf(options({ isobaths: withHalo({ colour: '#ffffff', opacity: 1 }) }), 'isobath-glow');
-		expect(loud['line-color']).toBe('rgba(4, 16, 24, 0.55)');
-		expect(loud['line-opacity']).toBe(1);
+	it('draws the outline over the chart as well when it is on', () => {
+		const chart = paintOf(options({ isobaths: withHalo({ on: true }) }), 'isobath-glow');
+		expect(chart['line-color']).toBe('#ffffff');
+		expect(chart['line-opacity']).toBe(0.2);
+		expect(chart['line-translate']).toEqual([0, 0]);
 	});
 
 	/**
@@ -233,12 +233,13 @@ describe('isobath contrast', () => {
 		expect(casing['line-color']).toBe('rgba(4, 16, 24, 0.55)');
 	});
 
-	it('turns the shadow into a centred casing wider than the line over the photograph', () => {
-		const casing = paintOf(options({ visible: withPhoto(DEFAULT_LAYERS) }), 'isobath-glow');
+	it('turns the shadow into a centred casing wider than the line when the outline is on', () => {
+		const drawn = options({ visible: withPhoto(DEFAULT_LAYERS), isobaths: withHalo({ on: true }) });
+		const casing = paintOf(drawn, 'isobath-glow');
 		expect(casing['line-translate']).toEqual([0, 0]);
 
 		const width = casing['line-width'];
-		const line = paintOf(options({ visible: withPhoto(DEFAULT_LAYERS) }), 'isobath')['line-width'];
+		const line = paintOf(drawn, 'isobath')['line-width'];
 		if (!Array.isArray(width) || !Array.isArray(line))
 			throw new Error('widths are not expressions');
 		// The thinnest contour at the widest zoom: the casing has to be proud of it.

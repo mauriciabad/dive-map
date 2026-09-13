@@ -53,8 +53,8 @@
 	]);
 
 	/**
-	 * The two that mean anything against a photograph. The domain takes any hex, so
-	 * a hand-edited configuration keeps whatever it carries and this picker simply
+	 * The two that mean anything under a contour. The domain takes any hex, so a
+	 * hand-edited configuration keeps whatever it carries and this picker simply
 	 * shows neither as selected until the diver touches it.
 	 */
 	const HALO_DARK = '#02090e';
@@ -126,13 +126,26 @@
 		<Note>{t(view.locale, 'paintMethodHint')}</Note>
 	</Field>
 
+	<Field label={t(view.locale, 'emphasised')}>
+		<DepthRuler
+			locale={view.locale}
+			style={view.isobaths}
+			zoom={view.zoom}
+			onchange={(next: IsobathStyle) => {
+				view.isobaths = next;
+			}}
+		/>
+		<Note>{t(view.locale, 'rulerHint')}</Note>
+		<Note>{t(view.locale, 'zeroIsobathHint')}</Note>
+	</Field>
+
 	<Field label={t(view.locale, 'halo')}>
 		<Toggle
 			label={t(view.locale, 'haloOn')}
 			icon="isobath"
 			pressed={halo.on}
 			onchange={() => {
-				setHalo({ on: !halo.on });
+				view.toggleHalo();
 			}}
 		/>
 		{#if halo.on}
@@ -156,19 +169,6 @@
 			/>
 		{/if}
 		<Note>{t(view.locale, 'haloHint')}</Note>
-	</Field>
-
-	<Field label={t(view.locale, 'emphasised')}>
-		<DepthRuler
-			locale={view.locale}
-			style={view.isobaths}
-			zoom={view.zoom}
-			onchange={(next: IsobathStyle) => {
-				view.isobaths = next;
-			}}
-		/>
-		<Note>{t(view.locale, 'rulerHint')}</Note>
-		<Note>{t(view.locale, 'zeroIsobathHint')}</Note>
 	</Field>
 
 	<Toggle

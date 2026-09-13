@@ -245,10 +245,10 @@ describe('reading back what the ruler wrote', () => {
 		const read = parseIsobathPaint({
 			method: 'upwards',
 			marks: {},
-			halo: { on: false, colour: 'white', opacity: 4 }
+			halo: { on: true, colour: 'white', opacity: 4 }
 		});
 		expect(read.paint?.halo).toEqual({
-			on: false,
+			on: true,
 			colour: DEFAULT_HALO.colour,
 			opacity: DEFAULT_HALO.opacity
 		});

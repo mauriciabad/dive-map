@@ -32,6 +32,7 @@ import {
 	seabedKey,
 	withoutChoice
 } from '$lib/domain/habitat';
+import { haloOf, paintOf } from '$lib/domain/isobaths';
 import { type Locale, negotiate } from '$lib/i18n/locale';
 import { type Camera, type Configuration, shippedConfiguration } from './configuration.ts';
 
@@ -202,6 +203,7 @@ export class MapState {
 	apply(configuration: Configuration): void {
 		this.visible.clear();
 		this.#suspended.clear();
+		this.#haloRaised = false;
 		for (const id of configuration.layers) this.visible.add(id);
 		this.groundLayer = configuration.ground;
 		this.smoothed = configuration.smoothed;
@@ -271,6 +273,41 @@ export class MapState {
 	readonly #suspended = new SvelteSet<LayerId>();
 
 	/**
+	 * Whether the photograph is the reason the contour outline is on.
+	 *
+	 * The mirror of `#suspended`, for a setting that is not a layer. The outline
+	 * exists because a photograph puts the contours over ground nobody chose, so a
+	 * base map raises it and taking that base map away lowers it again. A diver who
+	 * drew the outline over the chart themselves, or who dropped it while the
+	 * photograph was on, has said what they want, and this stays false so the next
+	 * base map leaves their answer alone.
+	 */
+	#haloRaised = false;
+
+	/** The outline switch, worked by hand. Whatever the photograph did to it stops counting. */
+	toggleHalo(): void {
+		this.#haloRaised = false;
+		this.#drawHalo(!haloOf(this.isobaths).on);
+	}
+
+	#drawHalo(on: boolean): void {
+		const paint = paintOf(this.isobaths);
+		this.isobaths = { ...this.isobaths, paint: { ...paint, halo: { ...paint.halo, on } } };
+	}
+
+	#settleHalo(): void {
+		if (this.visible.has('satellite')) {
+			if (haloOf(this.isobaths).on) return;
+			this.#haloRaised = true;
+			this.#drawHalo(true);
+			return;
+		}
+		if (!this.#haloRaised) return;
+		this.#haloRaised = false;
+		this.#drawHalo(false);
+	}
+
+	/**
 	 * Bring the suspended layers in line with the photograph, in either direction.
 	 *
 	 * Restoring is not the same as turning on, which is the whole reason there is a
@@ -280,8 +317,12 @@ export class MapState {
 	 *
 	 * Safe to run against any state, so `apply` can call it on a stored
 	 * configuration written before the photograph suspended anything.
+	 *
+	 * The contour outline goes the other way, off by default and raised by the
+	 * photograph, so `#settleHalo` runs first and reads the same flag.
 	 */
 	#settlePhoto(): void {
+		this.#settleHalo();
 		if (this.visible.has('satellite')) {
 			this.#suspended.clear();
 			for (const { id } of SUSPENDED_BY_PHOTO) {

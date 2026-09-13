@@ -32,7 +32,7 @@ export interface MarkPaint {
 }
 
 /**
- * The outline carried under every contour where it crosses the photograph.
+ * The outline carried under every contour.
  *
  * Over the painted seabed the contours need nothing but a soft shadow: the
  * palette is a known quantity, bands at luminance 150 to 210 over ground around
@@ -46,10 +46,11 @@ export interface MarkPaint {
  * and a white outline separates the line from the picture without turning the
  * contour into a black thread with a hint of colour in it.
  *
- * Off draws the contours over a photograph exactly as they are drawn over the
- * chart, which is what a diver who dislikes the whole treatment wants. Keeping
- * `on` separate from `opacity` means turning it off and back on does not cost
- * them the colour and strength they had picked.
+ * `on` draws it wherever the contours go, the chart included, and the base map
+ * works the switch. A photograph raises it, and taking the photograph away puts
+ * it back where the diver had it rather than where the photograph left it. See
+ * `MapState`. Keeping `on` apart from `colour` and `opacity` means none of that
+ * flicking costs them the colour and strength they had picked.
  */
 export interface IsobathHalo {
 	readonly on: boolean;
@@ -59,7 +60,12 @@ export interface IsobathHalo {
 	readonly opacity: number;
 }
 
-export const DEFAULT_HALO: IsobathHalo = { on: true, colour: '#ffffff', opacity: 0.55 };
+/**
+ * Off, because the map opens on the chart and the dropped shadow is all the
+ * separation the chart palette needs. The first photograph a diver puts under
+ * the contours turns it on for them.
+ */
+export const DEFAULT_HALO: IsobathHalo = { on: false, colour: '#ffffff', opacity: 0.2 };
 
 /**
  * Everything the depth ruler writes, keyed by depth rather than held beside
@@ -73,7 +79,7 @@ export const DEFAULT_HALO: IsobathHalo = { on: true, colour: '#ffffff', opacity:
 export interface IsobathPaint {
 	readonly method: PaintMethod;
 	readonly marks: Readonly<Record<number, MarkPaint>>;
-	/** What the contours carry under them over a photograph. */
+	/** What the contours carry under them. */
 	readonly halo: IsobathHalo;
 	/**
 	 * Whether a marked line that no band reaches keeps a colour of its own.
@@ -460,7 +466,7 @@ const parseHalo = (value: unknown): IsobathHalo => {
 	const colour = value['colour'];
 	const opacity = value['opacity'];
 	return {
-		on: value['on'] !== false,
+		on: value['on'] === true,
 		colour: typeof colour === 'string' && HEX.test(colour) ? colour : DEFAULT_HALO.colour,
 		opacity:
 			typeof opacity === 'number' && Number.isFinite(opacity) && opacity >= 0 && opacity <= 1
