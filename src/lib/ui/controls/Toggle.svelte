@@ -13,12 +13,25 @@
 		readonly pressed: boolean;
 		readonly onchange: () => void;
 		readonly icon?: IconName;
+		/**
+		 * Greyed and unclickable. Always pass `reason` with it: a switch that stops
+		 * working without saying why is the thing this exists to avoid.
+		 */
+		readonly disabled?: boolean;
+		readonly reason?: string | undefined;
 	}
 
-	const { label, pressed, onchange, icon }: Props = $props();
+	const { label, pressed, onchange, icon, disabled = false, reason }: Props = $props();
 </script>
 
-<button type="button" class="toggle" aria-pressed={pressed} onclick={onchange}>
+<button
+	type="button"
+	class="toggle"
+	aria-pressed={pressed}
+	{disabled}
+	title={reason}
+	onclick={onchange}
+>
 	{#if icon !== undefined}
 		<Icon name={icon} size={20} />
 	{/if}
@@ -44,8 +57,13 @@
 		transition: background var(--control-ease);
 	}
 
-	.toggle:hover {
+	.toggle:hover:not(:disabled) {
 		background: var(--control-hover);
+	}
+
+	.toggle:disabled {
+		cursor: default;
+		opacity: 0.45;
 	}
 
 	.label {

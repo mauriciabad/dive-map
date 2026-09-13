@@ -27,6 +27,29 @@ import { type Locale, negotiate } from '$lib/i18n/locale';
 import { type Camera, type Configuration, shippedConfiguration } from './configuration.ts';
 
 /**
+ * Layers the photograph switches off while it is on, and whether it also holds
+ * the switch down.
+ *
+ * Both draw a second opinion over a picture that already shows the thing they
+ * draw, so both go off. Only the veil is locked. It is the water column painted
+ * as alpha laid over a photograph of the water, which is wrong rather than
+ * merely redundant, and the isobath above it already gives the exact metre. The
+ * relief lights the rock under the surface, which is a fair thing to want back,
+ * so that switch keeps working.
+ *
+ * Switched off here rather than hidden in the style, which is where it was and is
+ * not the same thing. `depth-tint` drives two layers, the veil and the wash over
+ * sea past the survey's edge, and the style only ever silenced the veil. A diver
+ * who had dialled the land paint up therefore got the wash over their photograph
+ * with no switch on screen to explain it. One flag off at the source takes down
+ * everything that reads it.
+ */
+const SUSPENDED_BY_PHOTO: readonly { readonly id: LayerId; readonly locked: boolean }[] = [
+	{ id: 'depth-tint', locked: true },
+	{ id: 'hillshade', locked: false }
+];
+
+/**
  * Everything the side panel changes and the style reads. One object rather than
  * scattered stores, so the style rebuild has a single source to diff against.
  *
@@ -126,6 +149,7 @@ export class MapState {
 
 	apply(configuration: Configuration): void {
 		this.visible.clear();
+		this.#suspended.clear();
 		for (const id of configuration.layers) this.visible.add(id);
 		this.groundLayer = configuration.ground;
 		this.smoothed = configuration.smoothed;
@@ -138,6 +162,7 @@ export class MapState {
 		// stored pixel sheet carrying a scale ratio comes back framed by zoom. The
 		// latitude is the live one because that is where the ratio has to hold.
 		if (configuration.print !== undefined) this.print.apply(configuration.print, this.centre.lat);
+		this.#settlePhoto();
 	}
 
 	/**
@@ -164,8 +189,46 @@ export class MapState {
 		return this.visible.has(id);
 	}
 
+	/** Whether the photograph is holding this layer's switch down, so the panel can say why. */
+	lockedByPhoto(id: LayerId): boolean {
+		return (
+			this.visible.has('satellite') && SUSPENDED_BY_PHOTO.some((l) => l.id === id && l.locked)
+		);
+	}
+
 	toggle(id: LayerId): void {
+		if (this.lockedByPhoto(id)) return;
 		if (!this.visible.delete(id)) this.visible.add(id);
+		// Flipping a suspended layer by hand is the diver taking it back, so there is
+		// no longer anything of theirs to restore when the photograph goes away.
+		if (id === 'satellite') this.#settlePhoto();
+		else this.#suspended.delete(id);
+	}
+
+	/** What was on before the photograph took it away, so it can go back exactly there. */
+	readonly #suspended = new SvelteSet<LayerId>();
+
+	/**
+	 * Bring the suspended layers in line with the photograph, in either direction.
+	 *
+	 * Restoring is not the same as turning on, which is the whole reason there is a
+	 * set here instead of a pair of booleans. A diver who had the relief shading off
+	 * before they asked for the photograph gets it back off, because they are the
+	 * one who turned it off and nobody asked them to do it twice.
+	 *
+	 * Safe to run against any state, so `apply` can call it on a stored
+	 * configuration written before the photograph suspended anything.
+	 */
+	#settlePhoto(): void {
+		if (this.visible.has('satellite')) {
+			this.#suspended.clear();
+			for (const { id } of SUSPENDED_BY_PHOTO) {
+				if (this.visible.delete(id)) this.#suspended.add(id);
+			}
+			return;
+		}
+		for (const id of this.#suspended) this.visible.add(id);
+		this.#suspended.clear();
 	}
 
 	setInterval(metres: number): void {

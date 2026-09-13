@@ -291,14 +291,16 @@ describe('how much paint is left over the photograph', () => {
 		return readWorking(store, 'ca')?.configuration;
 	};
 
-	it('keeps a step the panel can show as chosen, on either side of the shore', () => {
+	it('keeps any level the slider can reach, on either side of the shore', () => {
 		expect(stored({ seabedPaint: 0.25 })?.seabedPaint).toBe(0.25);
-		expect(stored({ landPaint: 0.75 })?.landPaint).toBe(0.75);
+		expect(stored({ seabedPaint: 0.63 })?.seabedPaint).toBe(0.63);
 		expect(stored({ landPaint: 0 })?.landPaint).toBe(0);
+		expect(stored({ landPaint: 1 })?.landPaint).toBe(1);
 	});
 
-	it('refuses a level no control could display, rather than storing it', () => {
-		expect(stored({ seabedPaint: 0.63 })?.seabedPaint).toBe(DEFAULT_SEABED_PAINT);
+	it('refuses a level off the scale or not a number at all', () => {
+		expect(stored({ seabedPaint: 1.4 })?.seabedPaint).toBe(DEFAULT_SEABED_PAINT);
+		expect(stored({ seabedPaint: -0.2 })?.seabedPaint).toBe(DEFAULT_SEABED_PAINT);
 		expect(stored({ landPaint: 'half' })?.landPaint).toBe(DEFAULT_LAND_PAINT);
 	});
 

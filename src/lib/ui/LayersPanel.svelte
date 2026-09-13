@@ -4,11 +4,12 @@
 	import Field from './controls/Field.svelte';
 	import Note from './controls/Note.svelte';
 	import Segmented from './controls/Segmented.svelte';
+	import Slider from './controls/Slider.svelte';
 	import Toggle from './controls/Toggle.svelte';
 	import type { Choice } from './controls/types';
 	import type { IconName } from './icons';
 	import { PANEL_ID } from './panel';
-	import { PAINT_LEVELS, type LayerId, type PaintLevel } from '$lib/domain/card';
+	import type { LayerId } from '$lib/domain/card';
 	import type { Ground } from '$lib/domain/habitat';
 	import { type MessageKey, t } from '$lib/i18n/messages';
 	import type { MapState } from '$lib/state/map-view.svelte';
@@ -40,10 +41,6 @@
 		{ value: 'substrate', label: t(view.locale, 'substrate'), icon: 'substrate' }
 	]);
 
-	const paints: readonly Choice<PaintLevel>[] = PAINT_LEVELS.map((value) => ({
-		value,
-		label: `${value * 100}%`
-	}));
 </script>
 
 <Panel
@@ -103,21 +100,19 @@
 			-->
 			<div class="under">
 				<Field label={t(view.locale, 'seabedPaint')}>
-					<Segmented
-						options={paints}
+					<Slider
+						label={t(view.locale, 'seabedPaint')}
 						value={view.seabedPaint}
-						numeric
-						onselect={(next: PaintLevel) => {
+						onchange={(next: number) => {
 							view.seabedPaint = next;
 						}}
 					/>
 				</Field>
 				<Field label={t(view.locale, 'landPaint')}>
-					<Segmented
-						options={paints}
+					<Slider
+						label={t(view.locale, 'landPaint')}
 						value={view.landPaint}
-						numeric
-						onselect={(next: PaintLevel) => {
+						onchange={(next: number) => {
 							view.landPaint = next;
 						}}
 					/>
@@ -125,20 +120,32 @@
 			</div>
 		{/if}
 		<!--
-			The depth veil row goes with the veil. Over a photograph the veil is a second
-			sheet of blue over water that already looks like water, so the style drops it,
-			and a switch that claims to control a layer nobody is drawing is worse than no
-			switch at all.
+			The depth veil row stays on screen while the photograph holds it off. It used
+			to be dropped from the list, which left a diver who had just turned the
+			photograph on looking at a panel one row shorter than the one they knew, with
+			nothing anywhere saying where the veil had gone. Greyed with the reason on it
+			answers the question the empty space asked.
 		-->
-		{#each LAYER_ROWS.filter((row) => row.id !== 'depth-tint' || !view.shows('satellite')) as row (row.id)}
+		{#each LAYER_ROWS as row (row.id)}
+			{@const held = view.lockedByPhoto(row.id)}
 			<Toggle
 				label={t(view.locale, row.key)}
 				icon={row.icon}
 				pressed={view.shows(row.id)}
+				disabled={held}
+				reason={held ? t(view.locale, 'depthTintOverPhoto') : undefined}
 				onchange={() => {
 					view.toggle(row.id);
 				}}
 			/>
+			<!--
+				The reason again, in the panel. `title` is the tooltip the owner asked for
+				and it is a hover, and nobody hovers on a phone on a boat. Only while the
+				row is held, so it is not a permanent line of small print.
+			-->
+			{#if held}
+				<Note>{t(view.locale, 'depthTintOverPhoto')}</Note>
+			{/if}
 		{/each}
 		<Action
 			label={t(view.locale, 'markersOpen')}

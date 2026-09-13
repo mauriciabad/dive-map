@@ -51,23 +51,22 @@ export type LayerId =
 
 /**
  * How much of the map's own paint is left on top of the photograph, one level per
- * side of the shore.
+ * side of the shore. 0 is the bare photograph, 1 is the painted map with the
+ * photograph buried under it.
  *
  * The photograph itself is never dimmed. It is the bottom of the stack, so the
  * only thing that decides whether a diver can see it is how much paint is left
  * over it, and that is the control the owner asked for: one for the seabed
- * textures, one for the land. 1 is the painted map with the photograph hidden
- * under it, 0 is the photograph on its own.
+ * textures, one for the land.
  *
- * Five steps, and 0 is one of them, because without it there is no way to ask for
- * the photograph and nothing else. A union rather than a number because it makes
- * the panel and the stored blob agree for free: every value the style can be
- * handed is one the panel can show as chosen, and a hand-edited 0.63 is refused
- * at the boundary instead of arriving as a setting no control can display.
+ * Any fraction, because the panel dials it with a slider. This used to be a union
+ * of five steps on the theory that a closed set made the panel and the stored
+ * blob agree for free. It did, and it also meant a diver hunting for the point
+ * where the habitat reads and the rock underneath still shows had four places to
+ * stand and none of them was it. The guarantee that survives is the range, and
+ * `isPaintLevel` is where a stored blob is held to it.
  */
-export const PAINT_LEVELS = [0, 0.25, 0.5, 0.75, 1] as const;
-
-export type PaintLevel = (typeof PAINT_LEVELS)[number];
+export type PaintLevel = number;
 
 /**
  * Where a diver lands when they turn the photograph on.
@@ -77,13 +76,13 @@ export type PaintLevel = (typeof PAINT_LEVELS)[number];
  * of this map and stays authoritative over the water, which is the "marine
  * habitats overlapping the IGN map" the owner asked for. The shore is the half a
  * photograph actually says something about, and a photograph of 30 m of water
- * says nothing. Either is one tap from anything else.
+ * says nothing. Either is one drag away on its slider.
  */
 export const DEFAULT_SEABED_PAINT: PaintLevel = 1;
 export const DEFAULT_LAND_PAINT: PaintLevel = 0;
 
 export const isPaintLevel = (value: unknown): value is PaintLevel =>
-	PAINT_LEVELS.some((step) => step === value);
+	typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
 
 export interface IsobathStyle {
 	/** Draw a line every this many metres. The tiles carry 1 m, the style filters. */

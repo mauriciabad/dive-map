@@ -24,6 +24,8 @@ const ca = {
 	smoothing: 'Contorns suavitzats',
 	relief: 'Ombrejat del relleu',
 	depthTint: 'Vel de fondària',
+	depthTintOverPhoto:
+		'Apagat mentre hi ha la fotografia a sota. L’aigua de la foto ja diu la fondària, i l’isòbata de sobre la diu exacta.',
 	satellite: 'Satèl·lit',
 	seabedPaint: 'Textures del fons',
 	landPaint: 'Textures de terra',
@@ -291,6 +293,8 @@ const es: Catalogue = {
 	smoothing: 'Contornos suavizados',
 	relief: 'Sombreado del relieve',
 	depthTint: 'Velo de profundidad',
+	depthTintOverPhoto:
+		'Apagado mientras está la fotografía debajo. El agua de la foto ya dice la profundidad, y la isóbata de encima la dice exacta.',
 	satellite: 'Satélite',
 	seabedPaint: 'Texturas del fondo',
 	landPaint: 'Texturas de tierra',
@@ -557,6 +561,8 @@ const en: Catalogue = {
 	smoothing: 'Smoothed outlines',
 	relief: 'Relief shading',
 	depthTint: 'Depth veil',
+	depthTintOverPhoto:
+		'Off while the photograph is underneath. The water in the picture already says how deep it looks, and the isobath over it says how deep it is.',
 	satellite: 'Satellite',
 	seabedPaint: 'Seabed textures',
 	landPaint: 'Land textures',
