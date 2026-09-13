@@ -183,6 +183,25 @@ export const ICONS = {
 		dots: [[9.4, 12, 1.35]]
 	},
 
+	/**
+	 * One thing going out to two others: the node-and-link glyph every phone
+	 * already puts on its own share sheet, which is the one place a diver has met
+	 * this button before.
+	 *
+	 * Dots rather than stroked rings, the same call `tag` makes. At the 22 px this
+	 * is read at in the corner, a ring this small closes into a blob anyway, and
+	 * the two links are cut a millimetre short of each dot so the drawing keeps
+	 * three separate marks instead of one Y.
+	 */
+	share: {
+		d: ['M9.2 10.3 14.8 7.2', 'M9.2 13.7 14.8 16.8'],
+		dots: [
+			[6, 12, 2.6],
+			[18, 5.5, 2.6],
+			[18, 18.5, 2.6]
+		]
+	},
+
 	close: { d: ['M6 6l12 12', 'M18 6 6 18'] },
 
 	chevron: { d: ['M9 5l7 7-7 7'] },

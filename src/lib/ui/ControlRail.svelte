@@ -5,6 +5,7 @@
 	import LayersPanel from './LayersPanel.svelte';
 	import LegendPanel from './LegendPanel.svelte';
 	import MapControls from './MapControls.svelte';
+	import ShareButton from './ShareButton.svelte';
 	import type { PanelState } from './panel';
 	import PrintPanel from '$lib/print/PrintPanel.svelte';
 	import { SvelteControl, whenMapReady } from '$lib/map/controls';
@@ -39,9 +40,17 @@
 				props: { view, panel },
 				className: 'maplibregl-ctrl maplibregl-ctrl-group'
 			});
+			// Added after the rail so MapLibre stacks it underneath, which puts the
+			// one button that leaves the app at the bottom of the corner.
+			const share = new SvelteControl(ShareButton, {
+				props: { view },
+				className: 'maplibregl-ctrl maplibregl-ctrl-group dive-share'
+			});
 			map.addControl(control, 'top-left');
+			map.addControl(share, 'top-left');
 			return () => {
 				map.removeControl(control);
+				map.removeControl(share);
 			};
 		})
 	);

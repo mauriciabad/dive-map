@@ -158,6 +158,17 @@ body {
 	box-shadow: var(--rail-shadow);
 }
 
+/*
+ * The share slab is the one group that has something to say outside itself. The
+ * clip above is what rounds the ends of the settings rail, and it would cut the
+ * copied pill off at the button's edge, so this group keeps the face and the
+ * border and lets the pill out.
+ */
+.maplibregl-map .maplibregl-ctrl-group.dive-share {
+	position: relative;
+	overflow: visible;
+}
+
 .maplibregl-map .maplibregl-ctrl-group button {
 	display: grid;
 	place-items: center;
