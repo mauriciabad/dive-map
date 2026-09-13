@@ -6,10 +6,13 @@ import { isStaleCache } from './cache-names.ts';
 import { cachedRangeSource } from './pmtiles-source.ts';
 import { precacheList, routeRequest, type FetchRoute } from './service-worker.ts';
 import {
+	contentTag,
 	createRangeReader,
 	memoryChunkStore,
 	parseRangeHeader,
-	rangeResponse
+	rangeResponse,
+	type ChunkStore,
+	type StoredChunk
 } from './range-cache.ts';
 import { tilesInBounds } from './tiles.ts';
 
@@ -147,6 +150,165 @@ describe('pmtiles over the chunk cache', () => {
 		expect(after).toBeDefined();
 		expect(hex(after?.data ?? new ArrayBuffer(0))).toBe(hex(before?.data ?? new ArrayBuffer(1)));
 		expect(network.requests).toBe(requestsBefore);
+	});
+});
+
+/** GitHub Pages hands out hex mtime and hex size, and a deploy moves the mtime. */
+interface Deploy {
+	etag: string;
+	requests: number;
+}
+
+function deployedServer(deploy: Deploy): typeof globalThis.fetch {
+	return (_input, init) => {
+		deploy.requests += 1;
+		const range = parseRangeHeader(new Headers(init?.headers).get('Range'));
+		if (range === null) return Promise.resolve(new Response(ARCHIVE, { status: 200 }));
+		const start = range.offset;
+		const end = Math.min(start + range.length, ARCHIVE.length);
+		return Promise.resolve(
+			new Response(ARCHIVE.slice(start, end), {
+				status: 206,
+				headers: {
+					'Content-Range': `bytes ${start}-${end - 1}/${ARCHIVE.length}`,
+					ETag: deploy.etag
+				}
+			})
+		);
+	};
+}
+
+/**
+ * What the browser actually holds, in two tiers.
+ *
+ * `cacheStorageChunkStore` reads at origin scope, so a chunk pinned by a saved
+ * area answers an ordinary map pan. Its `dropUrl` deletes only from the runtime
+ * cache it opened, because evicting what a diver pinned is the one thing it must
+ * never do. A purge therefore cannot clear a pinned chunk, which is why a stale
+ * one keeps coming back and why pmtiles keeps refusing the read after its retry.
+ */
+function twoTierStore(): {
+	store: ChunkStore;
+	pinned: Map<string, StoredChunk>;
+	runtime: Map<string, StoredChunk>;
+} {
+	const pinned = new Map<string, StoredChunk>();
+	const runtime = new Map<string, StoredChunk>();
+	const store: ChunkStore = {
+		get: (key) => Promise.resolve(pinned.get(key) ?? runtime.get(key) ?? null),
+		put: (key, chunk) => {
+			runtime.set(key, chunk);
+			return Promise.resolve();
+		},
+		dropUrl: () => {
+			runtime.clear();
+			return Promise.resolve();
+		}
+	};
+	return { store, pinned, runtime };
+}
+
+describe('an ETag that moves on every deploy', () => {
+	// The two the owner actually saw, on a coastline.pmtiles that had not changed.
+	const BEFORE = '"6aa65807-39dd38"';
+	const AFTER = '"6aa659cc-39dd38"';
+
+	it('keeps the size half and throws the deploy stamp away', () => {
+		expect(contentTag(BEFORE)).toBe('"39dd38"');
+		expect(contentTag(AFTER)).toBe(contentTag(BEFORE));
+	});
+
+	it('leaves an ETag that is already about the bytes alone', () => {
+		expect(contentTag('"9b2cf1a4e5d6079e8f3a1b2c4d5e6f70"')).toBe(
+			'"9b2cf1a4e5d6079e8f3a1b2c4d5e6f70"'
+		);
+		expect(contentTag('"fixture-v1"')).toBe('"fixture-v1"');
+		expect(contentTag(null)).toBeNull();
+	});
+
+	/**
+	 * Half warm on purpose. A deploy empties the runtime cache, but `dropUrl` and
+	 * the version sweep both leave the caches a diver pinned, and the chunk store
+	 * searches at origin scope so those still answer. A pinned chunk carrying the
+	 * old stamp meeting a fresh one carrying the new stamp is the whole bug, and a
+	 * read served entirely from either side never sees it.
+	 */
+	it('fetches only what is missing when a deploy moved nothing but the stamp', async () => {
+		const deploy: Deploy = { etag: BEFORE, requests: 0 };
+		const store = memoryChunkStore();
+		const first = createRangeReader({ store, fetch: deployedServer(deploy), chunkSize: 256 });
+		await first.read(URL_UNDER_TEST, 0, 600);
+
+		deploy.etag = AFTER;
+		deploy.requests = 0;
+		// A new reader, because a reload is what the visitor actually does.
+		const second = createRangeReader({ store, fetch: deployedServer(deploy), chunkSize: 256 });
+		const reread = await second.read(URL_UNDER_TEST, 0, 1200);
+
+		// Chunks 0 to 2 were already held and only 3 and 4 are missing. Treating the
+		// stamp as identity condemns the three and refetches all five.
+		expect(deploy.requests).toBe(2);
+		expect(reread.etag).toBe('"39dd38"');
+		expect(hex(reread.data)).toBe(hex(ARCHIVE.slice(0, 1200).buffer));
+	});
+
+	/**
+	 * The property the reported bug turns on.
+	 *
+	 * The map reads archives through pmtiles' stock `Protocol`, so the Source is
+	 * pmtiles' own `FetchSource` and the service worker answers its range requests
+	 * from the chunk cache. `FetchSource` is the only thing in pmtiles that compares
+	 * ETags: it keeps the one from the header read and throws `EtagMismatch` on any
+	 * later read that disagrees. `cachedRangeSource` never throws it, which is why
+	 * the saved-area download path was fine and only the map broke.
+	 *
+	 * So what has to hold is that the ETag on our response does not move when the
+	 * bytes did not. A pinned chunk answering the header read and a fresh chunk
+	 * answering a tile read have to agree, and before this fix they did not.
+	 */
+	it('puts one ETag on the response either side of a deploy', async () => {
+		const deploy: Deploy = { etag: BEFORE, requests: 0 };
+		const { store, pinned, runtime } = twoTierStore();
+		const warm = createRangeReader({ store, fetch: deployedServer(deploy), chunkSize: 256 });
+		await warm.read(URL_UNDER_TEST, 0, 256);
+		for (const [key, chunk] of runtime) pinned.set(key, chunk);
+		runtime.clear();
+
+		deploy.etag = AFTER;
+		const reader = createRangeReader({ store, fetch: deployedServer(deploy), chunkSize: 256 });
+		// What pmtiles reads first, and remembers the ETag of. Served from the pin.
+		const header = rangeResponse(await reader.read(URL_UNDER_TEST, 0, 100), 0);
+		// A later read the pin does not cover, so this one is fetched.
+		const tile = rangeResponse(await reader.read(URL_UNDER_TEST, 1500, 100), 1500);
+
+		expect(deploy.requests).toBeGreaterThan(0);
+		expect(header.headers.get('ETag')).toBe('"39dd38"');
+		expect(tile.headers.get('ETag')).toBe(header.headers.get('ETag'));
+	});
+
+	/**
+	 * The size half moving means a different archive, and the read that notices is
+	 * the first one to reach past what is cached. A read served entirely from a warm
+	 * cache asks nothing and so learns nothing, which is correct: that is the offline
+	 * case, and pinned chunks are what a diver pinned them for.
+	 */
+	it('purges and refetches when the size half really did move', async () => {
+		const deploy: Deploy = { etag: BEFORE, requests: 0 };
+		const store = memoryChunkStore();
+		const before = createRangeReader({ store, fetch: deployedServer(deploy), chunkSize: 256 });
+		const warmed = await before.read(URL_UNDER_TEST, 0, 600);
+		expect(warmed.etag).toBe('"39dd38"');
+
+		deploy.etag = '"6aa659cc-41aa00"';
+		deploy.requests = 0;
+		const after = createRangeReader({ store, fetch: deployedServer(deploy), chunkSize: 256 });
+		const reread = await after.read(URL_UNDER_TEST, 0, 1200);
+
+		expect(reread.etag).toBe('"41aa00"');
+		expect(reread.fromCache).toBe(false);
+		expect(deploy.requests).toBeGreaterThan(0);
+		// Every byte from the new archive, none of it mixed with the old chunks.
+		expect(hex(reread.data)).toBe(hex(ARCHIVE.slice(0, 1200).buffer));
 	});
 });
 

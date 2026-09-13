@@ -1,5 +1,35 @@
 export const CHUNK_SIZE = 65536;
 
+/**
+ * The half of an ETag that is about the bytes, with the half that is about the
+ * deploy thrown away.
+ *
+ * GitHub Pages forms its ETag as hex mtime and hex size, and a deploy rewrites
+ * every file whether or not its contents moved. This site deploys dozens of times
+ * a day, so a returning visitor with a warm cache routinely meets a different
+ * ETag on an archive that is byte for byte the one they already hold. pmtiles
+ * compares the two, refuses the read, and the map does not start. That is issue
+ * #24: `"6aa65807-39dd38"` against `"6aa659cc-39dd38"` on a `coastline.pmtiles`
+ * that had not changed all day.
+ *
+ * The size half is the half that means something. These archives are build
+ * artefacts at fixed URLs, so a content change moves the byte count, and two of
+ * exactly equal length at one URL are the same archive. An ETag in any other
+ * shape, an S3 or Cloudflare content hash for instance, is already a statement
+ * about the bytes and is kept whole.
+ *
+ * The result is strong, never `W/`, because pmtiles discards a weak ETag outright
+ * and an archive with no identity at all is worse than one with a coarse one.
+ */
+const MTIME_AND_SIZE = /^(?:W\/)?"([0-9a-f]+)-([0-9a-f]+)"$/i;
+
+export function contentTag(etag: string | null | undefined): string | null {
+	if (etag === null || etag === undefined) return null;
+	const trimmed = etag.trim();
+	const size = MTIME_AND_SIZE.exec(trimmed)?.[2];
+	return size === undefined ? trimmed : `"${size}"`;
+}
+
 export interface StoredChunk {
 	/** Pinned to ArrayBuffer, not ArrayBufferLike, so the bytes can be a Response body directly. */
 	readonly bytes: Uint8Array<ArrayBuffer>;
@@ -45,6 +75,13 @@ export function chunkKey(url: string, index: number, chunkSize: number): string 
 	return key.toString();
 }
 
+/** Every chunk key of one archive is its URL with `__chunk` put back. */
+function archiveOf(key: string): string {
+	const url = new URL(key);
+	url.searchParams.delete('__chunk');
+	return url.toString();
+}
+
 function parseContentRangeTotal(header: string | null): number | null {
 	if (header === null) return null;
 	const total = /\/(\d+)\s*$/.exec(header)?.[1];
@@ -54,6 +91,13 @@ function parseContentRangeTotal(header: string | null): number | null {
 export function createRangeReader(options: RangeReaderOptions): RangeReader {
 	const chunkSize = options.chunkSize ?? CHUNK_SIZE;
 	const { store, fetch: doFetch, onChunkStored } = options;
+	/**
+	 * The content tag the network last gave for each archive this reader has read.
+	 * Without it a stale chunk is indistinguishable from a current one across two
+	 * separate reads, which is the shape every pmtiles access has: the header is
+	 * one read and the tile is another.
+	 */
+	const current = new Map<string, string>();
 
 	async function fetchChunk(
 		url: string,
@@ -63,7 +107,7 @@ export function createRangeReader(options: RangeReaderOptions): RangeReader {
 		const start = index * chunkSize;
 		const headers = new Headers({ Range: `bytes=${start}-${start + chunkSize - 1}` });
 		const response = await doFetch(url, signal === undefined ? { headers } : { headers, signal });
-		const etag = response.headers.get('ETag');
+		const etag = contentTag(response.headers.get('ETag'));
 
 		if (response.status === 206) {
 			const bytes = new Uint8Array(await response.arrayBuffer());
@@ -78,13 +122,16 @@ export function createRangeReader(options: RangeReaderOptions): RangeReader {
 		throw new Error(`Range request for ${url} failed with status ${response.status}`);
 	}
 
-	function usableChunk(
-		stored: StoredChunk | null,
-		expected: string | undefined
-	): StoredChunk | null {
+	/**
+	 * Stored chunks predate this normalisation, so both sides go through
+	 * `contentTag` rather than only the fresh one. A warm cache holding
+	 * `"6aa65807-39dd38"` is kept, not thrown away and refetched.
+	 */
+	function usableChunk(stored: StoredChunk | null, expected: string | null): StoredChunk | null {
 		if (stored === null) return null;
-		if (expected === undefined || stored.etag === null) return stored;
-		return stored.etag === expected ? stored : null;
+		const have = contentTag(stored.etag);
+		if (expected === null || have === null) return stored;
+		return have === expected ? stored : null;
 	}
 
 	async function read(
@@ -99,24 +146,29 @@ export function createRangeReader(options: RangeReaderOptions): RangeReader {
 		const last = Math.floor((offset + Math.max(1, length) - 1) / chunkSize);
 		const parts: Uint8Array[] = [];
 		let fromCache = true;
-		let etag: string | null = null;
+		// Seeded with what this reader already knows the archive to be, so a chunk
+		// left over from a genuinely different one is caught on the first read that
+		// touches the network rather than only when one read spans both.
+		let etag: string | null = contentTag(readOptions?.etag) ?? current.get(url) ?? null;
 		let total = Number.POSITIVE_INFINITY;
 
 		for (let index = first; index <= last && index * chunkSize < total; index++) {
 			signal?.throwIfAborted();
 			const key = chunkKey(url, index, chunkSize);
-			let chunk = usableChunk(await store.get(key), readOptions?.etag);
+			let chunk = usableChunk(await store.get(key), etag);
 			if (chunk === null) {
 				chunk = await fetchChunk(url, index, signal);
 				fromCache = false;
+				if (chunk.etag !== null) current.set(url, chunk.etag);
 				await store.put(key, chunk);
 				onChunkStored?.(chunk.bytes.length);
 			}
 			/*
-			 * Two chunks of one read disagreeing on the ETag means the file was
-			 * redeployed between them. Handing that mixture to pmtiles gets the read
-			 * rejected and the app refuses to start, so throw the whole archive's
-			 * cache away and read it again from the network.
+			 * Disagreeing on the content tag means the archive at this URL is a
+			 * different archive, not the same one deployed again: `contentTag` has
+			 * already discarded the deploy stamp by here. Handing pmtiles a mixture of
+			 * the two gets the read rejected and the app refuses to start, so throw
+			 * the whole archive's cache away and read it again from the network.
 			 */
 			if (etag !== null && chunk.etag !== null && chunk.etag !== etag) {
 				await store.dropUrl?.(url);
@@ -191,14 +243,8 @@ export function cacheStorageChunkStore(
 		},
 		async dropUrl(url: string): Promise<void> {
 			const cache = await opened;
-			const target = new URL(url);
-			target.searchParams.delete('__chunk');
-			const wanted = target.toString();
-			const stale = (await cache.keys()).filter((request) => {
-				const seen = new URL(request.url);
-				seen.searchParams.delete('__chunk');
-				return seen.toString() === wanted;
-			});
+			const wanted = archiveOf(url);
+			const stale = (await cache.keys()).filter((request) => archiveOf(request.url) === wanted);
 			await Promise.all(stale.map((request) => cache.delete(request)));
 		}
 	};
@@ -210,6 +256,15 @@ export function memoryChunkStore(): ChunkStore {
 		get: (key) => Promise.resolve(entries.get(key) ?? null),
 		put: (key, chunk) => {
 			entries.set(key, chunk);
+			return Promise.resolve();
+		},
+		// Same purge the Cache API store does. Without it this one silently keeps
+		// serving an archive the reader has already decided is the wrong one.
+		dropUrl: (url) => {
+			const wanted = archiveOf(url);
+			for (const key of [...entries.keys()]) {
+				if (archiveOf(key) === wanted) entries.delete(key);
+			}
 			return Promise.resolve();
 		}
 	};
