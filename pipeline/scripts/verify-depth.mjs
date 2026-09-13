@@ -56,7 +56,7 @@ for (const [x, y] of [
 							[x - r, y - r],
 							[x + r, y + r]
 						],
-						{ layers: ['isobath', 'zero-isobath'] }
+						{ layers: ['isobath'] }
 					)
 					.map((f) => Number(f.properties.depth))
 					.filter(Number.isFinite);

@@ -11,12 +11,18 @@ const r = await p.evaluate(async () => {
   m.jumpTo({ center: [3.2147, 41.9140], zoom: 15 });
   await new Promise(r => setTimeout(r, 6000));
   const ids = new Set(m.getStyle().layers.map(l => l.id));
+  // The coastline is the 0 m contour drawn by the ordinary isobath layer and
+  // nothing else. A layer of its own here would be the bug, not the check.
+  const zero = ids.has('isobath')
+    ? m.queryRenderedFeatures({ layers: ['isobath'] }).filter(f => Number(f.properties.depth) === 0)
+    : [];
   return {
-    hasZero: ids.has('zero-isobath'), hasSeaFloor: ids.has('sea-floor'),
-    zeroFeatures: ids.has('zero-isobath') ? m.queryRenderedFeatures({ layers: ['zero-isobath'] }).length : -1,
+    ownLayer: ids.has('zero-isobath') || ids.has('shoreline'),
+    hasSeaFloor: ids.has('sea-floor'),
+    zeroFeatures: zero.length,
     layerCount: ids.size
   };
 });
-await p.screenshot({ path: 'docs/shots/zero-isobath.png' });
+await p.screenshot({ path: 'docs/shots/coastline.png' });
 console.log(JSON.stringify({ ...r, consoleErrors: errs.slice(0,4) }, null, 1));
 await b.close();
