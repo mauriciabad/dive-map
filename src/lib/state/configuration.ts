@@ -1,13 +1,14 @@
 import {
 	DEFAULT_ISOBATHS,
 	DEFAULT_LAYERS,
-	DEFAULT_PHOTO_STRENGTH,
+	DEFAULT_LAND_PAINT,
+	DEFAULT_SEABED_PAINT,
 	type IsobathStyle,
 	type LayerId,
 	type LngLat,
 	type MarkerLayerId,
-	type PhotoStrength,
-	isPhotoStrength,
+	type PaintLevel,
+	isPaintLevel,
 	markerLayerId
 } from '$lib/domain/card';
 import {
@@ -56,7 +57,8 @@ export interface Configuration {
 	 * whether it is on, which is the layer switch's job, so a diver who dialled the
 	 * photo down and switched it off finds it where they left it on the way back.
 	 */
-	readonly photoStrength: PhotoStrength;
+	readonly seabedPaint: PaintLevel;
+	readonly landPaint: PaintLevel;
 	/**
 	 * The sheet a card is cut to, when one was saved alongside the rest.
 	 *
@@ -135,7 +137,8 @@ export const shippedConfiguration = (locale: Locale): Configuration => ({
 	isobaths: DEFAULT_ISOBATHS,
 	locale,
 	textures: NO_TEXTURE_CHOICES,
-	photoStrength: DEFAULT_PHOTO_STRENGTH
+	seabedPaint: DEFAULT_SEABED_PAINT,
+	landPaint: DEFAULT_LAND_PAINT
 });
 
 /**
@@ -299,9 +302,8 @@ export const parseConfiguration = (value: unknown, locale: Locale): Configuratio
 		// step the panel cannot show is not honoured, for the same reason a texture
 		// that is no longer built is dropped: what the style is handed has to be
 		// something a control can show as chosen.
-		photoStrength: isPhotoStrength(value['photoStrength'])
-			? value['photoStrength']
-			: DEFAULT_PHOTO_STRENGTH,
+		seabedPaint: isPaintLevel(value['seabedPaint']) ? value['seabedPaint'] : DEFAULT_SEABED_PAINT,
+		landPaint: isPaintLevel(value['landPaint']) ? value['landPaint'] : DEFAULT_LAND_PAINT,
 		...(print === undefined ? {} : { print })
 	};
 };

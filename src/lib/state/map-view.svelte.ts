@@ -7,12 +7,13 @@ import type { FeaturePick } from '$lib/ui/feature-card';
 import {
 	DEFAULT_ISOBATHS,
 	DEFAULT_LAYERS,
-	DEFAULT_PHOTO_STRENGTH,
+	DEFAULT_LAND_PAINT,
+	DEFAULT_SEABED_PAINT,
 	type DiveCard,
 	type IsobathStyle,
 	type LayerId,
 	type LngLat,
-	type PhotoStrength,
+	type PaintLevel,
 	newCard
 } from '$lib/domain/card';
 import {
@@ -50,7 +51,8 @@ export class MapState {
 	 * Kept apart from whether the ortophoto is on, so dialling the photo down and
 	 * switching it off does not throw the choice away.
 	 */
-	photoStrength = $state<PhotoStrength>(DEFAULT_PHOTO_STRENGTH);
+	seabedPaint = $state<PaintLevel>(DEFAULT_SEABED_PAINT);
+	landPaint = $state<PaintLevel>(DEFAULT_LAND_PAINT);
 
 	readonly print = new PrintState();
 
@@ -111,7 +113,8 @@ export class MapState {
 			isobaths: this.isobaths,
 			locale: this.locale,
 			textures: this.textures,
-			photoStrength: this.photoStrength,
+			seabedPaint: this.seabedPaint,
+			landPaint: this.landPaint,
 			print: this.print.settings
 		};
 	}
@@ -129,7 +132,8 @@ export class MapState {
 		this.isobaths = configuration.isobaths;
 		this.locale = configuration.locale;
 		this.textures = configuration.textures;
-		this.photoStrength = configuration.photoStrength;
+		this.seabedPaint = configuration.seabedPaint;
+		this.landPaint = configuration.landPaint;
 		// Through the print state's own transitions rather than over its fields, so a
 		// stored pixel sheet carrying a scale ratio comes back framed by zoom. The
 		// latitude is the live one because that is where the ratio has to hold.

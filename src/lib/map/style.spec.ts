@@ -29,39 +29,54 @@ const groundStops = (style: StyleOptions): readonly number[] => {
 };
 
 describe('the ortophoto and the paint over it', () => {
+	const withSatellite = (extra: Partial<StyleOptions> = {}): StyleOptions =>
+		options({ visible: withPhoto(DEFAULT_LAYERS), ...extra });
+
 	it('leaves the seabed at full paint when the photograph is off', () => {
 		expect(groundStops(options())).toEqual([0.55, 0.92]);
 	});
 
-	it('steps the seabed back further at every step up in photo strength', () => {
-		const at = (photoStrength: 0.25 | 0.5 | 0.75 | 1) =>
-			groundStops(options({ visible: withPhoto(DEFAULT_LAYERS), photoStrength }))[1] ?? 0;
-		// Each step has to move, or it is a button that does nothing on a boat.
-		expect(at(0.25)).toBeGreaterThan(at(0.5));
-		expect(at(0.5)).toBeGreaterThan(at(0.75));
-		expect(at(0.75)).toBeGreaterThan(at(1));
-		expect(at(1)).toBeLessThan(0.3);
+	/**
+	 * The owner's words: the marine habitats are not overlapping the IGN map. They
+	 * were not, because turning the photograph on used to step the seabed paint back
+	 * to a third of itself. The photograph is the bottom of the stack and the survey
+	 * is the subject, so by default nothing over the water changes at all.
+	 */
+	it('keeps every bit of the habitat paint over the photograph by default', () => {
+		expect(groundStops(withSatellite())).toEqual([0.55, 0.92]);
 	});
 
-	it('carries the strength to the raster as well as the paint', () => {
-		const visible = withPhoto(DEFAULT_LAYERS);
-		expect(paintOf(options({ visible, photoStrength: 0.25 }), 'satellite')['raster-opacity']).toBe(
-			0.25
-		);
+	it('steps the seabed back only when a diver asks it to', () => {
+		const at = (seabedPaint: 0 | 0.25 | 0.5 | 0.75 | 1) =>
+			groundStops(withSatellite({ seabedPaint }))[1] ?? -1;
+		expect(at(1)).toBeGreaterThan(at(0.75));
+		expect(at(0.75)).toBeGreaterThan(at(0.5));
+		expect(at(0.5)).toBeGreaterThan(at(0.25));
+		expect(at(0)).toBe(0);
+	});
+
+	it('never dims the photograph itself, whatever the paint says', () => {
+		for (const seabedPaint of [0, 0.5, 1] as const) {
+			expect(paintOf(withSatellite({ seabedPaint }), 'satellite')['raster-opacity']).toBe(1);
+		}
 	});
 
 	/**
-	 * This used to assert the opposite, on the theory that fading both land fills
-	 * would band along the four kilometre overlap the world tiles slide under the
-	 * ICGC polygon. It was also the reason the photograph never appeared. Fading
-	 * them is what makes it appear, and the band does not: checked at z9 over the
-	 * whole Barcelona coast at full strength, the seam is not visible, because both
-	 * fills carry the same colour and land is opaque under both of them.
+	 * This used to assert that the land never fades, on the theory that fading both
+	 * land fills would band along the four kilometre overlap the world tiles slide
+	 * under the ICGC polygon. It was also the reason the photograph never appeared.
+	 * The band does not happen: checked at z9 across the whole Barcelona coast with
+	 * the land handed over completely, there is no seam, because both fills carry
+	 * the same colour and the land under them is opaque either way.
 	 */
-	it('fades the land with the photograph, which is what makes it visible', () => {
-		const visible = withPhoto(DEFAULT_LAYERS);
-		expect(paintOf(options({ visible, photoStrength: 1 }), 'land')['fill-opacity']).toBe(0);
-		expect(paintOf(options({ visible, photoStrength: 0.5 }), 'land')['fill-opacity']).toBe(0.5);
+	it('hands the land to the photograph by default, which is the point of the switch', () => {
+		expect(paintOf(withSatellite(), 'land')['fill-opacity']).toBe(0);
+		expect(paintOf(withSatellite({ landPaint: 1 }), 'land')['fill-opacity']).toBe(1);
+		expect(paintOf(withSatellite({ landPaint: 0.5 }), 'land')['fill-opacity']).toBe(0.5);
+	});
+
+	it('paints the land solid again the moment the photograph goes off', () => {
+		expect(paintOf(options(), 'land')['fill-opacity']).toBe(1);
 	});
 });
 
@@ -173,40 +188,36 @@ describe('the hillshade over the DEM nodata plane', () => {
 	});
 });
 
-describe('the ortophoto under the paint', () => {
-	const withPhotoAt = (photoStrength: 1 | 0.25): StyleOptions =>
-		options({ visible: withPhoto(DEFAULT_LAYERS), photoStrength });
-
+describe('every flat wash on the land side of the shore', () => {
 	const FLAT_WASHES = [
 		'land',
 		'land-texture',
 		'world-land',
 		'world-land-texture',
 		'land-sand',
+		// Its polygon is the survey's complement, which is the whole interior, so it
+		// is the first thing that buried the photograph and it goes with the land.
 		'sea-beyond-dem'
 	];
 
-	it('paints the land solid while the photograph is off', () => {
+	const withSatellite = (landPaint: 0 | 1): StyleOptions =>
+		options({ visible: withPhoto(DEFAULT_LAYERS), landPaint });
+
+	it('clears for the photograph when the land is handed over', () => {
 		for (const id of FLAT_WASHES) {
+			expect(paintOf(withSatellite(0), id)['fill-opacity']).toBe(0);
+		}
+	});
+
+	it('stays solid when a diver keeps the painted land', () => {
+		for (const id of FLAT_WASHES) {
+			expect(paintOf(withSatellite(1), id)['fill-opacity']).not.toBe(0);
 			expect(paintOf(options(), id)['fill-opacity']).not.toBe(0);
 		}
 	});
 
-	it('clears every flat wash above the photograph at full strength', () => {
-		// Turning it on used to change nothing visible, because `sea-beyond-dem` and
-		// the two land fills buried it whatever the strength said.
-		for (const id of FLAT_WASHES) {
-			expect(paintOf(withPhotoAt(1), id)['fill-opacity']).toBe(0);
-		}
-	});
-
-	it('only steps them back at a quarter, so the paint is still the subject', () => {
-		expect(paintOf(withPhotoAt(0.25), 'land')['fill-opacity']).toBe(0.75);
-		expect(paintOf(withPhotoAt(0.25), 'sea-beyond-dem')['fill-opacity']).toBe(0.75);
-	});
-
 	it('keeps the lines a diver reads the photograph with', () => {
-		expect(paintOf(withPhotoAt(1), 'world-coast')['line-opacity']).toBe(0.8);
-		expect(paintOf(withPhotoAt(1), 'land-road')['line-opacity']).toBeDefined();
+		expect(paintOf(withSatellite(0), 'world-coast')['line-opacity']).toBe(0.8);
+		expect(paintOf(withSatellite(0), 'land-road')['line-opacity']).toBeDefined();
 	});
 });

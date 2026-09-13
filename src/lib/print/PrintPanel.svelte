@@ -152,7 +152,8 @@
 					groundLayer: view.live.groundLayer,
 					smoothed: view.live.smoothed,
 					textures: view.textures,
-					photoStrength: view.photoStrength,
+					seabedPaint: view.seabedPaint,
+					landPaint: view.landPaint,
 					// The sheet is rendered on its own offscreen map and captured only
 					// once that map has settled, so there is no race for the hillshade to
 					// lose here and nothing to hold it back for.

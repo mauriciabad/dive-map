@@ -56,7 +56,8 @@
 			groundLayer: view.groundLayer,
 			smoothed: view.smoothed,
 			textures: view.textures,
-			photoStrength: view.photoStrength,
+			seabedPaint: view.seabedPaint,
+			landPaint: view.landPaint,
 			worldPainted: view.worldPainted
 		})
 	);

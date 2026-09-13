@@ -8,7 +8,7 @@
 	import type { Choice } from './controls/types';
 	import type { IconName } from './icons';
 	import { PANEL_ID } from './panel';
-	import { PHOTO_STRENGTHS, type LayerId, type PhotoStrength } from '$lib/domain/card';
+	import { PAINT_LEVELS, type LayerId, type PaintLevel } from '$lib/domain/card';
 	import type { Ground } from '$lib/domain/habitat';
 	import { type MessageKey, t } from '$lib/i18n/messages';
 	import type { MapState } from '$lib/state/map-view.svelte';
@@ -40,7 +40,7 @@
 		{ value: 'substrate', label: t(view.locale, 'substrate'), icon: 'substrate' }
 	]);
 
-	const strengths: readonly Choice<PhotoStrength>[] = PHOTO_STRENGTHS.map((value) => ({
+	const paints: readonly Choice<PaintLevel>[] = PAINT_LEVELS.map((value) => ({
 		value,
 		label: `${value * 100}%`
 	}));
@@ -82,20 +82,42 @@
 			}}
 		/>
 		{#if view.shows('satellite')}
+			<!--
+				The photograph is always at full strength. What a diver dials is how much
+				of the map's own paint is left over it, and the two sides of the shore
+				want different answers: the survey stays authoritative over the water,
+				the shore is the half a photograph says anything about.
+			-->
 			<div class="under">
-				<Field label={t(view.locale, 'photoStrength')}>
+				<Field label={t(view.locale, 'seabedPaint')}>
 					<Segmented
-						options={strengths}
-						value={view.photoStrength}
+						options={paints}
+						value={view.seabedPaint}
 						numeric
-						onselect={(next: PhotoStrength) => {
-							view.photoStrength = next;
+						onselect={(next: PaintLevel) => {
+							view.seabedPaint = next;
+						}}
+					/>
+				</Field>
+				<Field label={t(view.locale, 'landPaint')}>
+					<Segmented
+						options={paints}
+						value={view.landPaint}
+						numeric
+						onselect={(next: PaintLevel) => {
+							view.landPaint = next;
 						}}
 					/>
 				</Field>
 			</div>
 		{/if}
-		{#each LAYER_ROWS as row (row.id)}
+		<!--
+			The depth veil row goes with the veil. Over a photograph the veil is a second
+			sheet of blue over water that already looks like water, so the style drops it,
+			and a switch that claims to control a layer nobody is drawing is worse than no
+			switch at all.
+		-->
+		{#each LAYER_ROWS.filter((row) => row.id !== 'depth-tint' || !view.shows('satellite')) as row (row.id)}
 			<Toggle
 				label={t(view.locale, row.key)}
 				icon={row.icon}

@@ -17,10 +17,11 @@ import { POSITION_SOURCES, positionLayers } from '$lib/geo/style-layers';
 export { PALETTE } from './palette.ts';
 import { PALETTE } from './palette.ts';
 import {
-	DEFAULT_PHOTO_STRENGTH,
+	DEFAULT_LAND_PAINT,
+	DEFAULT_SEABED_PAINT,
 	type IsobathStyle,
 	type LayerId,
-	type PhotoStrength,
+	type PaintLevel,
 	markerLayerId
 } from '$lib/domain/card';
 import type { DiveFeatureKind } from '$lib/domain/osm';
@@ -296,8 +297,10 @@ export interface StyleOptions {
 	readonly smoothed: boolean;
 	/** A diver's own texture per seabed class. Absent means every class keeps the catalogue's own. */
 	readonly textures?: TextureChoices;
-	/** How strongly the ortophoto paints. Absent is full strength. */
-	readonly photoStrength?: PhotoStrength;
+	/** How much seabed paint is left over the photograph. Absent is all of it. */
+	readonly seabedPaint?: PaintLevel;
+	/** How much land paint is left over the photograph. Absent is none of it. */
+	readonly landPaint?: PaintLevel;
 	/**
 	 * Whether the `world` source has painted yet. Only the hillshade reads it, and
 	 * only because until the land is down that layer lights the DEM's nodata plane
@@ -309,55 +312,26 @@ export interface StyleOptions {
 }
 
 /**
- * What the seabed paint is multiplied by so the photograph under it can be seen.
+ * What every flat wash on the land side is multiplied by.
  *
- * The ortophoto is at the bottom of the stack and the ground fill above it runs
- * 0.55 at zoom 9 to 0.92 from 13 up, with the unclassified hatch stacking under
- * that again. At full paint the photo is not visible: turning it on and off over
- * Tamariu moved 0.55% of the frame by more than 12 of 765, and every one of
- * those pixels was in the sliver where the habitat survey stops. A raster
- * opacity alone would therefore have been a control over nothing.
+ * Turning the photograph on used to change nothing a diver could see, because it
+ * sat under four opaque things at once. Measured at Tamariu z15, a land pixel
+ * read 13,47,62 against the photograph's own 55,73,72: `sea-beyond-dem` washed it
+ * at 0.8 alpha first, because the survey's complement is the whole interior and
+ * not just open sea, and then `world-land` and `land` finished it at full
+ * opacity. Less than a fifteenth of the photograph survived.
  *
- * So the photograph and the paint move together on one number, linearly, which
- * keeps every step doing something. At a quarter the map is the painted seabed
- * it has always been with the shelf faintly under it; at full the paint is a
- * wash of habitat colour over a photograph, which is the "textures with some
- * opacity on top of the satellite" the issue asked for. The isobaths, the
- * markers and every label are untouched at every step, so nothing a diver reads
- * off the sheet fades with the paint.
- *
- * The land is deliberately not faded with it. Its fill is opaque over a world
- * fill that runs four kilometres further inland on purpose, so making either one
- * translucent draws a darker band along the whole overlap. The photograph on
- * land already has its own switch, which is the coastline one.
- */
-const GROUND_GIVEN_UP = 0.72;
-
-/**
- * What the flat paint over the photograph is multiplied by.
- *
- * Turning the photograph on used to change nothing a diver could see, and the
- * reason was that it sat under four opaque things at once. Measured at Tamariu
- * z15 with the photo at half strength, a land pixel read 13,47,62 against the
- * photograph's own 55,73,72: `sea-beyond-dem` washed it at 0.8 alpha first,
- * because the survey's complement is the whole interior and not just open sea,
- * and then `world-land` and `land` finished it at full opacity. Less than a
- * fifteenth of the photograph survived.
- *
- * So everything above it that is only a flat colour fades with it, and reaches
- * nothing at full strength, which is what makes 100% mean the photograph. The
- * seabed paint keeps its own gentler curve in `groundOpacity`, because that one
- * carries habitat meaning and the land fill does not.
+ * `sea-beyond-dem` takes the land level rather than the seabed one for that
+ * reason. Its polygon is mostly land, and land is the only place it does harm.
  */
 const photoFade = (options: StyleOptions): number =>
-	options.visible.includes('satellite') ? 1 - (options.photoStrength ?? DEFAULT_PHOTO_STRENGTH) : 1;
+	options.visible.includes('satellite') ? (options.landPaint ?? DEFAULT_LAND_PAINT) : 1;
 
 const groundOpacity = (options: StyleOptions): DataDrivenPropertyValueSpecification<number> => {
-	const strength = options.visible.includes('satellite')
-		? (options.photoStrength ?? DEFAULT_PHOTO_STRENGTH)
-		: 0;
-	const fade = 1 - GROUND_GIVEN_UP * strength;
-	return ['interpolate', ['linear'], ['zoom'], 9, 0.55 * fade, 13, 0.92 * fade];
+	const paint = options.visible.includes('satellite')
+		? (options.seabedPaint ?? DEFAULT_SEABED_PAINT)
+		: 1;
+	return ['interpolate', ['linear'], ['zoom'], 9, 0.55 * paint, 13, 0.92 * paint];
 };
 
 const vis = (options: StyleOptions, id: LayerId): 'visible' | 'none' =>
@@ -825,7 +799,10 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			type: 'raster',
 			source: SATELLITE_SOURCE_ID,
 			layout: { visibility: vis(options, 'satellite') },
-			paint: { 'raster-opacity': options.photoStrength ?? DEFAULT_PHOTO_STRENGTH }
+			// Never dimmed. The photograph is the bottom of the stack, so what decides
+			// whether it can be seen is how much paint is left over it, and that is what
+			// the two paint levels are. Dimming it as well only muddied both.
+			paint: { 'raster-opacity': 1 }
 		},
 
 		{
@@ -886,10 +863,17 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			}
 		},
 		{
+			// Off whenever the photograph is on. The veil is the water column painted as
+			// alpha, up to 0.84 at depth, and over a photograph that is a second sheet
+			// of blue over one that already shows the water. Asked for by the owner and
+			// right on its own terms: the photograph says how deep the water looks, and
+			// the isobaths above say how deep it is.
 			id: 'depth-veil',
 			type: 'color-relief',
 			source: 'seabed-dem',
-			layout: { visibility: vis(options, 'depth-tint') },
+			layout: {
+				visibility: options.visible.includes('satellite') ? 'none' : vis(options, 'depth-tint')
+			},
 			paint: { 'color-relief-color': DEPTH_VEIL }
 		},
 		{

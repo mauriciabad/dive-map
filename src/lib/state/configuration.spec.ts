@@ -12,7 +12,7 @@ import {
 	writeWorking
 } from './configuration.ts';
 import { memoryStore } from './storage.ts';
-import { DEFAULT_ISOBATHS, DEFAULT_PHOTO_STRENGTH } from '$lib/domain/card';
+import { DEFAULT_ISOBATHS, DEFAULT_LAND_PAINT, DEFAULT_SEABED_PAINT } from '$lib/domain/card';
 
 const ca = shippedConfiguration('ca');
 
@@ -281,24 +281,30 @@ describe('the working configuration', () => {
 	});
 });
 
-describe('photo strength', () => {
-	const roundTrip = (photoStrength: unknown) => {
+describe('how much paint is left over the photograph', () => {
+	const stored = (configuration: Record<string, unknown>) => {
 		const store = memoryStore();
 		store.write(
 			WORKING_KEY,
-			JSON.stringify({ version: STORAGE_VERSION, configuration: { ...ca, photoStrength } })
+			JSON.stringify({ version: STORAGE_VERSION, configuration: { ...ca, ...configuration } })
 		);
-		return readWorking(store, 'ca')?.configuration.photoStrength;
+		return readWorking(store, 'ca')?.configuration;
 	};
 
-	it('keeps a step the panel can show as chosen', () => {
-		expect(roundTrip(0.25)).toBe(0.25);
-		expect(roundTrip(1)).toBe(1);
+	it('keeps a step the panel can show as chosen, on either side of the shore', () => {
+		expect(stored({ seabedPaint: 0.25 })?.seabedPaint).toBe(0.25);
+		expect(stored({ landPaint: 0.75 })?.landPaint).toBe(0.75);
+		expect(stored({ landPaint: 0 })?.landPaint).toBe(0);
 	});
 
-	it('refuses a strength no control could display, rather than storing it', () => {
-		expect(roundTrip(0.63)).toBe(DEFAULT_PHOTO_STRENGTH);
-		expect(roundTrip('half')).toBe(DEFAULT_PHOTO_STRENGTH);
-		expect(roundTrip(undefined)).toBe(DEFAULT_PHOTO_STRENGTH);
+	it('refuses a level no control could display, rather than storing it', () => {
+		expect(stored({ seabedPaint: 0.63 })?.seabedPaint).toBe(DEFAULT_SEABED_PAINT);
+		expect(stored({ landPaint: 'half' })?.landPaint).toBe(DEFAULT_LAND_PAINT);
+	});
+
+	it('falls back for a blob written before the one strength became two levels', () => {
+		const old = stored({ photoStrength: 0.5 });
+		expect(old?.seabedPaint).toBe(DEFAULT_SEABED_PAINT);
+		expect(old?.landPaint).toBe(DEFAULT_LAND_PAINT);
 	});
 });
