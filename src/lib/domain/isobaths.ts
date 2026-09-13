@@ -294,17 +294,28 @@ export const contourColour = (bands: readonly PaintedBand[], depthM: number): st
 /**
  * How coarse the contours go when the map is picking for itself, at one zoom.
  *
- * Every metre at a dive site and coarser when the whole coast is on screen,
- * where one metre is a solid mat of ink. One table, read here for the ruler and
+ * Five metres at a dive site and coarser when the whole coast is on screen,
+ * where even five is a solid mat of ink. One table, read here for the ruler and
  * compiled into a `step` expression for the map, so the panel can never draw an
  * interval the map is not using.
+ *
+ * It stops at five because the survey does. Every contour in both archives is a
+ * multiple of five, fifty of them from 5 m to 250 m with no gaps, above and
+ * below the 80 m the deep set takes over at. The table used to go to two metres
+ * at z15 and one at z16, which drew the map no extra line, since a filter of
+ * `depth % 1` and one of `depth % 5` select the same contours out of a set that
+ * is all fives. What it did do was fill the ruler with a row per metre, most of
+ * them offering a depth the data cannot draw: 250 rows where 50 exist. That is
+ * the "many unnecessary lines" in issue #51.
+ *
+ * A diver who wants a mark between the fives can still place one, by dragging a
+ * grip or nudging it with the arrow keys, which move by one metre. This governs
+ * what the ruler offers unasked, not what it allows.
  */
 export const AUTO_INTERVAL: readonly { readonly fromZoom: number; readonly intervalM: number }[] = [
 	{ fromZoom: 0, intervalM: 20 },
 	{ fromZoom: 12, intervalM: 10 },
-	{ fromZoom: 14, intervalM: 5 },
-	{ fromZoom: 15, intervalM: 2 },
-	{ fromZoom: 16, intervalM: 1 }
+	{ fromZoom: 14, intervalM: 5 }
 ];
 
 export const intervalAt = (style: IsobathStyle, zoom: number): number => {

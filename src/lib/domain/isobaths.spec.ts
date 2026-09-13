@@ -217,7 +217,9 @@ describe('the contours a ruler has to draw', () => {
 	it('follows the zoom while the interval is automatic', () => {
 		expect(intervalAt(DEFAULT_ISOBATHS, 10)).toBe(20);
 		expect(intervalAt(DEFAULT_ISOBATHS, 14.5)).toBe(5);
-		expect(intervalAt(DEFAULT_ISOBATHS, 17)).toBe(1);
+		// Five is as fine as it goes, because five is as fine as the survey goes.
+		// Zooming past 15 used to offer a row per metre for depths no archive holds.
+		expect(intervalAt(DEFAULT_ISOBATHS, 17)).toBe(5);
 		expect(intervalAt({ ...DEFAULT_ISOBATHS, autoInterval: false, intervalM: 2 }, 17)).toBe(2);
 	});
 
