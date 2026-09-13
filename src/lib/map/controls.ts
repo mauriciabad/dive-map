@@ -1,6 +1,7 @@
 import { type Component, mount, unmount } from 'svelte';
 import type { IControl, Map as MapLibre } from 'maplibre-gl';
 import { constrainToData } from './camera.ts';
+import { showDepthUnderCursor } from './depth.ts';
 
 /**
  * MapLibre owns the corners. Anything we position by hand ends up on top of the
@@ -85,7 +86,8 @@ export const whenMapReady = (attachment: MapAttachment): (() => void) => {
 	};
 };
 
-// Keeping the view over the data is not optional chrome, so it registers itself
-// here instead of waiting for a component to ask for it. It is the same
-// attachment mechanism either way, and it comes and goes with the map.
+// Neither of these is optional chrome, so they register themselves here instead
+// of waiting for a component to ask. It is the same attachment mechanism either
+// way, and they come and go with the map.
 whenMapReady(constrainToData);
+whenMapReady(showDepthUnderCursor);
