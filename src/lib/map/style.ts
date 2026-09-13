@@ -392,13 +392,55 @@ const groundLayers = (options: StyleOptions): LayerSpecification[] =>
 		})
 	);
 
-/** Every ground fill, for anything that queries what is under a point. */
+/** Every ground fill, for anything that queries what is drawn under a point. */
 export const GROUND_FILL_LAYERS = [
 	'ground-habitats-fill',
 	'ground-substrate-fill',
 	'ground-habitats-raw-fill',
 	'ground-substrate-raw-fill'
 ] as const;
+
+/**
+ * Where the surveyed depth comes from, whichever ground is drawn. Issue #29.
+ *
+ * The depth range is the habitat survey's: `dmin` and `dmax` per polygon. The
+ * substrate product is a different ICGC layer with no depth field at all, so with
+ * Seafloor type showing there was nothing under the pointer that carried one and
+ * the card dropped its depth line. Depth is the number a diver opens that card
+ * for, and it was going missing because of a display preference.
+ *
+ * Baking a depth onto the substrate polygons in the build was the other option and
+ * it is the wrong one. The two products do not share a partition, so joining them
+ * would report a slightly different range in each mode for the same tap, and what
+ * the owner reported is that everything else on the card is identical. Reading
+ * both modes off the one survey that measured depth makes them identical by
+ * construction.
+ *
+ * This layer is what makes that query possible: MapLibre will not return features
+ * from a layer whose visibility is `none`, so the habitat polygons have to stay
+ * rendered to stay queryable. Zero opacity draws nothing and still answers.
+ *
+ * It is in the style at every moment so nothing has to check before naming it in
+ * a query, and it only turns on where it earns its keep. With Habitats showing,
+ * the real fill is already queryable and this stays off. With the ground off
+ * entirely there is nothing to answer about. That leaves Seafloor type, which is
+ * the one case that pays for the habitat tiles alongside the substrate ones.
+ */
+export const GROUND_DEPTH_LAYER = 'ground-depth-probe';
+
+const depthProbeLayer = (options: StyleOptions): LayerSpecification => ({
+	id: GROUND_DEPTH_LAYER,
+	type: 'fill',
+	source: 'habitats',
+	'source-layer': 'habitats',
+	layout: {
+		visibility:
+			options.groundLayer === 'substrate' && options.visible.includes('substrate')
+				? 'visible'
+				: 'none'
+	},
+	paint: { 'fill-opacity': 0 }
+});
 
 const isKind = (...kinds: readonly string[]): ExpressionSpecification => [
 	'in',
@@ -829,6 +871,7 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 		},
 
 		...groundLayers(options),
+		depthProbeLayer(options),
 
 		{
 			// Held back until the `world` source has painted, because until then this
