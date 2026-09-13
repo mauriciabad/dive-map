@@ -1,6 +1,6 @@
 import { asset } from '$app/paths';
 import { type DiveCard, scaleBar, shows } from '$lib/domain/card';
-import { legendFor } from '$lib/domain/habitat';
+import { legendFor, textureOf } from '$lib/domain/habitat';
 import type { SheetPlan } from '$lib/domain/print';
 import type { Locale } from '$lib/i18n/locale';
 import { t } from '$lib/i18n/messages';
@@ -348,7 +348,11 @@ const legendPiece = (
 					h: LEGEND_SWATCH * unit
 				};
 				drawings.push(
-					{ kind: 'image', ...swatch, url: asset(`/textures/swatch/${habitat.texture}.jpg`) },
+					{
+						kind: 'image',
+						...swatch,
+						url: asset(`/textures/swatch/${textureOf(habitat, rendered.textures)}.jpg`)
+					},
 					{ ...swatch, kind: 'rect', stroke: BRASS, strokeWidth: HAIRLINE * unit }
 				);
 				let cursor = top + 0.5 * unit;

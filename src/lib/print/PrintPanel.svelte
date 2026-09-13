@@ -150,7 +150,8 @@
 					isobaths: view.live.isobaths,
 					visible: view.live.layers,
 					groundLayer: view.live.groundLayer,
-					smoothed: view.live.smoothed
+					smoothed: view.live.smoothed,
+					textures: view.textures
 				},
 				locale,
 				format: print.format

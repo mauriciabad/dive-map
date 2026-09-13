@@ -4,6 +4,7 @@ import { installMarkerImages } from '$lib/map/marker-images';
 import { GROUND_FILL_LAYERS, type StyleOptions, buildStyle } from '$lib/map/style';
 import { PRINT_TEXTURE_SIZE, loadTextures, texturePalette } from '$lib/map/textures';
 import { type DiveCard, planFor } from '$lib/domain/card';
+import { NO_TEXTURE_CHOICES, type TextureChoices } from '$lib/domain/habitat';
 import { CANVAS_PIXEL_CAP, renderZoom } from '$lib/domain/print';
 
 /**
@@ -74,12 +75,24 @@ export interface RenderedCard {
 	readonly complete: boolean;
 	/** Habitat codes present in the frame, for the legend. */
 	readonly habitatCodes: readonly string[];
+	/**
+	 * The texture choices this sheet was painted with, carried out so the legend
+	 * plate draws the same swatch the map beside it is painted with. Read off the
+	 * style rather than passed in again, so the two cannot say different things.
+	 */
+	readonly textures: TextureChoices;
 	/** Deepest isobath drawn in frame, for the depth badge. */
 	readonly maxDepthM: number | undefined;
 	/** Anything the print map complained about while drawing. */
 	readonly problems: readonly string[];
-	/** Luminance spread over the sheet. Near zero means a flat, empty card. */
+	/**
+	 * Luminance over the middle of the sheet. The spread near zero means a flat,
+	 * empty card; the mean is what moves when the same frame is painted with
+	 * different textures, which is the only way a check can tell one sheet from
+	 * another without reading the file back.
+	 */
 	readonly pixelSpread: number;
+	readonly pixelMean: number;
 	/** Patterns the style asked for and never got, which paint as nothing at all. */
 	readonly missingImages: readonly string[];
 }
@@ -104,10 +117,10 @@ const tilesSettled = async (map: MapLibre, timeoutMs = 60_000): Promise<boolean>
 	return false;
 };
 
-const luminanceSpread = (canvas: HTMLCanvasElement): number => {
+const luminanceOf = (canvas: HTMLCanvasElement): { spread: number; mean: number } => {
 	const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
 	const side = Math.min(300, canvas.width, canvas.height);
-	if (gl === null || side < 1) return -1;
+	if (gl === null || side < 1) return { spread: -1, mean: -1 };
 	const pixels = new Uint8Array(side * side * 4);
 	gl.readPixels(
 		Math.max(0, Math.floor((canvas.width - side) / 2)),
@@ -128,7 +141,8 @@ const luminanceSpread = (canvas: HTMLCanvasElement): number => {
 	}
 	const n = pixels.length / 4;
 	const mean = sum / n;
-	return Math.round(Math.sqrt(sumSquares / n - mean * mean) * 100) / 100;
+	const round = (value: number): number => Math.round(value * 100) / 100;
+	return { spread: round(Math.sqrt(sumSquares / n - mean * mean)), mean: round(mean) };
 };
 
 export const renderCard = async (
@@ -254,6 +268,7 @@ export const renderCard = async (
 		}
 
 		const canvas = map.getCanvas();
+		const luminance = luminanceOf(canvas);
 		const rendered: RenderedCard = {
 			bitmap: await createImageBitmap(canvas),
 			width: canvas.width,
@@ -263,9 +278,11 @@ export const renderCard = async (
 			clamped: canvas.width < plan.widthPx || canvas.height < plan.heightPx,
 			complete: settled,
 			habitatCodes: [...codes],
+			textures: style.textures ?? NO_TEXTURE_CHOICES,
 			maxDepthM,
 			problems,
-			pixelSpread: luminanceSpread(canvas),
+			pixelSpread: luminance.spread,
+			pixelMean: luminance.mean,
 			missingImages
 		};
 		return rendered;

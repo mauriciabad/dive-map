@@ -79,6 +79,7 @@ export const exportSheet = async (input: {
 			clamped: rendered.clamped,
 			complete: rendered.complete,
 			pixelSpread: rendered.pixelSpread,
+			pixelMean: rendered.pixelMean,
 			problems: rendered.problems,
 			missingImages: rendered.missingImages,
 			habitatCodes: rendered.habitatCodes,

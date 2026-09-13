@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { type DiveCard, newCard, planFor } from '$lib/domain/card';
+import { NO_TEXTURE_CHOICES, habitatByCode } from '$lib/domain/habitat';
 import { FURNITURE_IDS, type FurnitureId, type Sheet } from '$lib/domain/print';
 import { scale } from '$lib/domain/units';
 import { t } from '$lib/i18n/messages';
@@ -56,9 +57,11 @@ const rendered = (over: Partial<RenderedCard> = {}): RenderedCard => ({
 	clamped: false,
 	complete: true,
 	habitatCodes: ['30102', '30512', '30509', '30302', '30103'],
+	textures: NO_TEXTURE_CHOICES,
 	maxDepthM: 42,
 	problems: [],
 	pixelSpread: 31,
+	pixelMean: 128,
 	missingImages: [],
 	...over
 });
@@ -295,6 +298,23 @@ describe('type that does not fit', () => {
 		expectInside(short, drawings);
 		expectNoOverlap(drawings);
 		expect(drawings.filter((d) => d.kind === 'image').length).toBeLessThan(5);
+	});
+
+	/**
+	 * The sheet and the map beside it have to agree. A plate drawn from the
+	 * catalogue while the map is painted from the diver's choice is the sheet
+	 * saying the reef is one thing and showing another.
+	 */
+	it('draws the swatch the diver chose, not the catalogue default', () => {
+		const posidonia = habitatByCode.get('30512');
+		expect(posidonia?.texture).toBe('ch_grass');
+		const swatches = (over: Partial<RenderedCard>) =>
+			lay(cardOn(SHEETS['A3 portrait']), over)
+				.flatMap((d) => (d.kind === 'image' ? [d.url] : []))
+				.map((url) => url.replace(/.*\//, ''));
+		expect(swatches({})).toContain('ch_grass.jpg');
+		expect(swatches({ textures: { 'habitats-20': 'ch_shipwood' } })).toContain('ch_shipwood.jpg');
+		expect(swatches({ textures: { 'habitats-20': 'ch_shipwood' } })).not.toContain('ch_grass.jpg');
 	});
 });
 
