@@ -82,6 +82,8 @@ export function watchForUpdates(container: ServiceWorkerContainer): () => void {
 	);
 
 	const watch = (registration: ServiceWorkerRegistration): void => {
+		// The settings panel asks this same registration for a check on demand.
+		updates.track(registration);
 		let askedAt = Date.now();
 		document.addEventListener(
 			'visibilitychange',
@@ -108,5 +110,6 @@ export function watchForUpdates(container: ServiceWorkerContainer): () => void {
 
 	return () => {
 		listeners.abort();
+		updates.track(undefined);
 	};
 }

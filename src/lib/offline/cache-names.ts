@@ -37,3 +37,32 @@ export function isStaleCache(name: string, version: string): boolean {
 	if (name === shellCache(version) || name === runtimeCache(version)) return false;
 	return name.startsWith(SHELL_CACHE_PREFIX) || name.startsWith(RUNTIME_CACHE_PREFIX);
 }
+
+/**
+ * Every cache this app opens is named from this file, and every name starts here.
+ * The hand clear that promises to leave nothing behind finds them by this prefix, so
+ * a cache opened under a name that skipped it would outlive a clear that said it took
+ * everything. `maintenance.spec.ts` holds the exported names to it.
+ */
+export const APP_CACHE_PREFIX = 'divemap-';
+
+/**
+ * What a hand clear takes.
+ *
+ * `map-data` is the cure for a deploy that went wrong: the chunk store and the
+ * runtime cache between them hold everything that came off the network while
+ * somebody browsed, and both refill themselves from the network on the next read.
+ * Saved areas are not in it, and neither is the shell, which is the app doing the
+ * clearing.
+ *
+ * `everything` is the scope that does include saved areas, which is why the panel
+ * asks before it runs it. A diver pinned those on purpose and cannot get them back
+ * at sea.
+ */
+export type ClearScope = 'map-data' | 'everything';
+
+export function inClearScope(scope: ClearScope, name: string): boolean {
+	if (!name.startsWith(APP_CACHE_PREFIX)) return false;
+	if (scope === 'everything') return true;
+	return name === CHUNK_CACHE || name.startsWith(RUNTIME_CACHE_PREFIX);
+}
