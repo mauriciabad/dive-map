@@ -101,6 +101,15 @@
 		<Note>{t(view.locale, 'autoIntervalHint')}</Note>
 	</Field>
 
+	<Toggle
+		label={t(view.locale, 'showLabels')}
+		icon="depth"
+		pressed={view.isobaths.labels}
+		onchange={() => {
+			view.toggleLabels();
+		}}
+	/>
+
 	<Field label={t(view.locale, 'maxDepth')}>
 		<Range
 			label={t(view.locale, 'maxDepth')}
@@ -170,13 +179,4 @@
 		{/if}
 		<Note>{t(view.locale, 'haloHint')}</Note>
 	</Field>
-
-	<Toggle
-		label={t(view.locale, 'showLabels')}
-		icon="depth"
-		pressed={view.isobaths.labels}
-		onchange={() => {
-			view.toggleLabels();
-		}}
-	/>
 </Panel>
