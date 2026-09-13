@@ -85,10 +85,14 @@ for (const ground of ['habitats', 'substrate']) {
 		{
 			...DEFAULT_ISOBATHS,
 			emphasised: [0, 5, 18, 80],
+			// A painted ruler with the outline on, which is the shape `IsobathPaint`
+			// has carried since the halo landed. It was still the older one here, with
+			// an `edgeOwnColour` nothing reads and no `halo` at all, so this case had
+			// been dying in `haloOf` before it validated anything.
 			paint: {
 				method: 'upwards',
 				marks: { 0: { colour: '#ffaa00', plain: false }, 18: { colour: '#00ff88', plain: true } },
-				edgeOwnColour: false
+				halo: { on: true, colour: '#ffffff', opacity: 0.2 }
 			}
 		}
 	]) {
