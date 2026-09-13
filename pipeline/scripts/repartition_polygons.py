@@ -132,39 +132,51 @@ def read_source(path: str) -> Source:
     return src
 
 
-def spans(rings, y: int):
-    """The x ranges of one scanline through a ring set, non-zero winding.
+def fill(rings, y_lo: int, y_hi: int):
+    """Row by row, the x ranges the rings cover, read at cell centres by non-zero winding.
 
     No vertex can sit on a scanline, because vertices are whole cells and the scanlines are half
     cells, so there are no ties to break. A crossing landing exactly on a cell centre is a
     diagonal the vectoriser cut, and the half-open rule below sends that cell one way every time.
     """
-    hits = []
+    edges = []
     for xs, ys in rings:
         n = len(xs)
         for i in range(n):
             j = (i + 1) % n
-            ya, yb = ys[i], ys[j]
-            if (ya <= y) == (yb <= y):
-                continue
-            hits.append((xs[i] + (xs[j] - xs[i]) * (2 * (y - ya) + 1) / (2 * (yb - ya)), 1 if yb > ya else -1))
-    hits.sort()
-    wind = 0
-    start = 0.0
-    for x, turn in hits:
-        if wind == 0:
-            start = x
-        wind += turn
-        if wind == 0:
-            yield math.ceil(start - 0.5), math.ceil(x - 0.5)
+            if ys[i] != ys[j]:
+                edges.append((min(ys[i], ys[j]), max(ys[i], ys[j]), xs[i], ys[i], xs[j], ys[j]))
+    edges.sort()
+    active: list = []
+    at = 0
+    for y in range(y_lo, y_hi):
+        while at < len(edges) and edges[at][0] <= y:
+            active.append(edges[at])
+            at += 1
+        active = [e for e in active if e[1] > y]
+        if not active:
+            continue
+        hits = sorted(
+            (xa + (xb - xa) * (2 * (y - ya) + 1) / (2 * (yb - ya)), 1 if yb > ya else -1)
+            for _, _, xa, ya, xb, yb in active
+        )
+        wind = 0
+        start = 0.0
+        spans = []
+        for x, turn in hits:
+            if wind == 0:
+                start = x
+            wind += turn
+            if wind == 0:
+                a, b = math.ceil(start - 0.5), math.ceil(x - 0.5)
+                if b > a:
+                    spans.append((a, b))
+        if spans:
+            yield y, spans
 
 
 def covered(src: Source, f: int) -> bool:
-    for y in range(src.lo_y[f], src.hi_y[f]):
-        for lo, hi in spans(src.rings[f], y):
-            if hi > lo:
-                return True
-    return False
+    return any(True for _ in fill(src.rings[f], src.lo_y[f], src.hi_y[f]))
 
 
 def rasterise(src: Source, x0: int, y0: int, width: int, height: int, strip: int, rescued, log):
@@ -190,9 +202,11 @@ def rasterise(src: Source, x0: int, y0: int, width: int, height: int, strip: int
         rows = min(strip, height - lo)
         grid = np.full((rows, width), OUT, dtype=np.int32)
         for f in buckets.get(s, ()):
-            for row in range(max(0, src.lo_y[f] - y0 - lo), min(rows, src.hi_y[f] - y0 - lo)):
-                for a, b in spans(src.rings[f], y0 + lo + row):
-                    grid[row, max(0, a - x0) : max(0, b - x0)] = f
+            top = y0 + lo
+            for y, ranges in fill(src.rings[f], max(src.lo_y[f], top), min(src.hi_y[f], top + rows)):
+                row = grid[y - top]
+                for a, b in ranges:
+                    row[max(0, a - x0) : max(0, b - x0)] = f
         for f in seeds.get(s, ()):
             sx, sy = src.seed[f]
             row, col = sy - y0 - lo, sx - x0

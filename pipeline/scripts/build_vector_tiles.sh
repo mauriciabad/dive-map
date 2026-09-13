@@ -9,6 +9,7 @@ OUT="$ROOT/static/tiles"
 LAYERS=(isobaths habitats substrate habitats-raw substrate-raw coverage)
 MAX_BYTES=104857600
 SMOOTH="$ROOT/pipeline/scripts/smooth_polygons.py"
+PARTITION="$ROOT/pipeline/scripts/repartition_polygons.py"
 
 for tool in ogr2ogr tippecanoe python3; do
   command -v "$tool" >/dev/null || { printf 'missing %s on PATH\n' "$tool" >&2; exit 1; }
@@ -108,17 +109,26 @@ extract_coastline() {
   ogr2ogr -f GeoJSONSeq "$2" "$1" -lco RS=NO -lco COORDINATE_PRECISION=6
 }
 
+# The ICGC polygons are not a partition: spurs, rings that visit a vertex twice and cells
+# claimed by two classes. Reading them back onto the 1e-4 degree grid they were rasterised from
+# rebuilds them as one, and opens the corners where a class meets itself at a point.
+partition() {
+  python3 "$PARTITION" --in "$BUILD/$1.geojsonseq" --out "$2"
+}
+
 # The limit lines need the drawn coastline to tell the shore from the offshore edge where
 # the survey simply stops.
 smooth_habitats() {
   ensure_extract coastline "$RAW/coastline/coastline-4326.fgb" extract_coastline
-  python3 "$SMOOTH" --in "$BUILD/habitats.geojsonseq" \
+  stage "$BUILD/habitats-clean.geojsonseq" partition habitats
+  python3 "$SMOOTH" --in "$BUILD/habitats-clean.geojsonseq" \
     --out "$1" --limit-out "$BUILD/limit.geojsonseq" \
     --coastline "$BUILD/coastline.geojsonseq"
 }
 
 smooth_substrate() {
-  python3 "$SMOOTH" --in "$BUILD/substrate.geojsonseq" --out "$1"
+  stage "$BUILD/substrate-clean.geojsonseq" partition substrate
+  python3 "$SMOOTH" --in "$BUILD/substrate-clean.geojsonseq" --out "$1"
 }
 
 ensure_extract() {
