@@ -74,6 +74,17 @@ export interface BaseMap {
 	readonly recommended: boolean;
 	/** Ground resolution, for the photographs where the trade is worth saying. */
 	readonly grain?: string;
+	/**
+	 * The archive's own MapLibre style over its own vector tiles, where it
+	 * publishes one that renders as the map it sells.
+	 *
+	 * Present on one base map out of ten, and the `services` beside it are the
+	 * same product as a raster, so nothing is stranded while the style layer
+	 * cannot graft an external style in yet. A vector option that needed a style
+	 * written by hand to approximate the original is not recorded here at all: it
+	 * would be a worse copy of a map we can have exactly.
+	 */
+	readonly style?: string;
 }
 
 /**
@@ -187,6 +198,15 @@ const ESRI_IMAGERY: TileService = {
  * The template in issue #40 is Leaflet's `{s}.tile.openstreetmap.org`. MapLibre
  * has no `{s}`, and the subdomains are deprecated anyway, so this is the host
  * the OSMF now asks everyone to use.
+ *
+ * Raster, and staying raster. Nobody serves the OpenStreetMap standard style as
+ * vector tiles. The OSMF's own vector service exists, at
+ * `vector.openstreetmap.org/shortbread_v1`, but it stops at zoom 14 and the
+ * styles the OSMF demonstrates it with are VersaTiles', which look nothing like
+ * this. Rendered beside this raster at Begur z13, OpenFreeMap Liberty drops the
+ * woodland green, the contours and the pink road casings that are what makes
+ * the OSM map recognisable as itself. Every vector alternative is a different
+ * map, so the choice is this one or an imitation, and an imitation is worse.
  */
 const OSM_STANDARD: TileService = {
 	id: 'standard-osm',
@@ -215,6 +235,26 @@ const ICGC_STANDARD: TileService = {
 	bounds: ICGC_BOUNDS,
 	attribution: `${ICGC} mapa estàndard, ${CC_BY}`
 };
+
+/**
+ * ICGC's own MapLibre style for the standard map, drawn from ICGC's own vector
+ * tiles rather than from their raster renderer.
+ *
+ * Named here and not yet drawn: the style layer has to graft an external style
+ * in, which `$lib/map/style.ts` does not do yet. It is recorded now because
+ * choosing it was a measurement rather than a preference. Rendered beside the
+ * raster above at Begur z13, the vector style is the same product: same greens,
+ * same road casings, same label faces, same green trail line. It is 235 layers
+ * over `mapa-base2/vt`, maxzoom 15, with ICGC's glyphs and sprites, which is
+ * what makes it the ICGC map rather than an imitation of it drawn from ICGC
+ * data. Being vector is also what lets it be toned to sit under the painted
+ * chart instead of fighting it.
+ *
+ * No other base map here has one. The photographs cannot have one, the two
+ * topographic sheets have no vector edition that renders as the sheet, and
+ * nothing serves the OpenStreetMap standard style as vector tiles at all.
+ */
+const ICGC_STANDARD_STYLE = 'https://geoserveis.icgc.cat/contextmaps/icgc_mapa_estandard.json';
 
 /** IGN Base, the national road map. */
 const IGN_STANDARD: TileService = {
@@ -293,7 +333,8 @@ export const BASE_MAPS: readonly BaseMap[] = [
 		kind: 'standard',
 		name: 'ICGC',
 		services: [ICGC_STANDARD],
-		recommended: false
+		recommended: false,
+		style: ICGC_STANDARD_STYLE
 	},
 	{
 		id: 'standard-ign',
@@ -338,3 +379,38 @@ export const servicesOf = (id: BaseMapId): readonly TileService[] =>
 /** Whether a service draws under the given choice, which is what a style asks per layer. */
 export const serviceDraws = (id: BaseMapId, service: string): boolean =>
 	servicesOf(id).some((s) => s.id === service);
+
+/**
+ * The two base maps the quick toggle flicks between, with the resting one first.
+ *
+ * A pair rather than a list, so exactly two is what the type says and not a rule
+ * every caller has to remember. Pressing the toggle from the resting map brings
+ * the other one; pressing it from anywhere else brings the resting one back.
+ */
+export type QuickPair = readonly [BaseMapId, BaseMapId];
+
+/** The chart on its own, and the 5 cm coastal photograph over it. */
+export const DEFAULT_QUICK_PAIR: QuickPair = [NO_BASE_MAP, 'satellite-costa'];
+
+/** What one press of the toggle puts under the chart. */
+export const quickNext = (pair: QuickPair, current: BaseMapId): BaseMapId =>
+	current === pair[0] ? pair[1] : pair[0];
+
+/**
+ * Put a base map in the resting slot, pushing whatever was resting into the
+ * other one.
+ *
+ * A push two deep, and that is the entire rule. Every pair of ten is two taps
+ * away, no tap can leave the same map in both slots, and no tap can empty one.
+ * Choosing the resting map again changes nothing, because it is already there.
+ */
+export const withQuickChoice = (pair: QuickPair, id: BaseMapId): QuickPair =>
+	id === pair[0] ? pair : [id, pair[0]];
+
+/** Whether a stored pair is one this version can still draw, both halves of it. */
+export const isQuickPair = (value: unknown): value is QuickPair =>
+	Array.isArray(value) &&
+	value.length === 2 &&
+	isBaseMapId(value[0]) &&
+	isBaseMapId(value[1]) &&
+	value[0] !== value[1];

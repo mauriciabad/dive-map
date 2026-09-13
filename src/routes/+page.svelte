@@ -3,6 +3,7 @@
 	import ControlRail from '$lib/ui/ControlRail.svelte';
 	import FirstRun from '$lib/ui/FirstRun.svelte';
 	import LocationControl from '$lib/ui/LocationControl.svelte';
+	import BaseMapToggle from '$lib/ui/BaseMapToggle.svelte';
 	import CropOverlay from '$lib/ui/CropOverlay.svelte';
 	import FeatureCard from '$lib/ui/FeatureCard.svelte';
 	import { GROUND_PICK_LAYERS, OSM_PICK_LAYERS, pickFrom } from '$lib/ui/feature-card';
@@ -429,6 +430,8 @@
 
 	<ControlRail {view} {configurations} />
 	<LocationControl {view} />
+	<!-- After the locate control, so MapLibre stacks the toggle under it. -->
+	<BaseMapToggle {view} />
 
 	<!-- Last, so the locate button it points at is already in MapLibre's corner. -->
 	{#if hinting}

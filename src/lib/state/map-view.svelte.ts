@@ -16,7 +16,15 @@ import {
 	type PaintLevel,
 	newCard
 } from '$lib/domain/card';
-import { type BaseMapId, DEFAULT_BASE_MAP, NO_BASE_MAP } from '$lib/domain/basemaps';
+import {
+	type BaseMapId,
+	DEFAULT_BASE_MAP,
+	DEFAULT_QUICK_PAIR,
+	NO_BASE_MAP,
+	type QuickPair,
+	quickNext,
+	withQuickChoice
+} from '$lib/domain/basemaps';
 import {
 	NO_TEXTURE_CHOICES,
 	type SeabedClass,
@@ -88,6 +96,16 @@ export class MapState {
 	 * instead, which is the same wave that takes `satellite` out of `LayerId`.
 	 */
 	baseMap = $state<BaseMapId>(DEFAULT_BASE_MAP);
+
+	/**
+	 * The two base maps the corner toggle flicks between, resting one first.
+	 *
+	 * Kept apart from `baseMap` on purpose. Which two a diver flicks between is a
+	 * standing preference, and what is under the chart right now is where they
+	 * happen to be in it; letting the picker write this would mean every look at
+	 * a third map quietly rewrote the toggle.
+	 */
+	quickToggle = $state<QuickPair>(DEFAULT_QUICK_PAIR);
 
 	readonly print = new PrintState();
 
@@ -171,6 +189,7 @@ export class MapState {
 			seabedPaint: this.seabedPaint,
 			landPaint: this.landPaint,
 			baseMap: this.baseMap,
+			quickToggle: this.quickToggle,
 			print: this.print.settings
 		};
 	}
@@ -192,6 +211,7 @@ export class MapState {
 		this.seabedPaint = configuration.seabedPaint;
 		this.landPaint = configuration.landPaint;
 		this.baseMap = configuration.baseMap;
+		this.quickToggle = configuration.quickToggle;
 		this.#mirrorBaseMap();
 		// Through the print state's own transitions rather than over its fields, so a
 		// stored pixel sheet carrying a scale ratio comes back framed by zoom. The
@@ -284,6 +304,25 @@ export class MapState {
 		this.baseMap = id;
 		this.#mirrorBaseMap();
 		this.#settlePhoto();
+	}
+
+	/**
+	 * One press of the corner toggle: the other of the diver's two base maps.
+	 *
+	 * Through `setBaseMap` like every other route in, so the photograph still
+	 * suspends the depth veil and the relief on the way past.
+	 */
+	flipBaseMap(): void {
+		this.setBaseMap(quickNext(this.quickToggle, this.baseMap));
+	}
+
+	/**
+	 * Put a base map in the toggle's resting slot. Does not move the map: a diver
+	 * setting up what the toggle flicks between has not asked to be shown either
+	 * of them yet.
+	 */
+	chooseQuick(id: BaseMapId): void {
+		this.quickToggle = withQuickChoice(this.quickToggle, id);
 	}
 
 	/**

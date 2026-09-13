@@ -22,8 +22,11 @@ import {
 import {
 	type BaseMapId,
 	DEFAULT_BASE_MAP,
+	DEFAULT_QUICK_PAIR,
 	NO_BASE_MAP,
-	isBaseMapId
+	type QuickPair,
+	isBaseMapId,
+	isQuickPair
 } from '$lib/domain/basemaps';
 import { parseIsobathPaint } from '$lib/domain/isobaths';
 import { DIVE_FEATURE_KINDS } from '$lib/domain/osm';
@@ -73,6 +76,16 @@ export interface Configuration {
 	 * putting a 25 cm photograph over a 5 cm one. See `$lib/domain/basemaps`.
 	 */
 	readonly baseMap: BaseMapId;
+	/**
+	 * The two base maps the quick toggle flicks between, resting one first.
+	 *
+	 * Saved rather than derived, because it is a diver's answer to what they
+	 * flick between on this coast and not a consequence of anything else on the
+	 * map. It travels with the rest of a configuration, so a setup named for a
+	 * night dive can rest on the chart and one named for planning can rest on the
+	 * photograph.
+	 */
+	readonly quickToggle: QuickPair;
 	/**
 	 * The sheet a card is cut to, when one was saved alongside the rest.
 	 *
@@ -160,7 +173,8 @@ export const shippedConfiguration = (locale: Locale): Configuration => ({
 	textures: NO_TEXTURE_CHOICES,
 	seabedPaint: DEFAULT_SEABED_PAINT,
 	landPaint: DEFAULT_LAND_PAINT,
-	baseMap: DEFAULT_BASE_MAP
+	baseMap: DEFAULT_BASE_MAP,
+	quickToggle: DEFAULT_QUICK_PAIR
 });
 
 /**
@@ -325,6 +339,17 @@ const parseBaseMap = (value: unknown, layers: readonly LayerId[]): BaseMapId => 
 };
 
 /**
+ * The pair the quick toggle was left holding.
+ *
+ * Both halves have to be base maps this version still draws and they have to
+ * differ, or the whole pair goes back to the shipped one. Half-honouring it
+ * would leave a toggle that flicks to a map that is not there, or one that
+ * flicks to itself, and both are worse than the default the diver already knows.
+ */
+const parseQuickPair = (value: unknown): QuickPair =>
+	isQuickPair(value) ? value : DEFAULT_QUICK_PAIR;
+
+/**
  * A field this version cannot make sense of falls back to what the map ships
  * with, rather than failing the whole configuration. A diver who saved eight
  * settings and finds seven of them restored is better served than one who is
@@ -352,6 +377,7 @@ export const parseConfiguration = (value: unknown, locale: Locale): Configuratio
 		seabedPaint: isPaintLevel(value['seabedPaint']) ? value['seabedPaint'] : DEFAULT_SEABED_PAINT,
 		landPaint: isPaintLevel(value['landPaint']) ? value['landPaint'] : DEFAULT_LAND_PAINT,
 		baseMap: parseBaseMap(value['baseMap'], layers),
+		quickToggle: parseQuickPair(value['quickToggle']),
 		...(print === undefined ? {} : { print })
 	};
 };
