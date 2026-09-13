@@ -13,6 +13,12 @@
 	 * come first; the rest follow dimmed under a caption, because a row that named
 	 * only one of them would promise a distinction the pixels do not make.
 	 *
+	 * The texture runs down the left as one unbroken strip beside the names it
+	 * carries, rather than a wide block above each of them. Fifty-three classes
+	 * over thirty-one textures used to cost a 6 rem block apiece, which was most of
+	 * the scroll and said the same thing six times over. Merged, the shape itself
+	 * is the grouping: one strip, one pattern, every class that is painted with it.
+	 *
 	 * Each name is the way into choosing that class's texture, which is why it is a
 	 * button at the touch floor rather than a line of text. The row is where the
 	 * question "what is this pattern" is already being answered, so it is where
@@ -38,38 +44,47 @@
 </script>
 
 <li class="row">
-	<Swatch {sample} {missing} />
-	{#each lines as entry, index (entry.key)}
-		{#if index === shared}
-			<p class="caption">{t(locale, 'legendSameTexture')}</p>
-		{/if}
-		<button
-			type="button"
-			class="name"
-			data-seabed={entry.key}
-			data-dim={index >= row.inFrame.length}
-			title={t(locale, 'legendChangeTexture', { name: entry.seabed[locale] })}
-			onclick={() => {
-				onpick(entry.seabed);
-			}}
-		>
-			<span class="text">{entry.seabed[locale]}</span>
-			{#if entry.hic !== undefined}
-				<Chip label={t(locale, 'legendHic', { code: entry.hic })} />
+	<Swatch {sample} {missing} shape="column" />
+	<div class="names">
+		{#each lines as entry, index (entry.key)}
+			{#if index === shared}
+				<p class="caption">{t(locale, 'legendSameTexture')}</p>
 			{/if}
-			{#if entry.chosen}
-				<span class="mark">{t(locale, 'legendTextureMark')}</span>
-			{/if}
-			<span class="go"><Icon name="chevron" size={16} /></span>
-		</button>
-	{/each}
+			<button
+				type="button"
+				class="name"
+				data-seabed={entry.key}
+				data-dim={index >= row.inFrame.length}
+				title={t(locale, 'legendChangeTexture', { name: entry.seabed[locale] })}
+				onclick={() => {
+					onpick(entry.seabed);
+				}}
+			>
+				<span class="text">{entry.seabed[locale]}</span>
+				{#if entry.hic !== undefined}
+					<Chip label={t(locale, 'legendHic', { code: entry.hic })} />
+				{/if}
+				{#if entry.chosen}
+					<span class="mark">{t(locale, 'legendTextureMark')}</span>
+				{/if}
+				<span class="go"><Icon name="chevron" size={16} /></span>
+			</button>
+		{/each}
+	</div>
 </li>
 
 <style>
+	/* The strip is a touch target wide, so a single-class row reads as a square. */
 	.row {
+		display: grid;
+		grid-template-columns: var(--spacing-touch) minmax(0, 1fr);
+		gap: 0.4rem;
+		align-items: stretch;
+	}
+
+	.names {
 		display: flex;
 		flex-direction: column;
-		gap: 0.3rem;
 		min-width: 0;
 	}
 
@@ -80,13 +95,13 @@
 		gap: 0.4rem;
 		min-height: var(--spacing-touch);
 		min-width: 0;
-		padding: 0.3rem 0.4rem;
+		padding: 0.2rem 0.4rem;
 		border: 0;
 		border-radius: var(--control-radius);
 		background: transparent;
 		font: inherit;
 		font-size: var(--control-text);
-		line-height: 1.35;
+		line-height: 1.3;
 		color: var(--control-ink);
 		text-align: left;
 		overflow-wrap: anywhere;
@@ -131,7 +146,8 @@
 	}
 
 	.caption {
-		margin: 0.15rem 0 0;
+		margin: 0.25rem 0 0.1rem;
+		padding: 0 0.4rem;
 		font-size: var(--control-label);
 		letter-spacing: 0.09em;
 		text-transform: uppercase;

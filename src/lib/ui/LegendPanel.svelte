@@ -212,8 +212,14 @@
 			{/if}
 
 			<Field label={t(view.locale, 'legendUnsurveyed')}>
-				<Swatch sample={sampleOf(UNSURVEYED_TEXTURE)} missing={t(view.locale, 'legendNoSwatch')} />
-				<Note>{t(view.locale, 'legendUnsurveyedHint')}</Note>
+				<div class="lone">
+					<Swatch
+						sample={sampleOf(UNSURVEYED_TEXTURE)}
+						missing={t(view.locale, 'legendNoSwatch')}
+						shape="column"
+					/>
+					<Note>{t(view.locale, 'legendUnsurveyedHint')}</Note>
+				</div>
 			</Field>
 
 			{#if view.groundLayer === 'habitats'}
@@ -233,10 +239,18 @@
 	.rows {
 		display: flex;
 		flex-direction: column;
-		/* Wider than the gap inside a row, so a caption belongs to the band above it. */
-		gap: 1.1rem;
+		/* Wider than the gap between two names, so a strip owns the names beside it. */
+		gap: 0.55rem;
 		margin: 0;
 		padding: 0;
 		list-style: none;
+	}
+
+	/* The hatch has no class list, so its hint stands in for one and sits beside it. */
+	.lone {
+		display: grid;
+		grid-template-columns: var(--spacing-touch) minmax(0, 1fr);
+		gap: 0.4rem;
+		align-items: center;
 	}
 </style>

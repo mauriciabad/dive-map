@@ -3,9 +3,16 @@
 
 	/**
 	 * A band of the real seabed at the size the map paints it. Not a thumbnail: the
-	 * map's own texture file is tiled at its own repeat inside a window 6rem tall,
-	 * so what you see beside a class name is the density you see under the boat. A
-	 * whole tile shrunk into a box is a different pattern from the one on the map.
+	 * map's own texture file is tiled at its own repeat, so what you see beside a
+	 * class name is the density you see under the boat. A whole tile shrunk into a
+	 * box is a different pattern from the one on the map, which is why the repeat
+	 * is fixed and the box is what changes shape.
+	 *
+	 * `column` is the legend's shape: a narrow strip that stretches to whatever
+	 * height the names beside it need, so the classes that share a texture sit
+	 * against one continuous run of it. A class on its own comes out a small
+	 * square, six of them come out a tall rectangle, and both are the same pixels
+	 * at the same density.
 	 *
 	 * CSS reports nothing when a background image fails, and an empty band would
 	 * read as a texture that happens to be blank, which one of them nearly is. The
@@ -15,17 +22,18 @@
 	interface Props {
 		readonly sample: TextureSample | undefined;
 		readonly missing: string;
+		readonly shape?: 'band' | 'column';
 	}
 
-	const { sample, missing }: Props = $props();
+	const { sample, missing, shape = 'band' }: Props = $props();
 
 	let loaded = $state(false);
 	let failed = $state(false);
 </script>
 
-<div class="swatch">
+<div class="swatch" data-shape={shape}>
 	{#if failed}
-		<p class="missing">{missing}</p>
+		<p class="missing" title={missing}><span>{missing}</span></p>
 	{:else}
 		<div
 			class="band"
@@ -66,6 +74,25 @@
 		background-position: center;
 		background-size: var(--repeat) var(--repeat);
 		box-shadow: var(--sunk);
+	}
+
+	/*
+	 * The caller sets the width. Height follows the row, with the touch floor as a
+	 * floor so a texture carrying one class is still a square you can see.
+	 */
+	.swatch[data-shape='column'] {
+		height: 100%;
+	}
+
+	.swatch[data-shape='column'] .band,
+	.swatch[data-shape='column'] .missing {
+		height: 100%;
+		min-height: var(--spacing-touch);
+	}
+
+	/* A strip this narrow cannot hold a sentence, so the words go to the tooltip. */
+	.swatch[data-shape='column'] .missing span {
+		display: none;
 	}
 
 	/*
