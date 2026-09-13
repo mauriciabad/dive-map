@@ -156,6 +156,9 @@ export interface DepthMark {
 	readonly noBand: boolean;
 }
 
+/** As many marks as the stored depth list can hold, so neither can grow past the other. */
+const MARK_LIMIT = 32;
+
 const ascending = (a: number, b: number): number => a - b;
 
 /** The marked depths in reading order, surface first, each with what it is drawn in. */
@@ -298,8 +301,13 @@ export const withEmphasis = (
 ): IsobathStyle =>
 	withMarkPaint(style, depthM, { ...markPaint(style, depthM), plain: !emphasised });
 
+/**
+ * Refused past `MARK_LIMIT`, which is what a saved configuration can carry. A
+ * ruler that takes a thirty-third mark and a blob that drops it on the way back
+ * is the one failure here that loses work somebody did.
+ */
 export const withMark = (style: IsobathStyle, depthM: number): IsobathStyle =>
-	style.emphasised.includes(depthM)
+	style.emphasised.includes(depthM) || style.emphasised.length >= MARK_LIMIT
 		? style
 		: { ...style, emphasised: [...style.emphasised, depthM].sort(ascending) };
 
@@ -324,9 +332,6 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const HEX = /^#[0-9a-f]{6}$/i;
 
-/** As many marks as the stored depth list can hold, so neither can grow past the other. */
-const MARK_LIMIT = 32;
-
 /**
  * Read back what the ruler wrote, for `parseConfiguration` to fold into the rest
  * of the isobath settings. Absent, damaged or hand-edited past what the panel can
@@ -339,7 +344,8 @@ export const parseIsobathPaint = (value: unknown): Pick<IsobathStyle, 'paint'> =
 	const marks: Record<number, MarkPaint> = {};
 	const stored = value['marks'];
 	if (isRecord(stored)) {
-		for (const [depth, paint] of Object.entries(stored).slice(0, MARK_LIMIT)) {
+		for (const [depth, paint] of Object.entries(stored)) {
+			if (Object.keys(marks).length >= MARK_LIMIT) break;
 			const depthM = Number(depth);
 			if (!Number.isInteger(depthM) || depthM < 0) continue;
 			if (!isRecord(paint)) continue;
