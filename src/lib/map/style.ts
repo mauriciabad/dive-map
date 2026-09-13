@@ -84,48 +84,92 @@ import {
  */
 
 /**
+ * How deep the veil is drawn to, and what it has become by then.
+ *
+ * The survey bottoms out at -80.73 m over the whole coast, so the floor sits a
+ * little past it and the deepest real water is never pinned to the end of a ramp.
+ */
+const VEIL_FLOOR_M = 90;
+const VEIL_ALPHA_AT_FLOOR = 0.84;
+
+/**
+ * The bend in the curve, and the only number that decides how much texture a
+ * diver keeps.
+ *
+ * Above 1 the veil is slack at the top of the water column and does its receding
+ * work at the bottom, which is what the measurement asked for: over Tamariu at
+ * z16 the seabed textures carry a luminance spread of 71.6 on their own, and the
+ * first curve here cut that to 27.8, where ground stops reading as ground.
+ * Divers spend their dive between 5 and 40 m, so that band keeps its texture.
+ *
+ * 1.14 is where a single curve lands on the measured points: 0.13 at 18 m, 0.24
+ * at 30 m, 0.33 at 40 m, 0.73 at 80 m.
+ */
+const VEIL_CURVE = 1.14;
+
+/** The two ends of the water. Everything between them is worked out, not picked. */
+const VEIL_SHALLOW: readonly [number, number, number] = [42, 217, 180];
+const VEIL_DEEP: readonly [number, number, number] = [0, 42, 62];
+
+/**
+ * How fast each channel gives up, as an exponent on the normalised depth.
+ *
+ * Red first, green next, blue last, which is the order water absorbs them in and
+ * the reason deep water reads blue. Three smooth curves rather than a list of
+ * picked colours, so the hue has no corner in it either. They land within a few
+ * levels of the colours that were picked by hand at 5, 18, 50 and 80 m, which is
+ * how far that hand-tuning is preserved.
+ */
+const VEIL_FADE: readonly [number, number, number] = [0.5, 0.75, 1.4];
+
+/**
  * The water column, as a colour-relief ramp over the DEM. Stops are elevation in
  * metres, so negative underwater. Alpha, not hue, carries the depth: tinting a
  * painted texture blue without also veiling it just makes it look dirty.
  *
- * The curve is deliberately slack above 30 m. Measured over Tamariu at z16, the
- * seabed textures carry a luminance spread of 71.6 on their own; the first curve
- * cut that to 27.8, which is where the ground stops reading as ground. Divers
- * spend their dive between 5 and 40 m, so that band keeps its texture and the
- * veil does its receding work below 40.
- *
+ * One continuous curve of depth, sampled every metre, and that is the point of
+ * it. The ramp this replaces was eight hand-placed stops, and its slope changed
+ * at 5, 18, 30, 40 and 50 m, which are the depths the map draws isobaths at. The
+ * eye reads a slope change as an edge, so the veil grew an edge along every
+ * marked contour and the whole thing looked keyed to the isobaths rather than to
+ * the depth. Nothing here knows what depths are marked.
+ */
+const veilAt = (depthM: number): string => {
+	const t = depthM / VEIL_FLOOR_M;
+	const channel = (index: 0 | 1 | 2): number =>
+		Math.round(
+			VEIL_SHALLOW[index] + (VEIL_DEEP[index] - VEIL_SHALLOW[index]) * t ** VEIL_FADE[index]
+		);
+	const alpha = VEIL_ALPHA_AT_FLOOR * t ** VEIL_CURVE;
+	return `rgba(${channel(0)}, ${channel(1)}, ${channel(2)}, ${alpha.toFixed(3)})`;
+};
+
+const veilStops = (): (number | string)[] => {
+	const stops: (number | string)[] = [];
+	for (let depthM = VEIL_FLOOR_M; depthM >= 0; depthM -= 1) stops.push(-depthM, veilAt(depthM));
+	return stops;
+};
+
+/**
  * The -95 stop is what stops the veil drawing where there is no DEM. An absent
  * texel is read as RGB 0,0,0, and under the Mapbox encoding that decodes to
  * -10000 m, which used to clamp to the deepest colour on the ramp. Harbour
  * basins, river mouths and every other hole the bathymetry skips came out as
  * near-black water beside the shore because of it. The survey bottoms out at
  * -80.73 m over the whole coast, so anything past -95 is missing, not deep.
+ *
+ * The 0.01 stop is the same guard at the other end, for land.
  */
-const DEPTH_VEIL: ExpressionSpecification = [
+const DEPTH_VEIL = [
 	'interpolate',
 	['linear'],
 	['elevation'],
 	-95,
 	'rgba(0, 0, 0, 0)',
-	-90,
-	'rgba(0, 42, 62, 0.84)',
-	-80,
-	'rgba(0, 56, 80, 0.74)',
-	-50,
-	'rgba(2, 79, 119, 0.52)',
-	-40,
-	'rgba(2, 90, 130, 0.38)',
-	-30,
-	'rgba(4, 107, 150, 0.24)',
-	-18,
-	'rgba(10, 143, 155, 0.14)',
-	-5,
-	'rgba(35, 201, 172, 0.05)',
-	0,
-	'rgba(42, 217, 180, 0)',
+	...veilStops(),
 	0.01,
 	'rgba(0, 0, 0, 0)'
-];
+] as ExpressionSpecification;
 
 /**
  * code -> texture image id, built from the catalogues so the two cannot drift.
