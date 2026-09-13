@@ -14,7 +14,6 @@ import {
 	type OsmTags,
 	parseDiveFeature
 } from '$lib/domain/osm';
-import type { DepthReading } from '$lib/map/depth';
 import { GROUND_BY_LAYER } from '$lib/map/style';
 import type { Depth } from '$lib/domain/units';
 import { type Locale, localisedName } from '$lib/i18n/locale';
@@ -46,12 +45,11 @@ export interface FeaturePick {
 	/**
 	 * How deep it is where the diver tapped, in metres.
 	 *
-	 * Read off the contours at that point rather than off the habitat polygon,
-	 * which carries the range of the whole polygon and answered "0 to 42 m" on a
-	 * card about one spot. Between two contours the honest answer is still a pair,
-	 * so this keeps both ends; see `depthUnder`.
+	 * One number, off the contour nearest the point. The habitat polygon carries a
+	 * range and that is the range of the whole polygon, which is how a card about
+	 * one spot came to say "the bottom here: 0 to 42 m". See `depthAt`.
 	 */
-	readonly depth: DepthReading | undefined;
+	readonly depth: number | undefined;
 }
 
 /** A ground polygon under the tap, with the layer that says which catalogue it is in. */
@@ -139,7 +137,7 @@ export const pickFrom = (
 	osmHits: readonly FeatureProperties[],
 	groundHits: readonly GroundHit[],
 	position: { readonly lng: number; readonly lat: number },
-	depth: DepthReading | undefined
+	depth: number | undefined
 ): FeaturePick | undefined => {
 	let best: DiveFeature | undefined;
 	for (const props of osmHits) {

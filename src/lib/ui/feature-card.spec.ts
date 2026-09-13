@@ -309,10 +309,7 @@ describe('a tap on open seabed still answers', () => {
 	 */
 	it('reports the depth read at the point, not the range of the polygon', () => {
 		const deep = off('habitats', [{ code: '30512', dmin: 0, dmax: 42 }]);
-		expect(pickFrom([], deep, AT, { shallowestM: 18, deepestM: 18 })?.depth).toEqual({
-			shallowestM: 18,
-			deepestM: 18
-		});
+		expect(pickFrom([], deep, AT, 18)?.depth).toBe(18);
 	});
 
 	it('carries the tapped position so it can be read off the card', () => {

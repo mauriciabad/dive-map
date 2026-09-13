@@ -66,17 +66,11 @@
 		<!--
 			The depth under the point, unlabelled and the largest thing on the card. It
 			is what a diver reads first and it needs no caption: a number this size on a
-			card about one point on the seabed is the depth there.
+			card about one point on the seabed is the depth there. One number, never a
+			range, which is what the owner asked for and what `depthAt` answers.
 		-->
 		{#if pick.depth !== undefined}
-			{@const flat = pick.depth.shallowestM === pick.depth.deepestM}
-			<p class={['here', { flat }]}>
-				{#if flat}
-					{pick.depth.shallowestM}<span class="unit">m</span>
-				{:else}
-					{t(locale, 'depthRange', { min: pick.depth.shallowestM, max: pick.depth.deepestM })}
-				{/if}
-			</p>
+			<p class="here">{pick.depth}<span class="unit">m</span></p>
 		{/if}
 
 		{#if hero !== undefined}
@@ -162,22 +156,14 @@
 		color: var(--control-ink-dim);
 	}
 
-	/*
-	 * The depth under the point. Nothing else on the card is bigger, and a range
-	 * carries three more glyphs and a word, so it takes a step down rather than
-	 * wrapping across two lines on a phone.
-	 */
+	/* The depth under the point. Nothing else on the card is bigger. */
 	.here {
 		margin: 0;
-		font-size: 2.1rem;
+		font-size: 3.2rem;
 		font-weight: 700;
 		line-height: 1;
 		font-variant-numeric: tabular-nums;
 		color: var(--control-ink);
-	}
-
-	.here.flat {
-		font-size: 3.2rem;
 	}
 
 	/* The feature's own depth, under its label: the site's rating, not the ground. */

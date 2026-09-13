@@ -8,7 +8,7 @@
 	import FeatureCard from '$lib/ui/FeatureCard.svelte';
 	import { GROUND_PICK_LAYERS, OSM_PICK_LAYERS, pickFrom } from '$lib/ui/feature-card';
 	import { whenMapReady } from '$lib/map/controls';
-	import { depthUnder } from '$lib/map/depth';
+	import { depthAt } from '$lib/map/depth';
 	import { watchArchives } from '$lib/map/tile-errors';
 	import { replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -218,7 +218,7 @@
 	 * arrives naming a feature, so both get the same card rather than two answers
 	 * built from different queries.
 	 *
-	 * The depth is read at the point, the same reading the cursor readout shows.
+	 * The depth is the contour nearest the point, off the lines already on screen.
 	 * The habitat polygon carries a range as well and it is the range of the whole
 	 * polygon, which is how a card about one spot came to say "0 to 42 m".
 	 */
@@ -244,7 +244,7 @@
 				osm.map((f) => f.properties),
 				ground.map((f) => ({ layer: f.layer.id, props: f.properties })),
 				{ lng: at.lng, lat: at.lat },
-				depthUnder(map, point.x, point.y)
+				depthAt(map, point.x, point.y)
 			)
 		);
 	};

@@ -1,4 +1,4 @@
-import type { IControl, Map as MapLibre, MapMouseEvent } from 'maplibre-gl';
+import type { IControl, MapGeoJSONFeature, Map as MapLibre, MapMouseEvent } from 'maplibre-gl';
 
 /**
  * The depth under a precise pointer, read off the contours already on screen.
@@ -29,12 +29,17 @@ export interface DepthReading {
 	readonly deepestM: number;
 }
 
-const contoursWithin = (map: MapLibre, x: number, y: number, radius: number): readonly number[] => {
-	const depths: number[] = [];
+interface Contour {
+	readonly depthM: number;
+	readonly line: GeoJSON.Geometry;
+}
+
+const contoursWithin = (map: MapLibre, x: number, y: number, radius: number): readonly Contour[] => {
+	const found: Contour[] = [];
 	for (const layer of CONTOUR_LAYERS) {
-		let found: readonly { readonly properties: Record<string, unknown> }[];
+		let hits: readonly MapGeoJSONFeature[];
 		try {
-			found = map.queryRenderedFeatures(
+			hits = map.queryRenderedFeatures(
 				[
 					[x - radius, y - radius],
 					[x + radius, y + radius]
@@ -44,20 +49,79 @@ const contoursWithin = (map: MapLibre, x: number, y: number, radius: number): re
 		} catch {
 			continue;
 		}
-		for (const feature of found) {
-			const metres = Number(feature.properties['depth']);
-			if (Number.isFinite(metres)) depths.push(metres);
+		for (const feature of hits) {
+			const depthM = Number(feature.properties['depth']);
+			if (Number.isFinite(depthM)) found.push({ depthM, line: feature.geometry });
 		}
 	}
-	return depths;
+	return found;
 };
 
 export const depthUnder = (map: MapLibre, x: number, y: number): DepthReading | undefined => {
 	for (const radius of SEARCH_PX) {
-		const depths = contoursWithin(map, x, y, radius);
-		if (depths.length > 0) {
+		const found = contoursWithin(map, x, y, radius);
+		if (found.length > 0) {
+			const depths = found.map((contour) => contour.depthM);
 			return { shallowestM: Math.min(...depths), deepestM: Math.max(...depths) };
 		}
+	}
+	return undefined;
+};
+
+/** Every vertex of a line or multi-line, in the order they were drawn. */
+const verticesOf = (geometry: GeoJSON.Geometry): readonly GeoJSON.Position[] => {
+	if (geometry.type === 'LineString') return geometry.coordinates;
+	if (geometry.type === 'MultiLineString') return geometry.coordinates.flat();
+	return [];
+};
+
+/**
+ * Screen distance from a point to the nearest vertex of one contour.
+ *
+ * Vertices rather than segments. The tiles carry a metre contour as a dense
+ * polyline, so the nearest vertex is within a pixel or two of the nearest point
+ * on the line, and a segment projection would buy that back at the cost of the
+ * arithmetic to get it wrong in.
+ */
+const pixelsAway = (map: MapLibre, geometry: GeoJSON.Geometry, x: number, y: number): number => {
+	let nearest = Number.POSITIVE_INFINITY;
+	for (const [lng, lat] of verticesOf(geometry)) {
+		if (lng === undefined || lat === undefined) continue;
+		const at = map.project([lng, lat]);
+		nearest = Math.min(nearest, Math.hypot(at.x - x, at.y - y));
+	}
+	return nearest;
+};
+
+/**
+ * How deep it is at one point, to the nearest contour drawn through it.
+ *
+ * The bracket `depthUnder` reports is right for a readout that follows a moving
+ * cursor, and wrong for a card that says "the bottom here". A tap near a steep
+ * shore has the 0 m coastline and the 8 m contour in the same search box, and
+ * the card printed "0 to 8 m" off that: two contours the tap happened to be
+ * between, not a depth. So this asks which single contour is closest and says
+ * what that one reads, which is the depth at the point to within one interval.
+ *
+ * The tiles carry every metre, and the drawn interval is 1 m from zoom 16, so a
+ * diver reading a site gets the metre. Zoomed out they get the coarse interval,
+ * which is the only thing there is to read at that zoom anyway.
+ */
+export const depthAt = (map: MapLibre, x: number, y: number): number | undefined => {
+	for (const radius of SEARCH_PX) {
+		const found = contoursWithin(map, x, y, radius);
+		if (found.length === 0) continue;
+		let best = found[0];
+		if (best === undefined) continue;
+		let bestAway = pixelsAway(map, best.line, x, y);
+		for (const contour of found.slice(1)) {
+			const away = pixelsAway(map, contour.line, x, y);
+			if (away < bestAway) {
+				best = contour;
+				bestAway = away;
+			}
+		}
+		return best.depthM;
 	}
 	return undefined;
 };
