@@ -266,6 +266,19 @@ describe('what the sheet is allowed to claim', () => {
 		const card = cardOn(SHEETS['A3 portrait']);
 		expect(texts(lay(card)).join(' ')).toContain('© ICGC CC BY 4.0');
 	});
+
+	/**
+	 * The national shelf licence names the ministry as the source, so a sheet that
+	 * truncated the line before it reached them would be a sheet in breach. Every
+	 * size, because the smallest is where the wrap runs out of room.
+	 */
+	for (const name of SHEET_NAMES) {
+		it(`names the ministry the shelf bathymetry is owed to on ${name}`, () => {
+			const line = texts(lay(cardOn(SHEETS[name]))).join(' ');
+			expect(line).toContain('Ministerio de Agricultura, Pesca y Alimentación');
+			expect(line).toContain('© OpenStreetMap contributors');
+		});
+	}
 });
 
 describe('type that does not fit', () => {

@@ -117,9 +117,15 @@ const SIZE = {
 /**
  * The ICGC licence asks for this line and the bathymetry metadata forbids
  * navigation use, so it is a quotation, not copy to be improved.
+ *
+ * The national shelf survey is owed its own clause. Its licence is CC BY 4.0
+ * with one extra condition, that the source is named as the ministry rather than
+ * as the survey, and a sheet printed at a zoom that shows the deep contours
+ * carries its data. The live map has named it since the archives arrived; see
+ * `MAPA_CREDIT` in `style.ts`, whose wording this follows.
  */
 const ATTRIBUTION =
-	'Batimetria i línia de costa © ICGC CC BY 4.0 · Hàbitats marins © Generalitat de Catalunya CC BY 4.0 · © OpenStreetMap contributors';
+	'Batimetria i línia de costa © ICGC CC BY 4.0 · Batimetria de plataforma © Ministerio de Agricultura, Pesca y Alimentación, Cartografiado Marino, CC BY 4.0 · Hàbitats marins © Generalitat de Catalunya CC BY 4.0 · © OpenStreetMap contributors';
 
 const ELLIPSIS = '…';
 
