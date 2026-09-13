@@ -133,12 +133,9 @@ for line in sys.stdin:
       -Z8 -z15 -P --coalesce-densest-as-needed --drop-densest-as-needed /dev/stdin
 }
 
-# Burn the contours as elevation, then let gdal_fillnodata spread them into the
-# gaps. The contours are the only control there is, so the surface between any two
-# of them is an interpolation and nothing more; at 5 m contour spacing that is
-# within a couple of metres, which is well inside what a hillshade can show. The
-# smoothing iterations matter more than the search distance: without them the fill
-# terraces on the contour lines and the relief comes out as a flight of steps.
+# Burn the contours as elevation. They are the only control there is, so everything
+# between any two of them is a guess; at five metre contour spacing that guess is
+# within a couple of metres, which is well inside what a hillshade can show.
 burn() {
   gdal_rasterize -sql "SELECT -1 * depth AS elev, geom FROM deep" -a elev \
     -a_nodata -9999 -ot Float32 -init -9999 \
@@ -146,21 +143,24 @@ burn() {
     -co TILED=YES -co COMPRESS=DEFLATE "$LINES" "$1"
 }
 
-# How far the fill reaches, and then how far any of it is allowed to stand.
+# Nearest rather than the default inverse distance, and that is not a detail.
 #
-# The two numbers do different jobs and the first has to be the larger. The fill
-# searches outwards from each empty cell, so closing a gap of width W between two
-# contours costs a reach of W/2. At 1.5 km it left holes out on the flat of the
-# shelf where the five metre contours run three kilometres apart, and those came
-# through the footprint trace as interior rings and onto the map as dark patches
-# cut into the seabed. Three hundred cells is 5.7 km, which closes a gap of eleven.
+# Inverse distance weights every contour inside the search radius, so in a wide gap
+# with contours on one side only it builds long straight rays and triangular wedges
+# out of nothing. Hillshaded, those are kilometre-long bright ridges across open
+# water, which is precisely the glitch issue #41 asks this layer not to have.
+# Nearest cannot make one: every cell takes the depth of the closest measured
+# contour, which is a terraced surface and terraces are what `to_elevation` below
+# is for.
 #
-# That same reach would otherwise run 5.7 km past the outermost contour and invent
-# a shelf nobody measured, so `reach` cuts everything back to within 5 km of a real
-# reading. What is left is a surface wherever there is something to interpolate
-# between, and nothing where there is not.
+# The reach is 300 cells, 5.7 km, which closes a gap of eleven kilometres between
+# two contours; at 1.5 km it left holes out on the flat of the shelf where the five
+# metre contours run three kilometres apart, and those came through the footprint
+# trace as interior rings and onto the map as dark patches cut into the seabed. The
+# same reach would run 5.7 km past the outermost contour and invent a shelf nobody
+# measured, so `reach` cuts everything back to within 5 km of a real reading.
 fill() {
-  gdal_fillnodata.py -md 300 -si 3 -b 1 -of GTiff \
+  gdal_fillnodata.py -md 300 -si 0 -interp nearest -b 1 -of GTiff \
     -co TILED=YES -co COMPRESS=DEFLATE -co PREDICTOR=3 \
     "$BURN" "$1"
 }
@@ -186,15 +186,34 @@ reach() {
     --calc="where(B<=5000, A, -9999)"
 }
 
+# Down to eight times the fill grid and back up, which is a low pass filter written
+# with the one tool already here.
+#
+# The nearest fill hands over a flight of steps, one tread per contour, and a
+# hillshade reads every riser as a cliff. Averaging to 153 m spreads a five metre
+# riser across the whole distance between two contours, and the spline puts back a
+# surface rather than a staircase. Nothing is lost that belongs to this half of the
+# archive: the relief out here is a shelf falling 200 m over twenty kilometres, the
+# contours themselves are kilometres apart, and the ICGC survey sits on top at full
+# resolution wherever a diver is actually reading the seabed.
+SMOOTH_RES="$(python3 -c "print(32 * $RES)")"
+
 # Nodata lands on 0 to match `build_dem.sh`, which is what the mosaic and the
 # footprint trace both read as "no reading".
 to_elevation() {
+  local coarse="$BUILD/shelf-coarse.tif"
+  rm -f "$coarse"
+  gdalwarp -t_srs EPSG:3857 -tr "$SMOOTH_RES" "$SMOOTH_RES" -tap -r average \
+    -srcnodata -9999 -dstnodata -9999 -ot Float32 \
+    -multi -wo NUM_THREADS=ALL_CPUS \
+    -co TILED=YES -co COMPRESS=DEFLATE -co PREDICTOR=3 \
+    "$REACHED" "$coarse"
   gdalwarp -t_srs EPSG:3857 -tr "$RES" "$RES" -tap -r cubicspline \
     -srcnodata -9999 -dstnodata 0 -ot Float32 \
     -multi -wo NUM_THREADS=ALL_CPUS \
     -co TILED=YES -co BLOCKXSIZE=512 -co BLOCKYSIZE=512 \
     -co COMPRESS=DEFLATE -co PREDICTOR=3 -co NUM_THREADS=ALL_CPUS -co BIGTIFF=YES \
-    "$REACHED" "$1"
+    "$coarse" "$1"
 }
 
 stage "$LINES" merge_lines
