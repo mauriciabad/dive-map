@@ -40,6 +40,7 @@ export type LayerId =
 	| 'hillshade'
 	| 'depth-tint'
 	| 'isobaths'
+	| 'spot-depths'
 	| 'habitats'
 	| 'substrate'
 	| 'habitat-points'
@@ -157,6 +158,7 @@ export const DEFAULT_LAYERS: readonly LayerId[] = [
 	'hillshade',
 	'depth-tint',
 	'isobaths',
+	'spot-depths',
 	'habitats',
 	'habitat-points',
 	'flourishes',

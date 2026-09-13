@@ -7,8 +7,8 @@
  */
 
 export interface Icon {
-	/** Stroked outlines. */
-	readonly d: readonly string[];
+	/** Stroked outlines. Absent on an icon that is nothing but solid shapes. */
+	readonly d?: readonly string[];
 	/**
 	 * Solid shapes, stroked in the same weight so they read as one drawing. Mass
 	 * is what survives at marker size: a hull or a rock made of hairlines
@@ -85,6 +85,22 @@ export const ICONS = {
 
 	/** A sounding line to the bottom. */
 	depth: { d: ['M12 3v13', 'M8.5 12.5 12 16l3.5-3.5', 'M4 20h16'] },
+
+	/**
+	 * The three marks a spot depth carries, and the only thing on the map that says
+	 * which way the ground goes without a diver reading two numbers and comparing
+	 * them. Up is ground standing proud, down is ground dented in, and the bar is
+	 * ground with no relief either way.
+	 *
+	 * Solid and as near the full box as the halo allows, because they are drawn at
+	 * a third of marker size beside a number and a hairline triangle at 12 px on a
+	 * painted seabed in sunlight is a smudge. Squat rather than equilateral: the
+	 * number sits alongside, so height is what costs a line of chart and width is
+	 * free.
+	 */
+	spotHigh: { fill: ['M12 4.5 21 17.5H3z'] },
+	spotLow: { fill: ['M12 19.5 3 6.5h18z'] },
+	spotFlat: { fill: ['M3.5 9.6h17v4.8h-17z'] },
 
 	/** A pencil, for annotations. */
 	annotate: { d: ['M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19z', 'M14.5 6.5l3 3'] },

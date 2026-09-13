@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { featureFilter } from '@maplibre/maplibre-gl-style-spec';
+import { featureFilter, type SymbolLayerSpecification } from '@maplibre/maplibre-gl-style-spec';
 import {
 	GROUND_BY_LAYER,
+	ISOBATH_LAYER_IDS,
 	type LayerWriter,
 	type StyleOptions,
 	applyIsobathLayers,
@@ -25,6 +26,7 @@ import {
 } from '$lib/domain/isobaths';
 import { DANGER_TAG_PREFIX, DIVE_NUMBER_KEYS, DIVE_TAG_KEYS } from '$lib/domain/osm';
 import { MARKER_CLOSE } from './markers.ts';
+import { SPOT_IMAGES, SPOT_LAYER_ID } from './spot-depths.ts';
 import { glyphsFromArchive, graftStyle } from './basemap-style.ts';
 import { TILE_SERVICES } from '$lib/domain/basemaps';
 
@@ -721,8 +723,58 @@ describe('pushing the isobath layers at a live map', () => {
 			layout: (id, property) => written.push(`${id} ${property}`)
 		};
 		applyIsobathLayers(writer, buildStyle(options()), undefined);
-		expect(written.filter((at) => at.endsWith('filter'))).toHaveLength(6);
+		expect(written.filter((at) => at.endsWith('filter'))).toHaveLength(ISOBATH_LAYER_IDS.length);
 		expect(written.some((at) => at === 'isobath line-color')).toBe(true);
 		expect(written.some((at) => at === 'isobath-label visibility')).toBe(true);
+	});
+});
+
+describe('the spot depths', () => {
+	const spot = (style: StyleOptions): SymbolLayerSpecification => {
+		const layer = buildStyle(style).layers.find((l) => l.id === SPOT_LAYER_ID);
+		if (layer?.type !== 'symbol') throw new Error('no spot depth layer');
+		return layer;
+	};
+
+	const keeps = (style: StyleOptions, feature: Record<string, unknown>): boolean => {
+		const spec = spot(style).filter;
+		if (spec === undefined) throw new Error('no filter');
+		return featureFilter(spec, 'layers[0].filter').filter(
+			{ zoom: 15 },
+			{ type: 1, properties: feature }
+		);
+	};
+
+	it('draws nothing until the layer is switched on', () => {
+		const off = DEFAULT_LAYERS.filter((id: LayerId) => id !== 'spot-depths');
+		expect(spot(options()).layout?.visibility).toBe('visible');
+		expect(spot(options({ visible: off })).layout?.visibility).toBe('none');
+	});
+
+	it('stops where the contours stop, because one setting governs both', () => {
+		const shallow = { ...DEFAULT_ISOBATHS, maxDepthM: 40 };
+		expect(keeps(options({ isobaths: shallow }), { d: 31, k: 'shoal', s: 40 })).toBe(true);
+		expect(keeps(options({ isobaths: shallow }), { d: 52, k: 'pit', s: 40 })).toBe(false);
+		expect(keeps(options(), { d: 52, k: 'pit', s: 40 })).toBe(true);
+	});
+
+	it('is pushed at a live map rather than rebuilding the style for a depth limit', () => {
+		expect(ISOBATH_LAYER_IDS).toContain(SPOT_LAYER_ID);
+	});
+
+	it('marks a summit and a hollow apart, and asks for every image it names', () => {
+		const named = JSON.stringify(spot(options()).layout?.['icon-image']);
+		for (const { id } of SPOT_IMAGES) expect(named).toContain(id);
+		expect(new Set(SPOT_IMAGES.map(({ id }) => id)).size).toBe(SPOT_IMAGES.length);
+	});
+
+	it('places the most prominent first, which is what survives a crowded frame', () => {
+		expect(spot(options()).layout?.['symbol-sort-key']).toEqual(['to-number', ['get', 's']]);
+	});
+
+	it('sits over the habitat records and under the chart marks', () => {
+		const ids = buildStyle(options()).layers.map((l) => l.id);
+		expect(ids.indexOf(SPOT_LAYER_ID)).toBeGreaterThan(ids.indexOf('habitat-point'));
+		expect(ids.indexOf(SPOT_LAYER_ID)).toBeLessThan(ids.indexOf('osm-marker-plate'));
 	});
 });

@@ -62,6 +62,7 @@ import {
 	markerHalo,
 	markerImageId
 } from './markers.ts';
+import { SPOT_LAYER_ID, SPOT_SOURCE_ID, spotDepthLayers } from './spot-depths.ts';
 import {
 	LAND_SOURCE,
 	LAND_SOURCE_ID,
@@ -373,14 +374,19 @@ const isobathFilter = ({
 ];
 
 /**
- * The three layers the isobath settings own, and the only ones any of those
- * settings can touch.
+ * The layers a depth setting owns, and the only ones any of those settings can
+ * touch.
  *
  * Kept as one function because they are also pushed to a live map on their own,
  * without the style around them. See `applyIsobathLayers`: a diver dragging the
  * interval slider changes these and nothing else, and a rebuild of the whole
  * style for each frame of a drag measured at 100 ms a frame against 0.7 ms for
  * pushing these three.
+ *
+ * The spot depths are in here because they obey the same maximum depth as the
+ * contours and are switched from the same panel, so a diver dragging that limit
+ * moves every depth on the map in one push rather than half of them in a push and
+ * the rest in a rebuild.
  */
 export const ISOBATH_LAYER_IDS: readonly string[] = [
 	'isobath-deep-glow',
@@ -388,7 +394,8 @@ export const ISOBATH_LAYER_IDS: readonly string[] = [
 	'isobath-deep-label',
 	'isobath-glow',
 	'isobath',
-	'isobath-label'
+	'isobath-label',
+	SPOT_LAYER_ID
 ];
 
 /**
@@ -1316,6 +1323,14 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			maxzoom: 15,
 			attribution: MAPA_CREDIT
 		},
+		[SPOT_SOURCE_ID]: {
+			type: 'vector',
+			url: `pmtiles://${asset('/tiles/spot-depths.pmtiles')}`,
+			// A step past the contours, because a printed A3 sits at z18.8 and the
+			// sheet is where a diver has the most room for these and the most use for
+			// them. Past 17 the archive overzooms, which for points is exact.
+			maxzoom: 17
+		},
 		habitats: {
 			type: 'vector',
 			url: `pmtiles://${asset('/tiles/habitats.pmtiles')}`,
@@ -1560,6 +1575,15 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 		// record wants. MapLibre places the later layer first and a placed symbol
 		// keeps its ground.
 		...habitatPointLayers(options),
+
+		// Over the habitat records and under the chart marks. A spot depth is the
+		// shape of the bottom, which is the first thing this map is for, so it takes
+		// the pixels from a gorgonian record that wants the same ones; a dive site or
+		// a mooring buoy still takes them from it.
+		...spotDepthLayers({
+			visible: options.visible.includes('spot-depths'),
+			maxDepthM: options.isobaths.maxDepthM
+		}),
 
 		...osmLayers(options),
 
