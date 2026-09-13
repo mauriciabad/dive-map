@@ -48,11 +48,14 @@ ICGC_EDGE="$BUILD/icgc-dem-edge.geojson"
 BEYOND="$BUILD/icgc-beyond.geojson"
 LINES="$BUILD/shelf-isobaths.gpkg"
 BURN="$BUILD/shelf-burn.tif"
+PRESENT="$BUILD/shelf-present.tif"
+PROX="$BUILD/shelf-prox.tif"
 FILLED="$BUILD/shelf-filled.tif"
+REACHED="$BUILD/shelf-reached.tif"
 DEM="$BUILD/shelf-dem.tif"
 TILES="$OUT/isobaths-deep.pmtiles"
 
-for tool in ogr2ogr tippecanoe gdal_rasterize gdal_fillnodata.py gdalwarp python3; do
+for tool in ogr2ogr tippecanoe gdal_rasterize gdal_fillnodata.py gdal_proximity.py gdal_calc.py gdalwarp python3; do
   command -v "$tool" >/dev/null || { printf 'missing %s on PATH\n' "$tool" >&2; exit 1; }
 done
 
@@ -143,15 +146,44 @@ burn() {
     -co TILED=YES -co COMPRESS=DEFLATE "$LINES" "$1"
 }
 
-# Eighty cells is about three kilometres, which bridges the widest gap between two
-# contours on the flat of the shelf. It also runs that far past the outermost
-# contour, and that skirt ends on nodata; the style covers the drop the same way it
-# already covers the ICGC one, off `dem-edge.geojson`, which is rebuilt from the
-# mosaic so the wash meets the new boundary rather than the old one.
+# How far the fill reaches, and then how far any of it is allowed to stand.
+#
+# The two numbers do different jobs and the first has to be the larger. The fill
+# searches outwards from each empty cell, so closing a gap of width W between two
+# contours costs a reach of W/2. At 1.5 km it left holes out on the flat of the
+# shelf where the five metre contours run three kilometres apart, and those came
+# through the footprint trace as interior rings and onto the map as dark patches
+# cut into the seabed. Three hundred cells is 5.7 km, which closes a gap of eleven.
+#
+# That same reach would otherwise run 5.7 km past the outermost contour and invent
+# a shelf nobody measured, so `reach` cuts everything back to within 5 km of a real
+# reading. What is left is a surface wherever there is something to interpolate
+# between, and nothing where there is not.
 fill() {
-  gdal_fillnodata.py -md 80 -si 3 -b 1 -of GTiff \
+  gdal_fillnodata.py -md 300 -si 3 -b 1 -of GTiff \
     -co TILED=YES -co COMPRESS=DEFLATE -co PREDICTOR=3 \
     "$BURN" "$1"
+}
+
+# gdal_proximity counts any non-zero cell as a target and the burn carries -9999 in
+# its empty ones, so the distance is measured off a plain 0/1 stamp of the same
+# lines rather than off the burn itself.
+present() {
+  gdal_rasterize -burn 1 -init 0 -a_nodata 0 -ot Byte \
+    -tr "$FILL_RES" "$FILL_RES" -te $TE_3857 -a_srs EPSG:3857 \
+    -co TILED=YES -co COMPRESS=DEFLATE -l deep "$LINES" "$1"
+}
+
+prox() {
+  gdal_proximity.py "$PRESENT" "$1" -distunits GEO -maxdist 6000 -nodata 6000 \
+    -ot Float32 -of GTiff -co TILED=YES -co COMPRESS=DEFLATE
+}
+
+# Five kilometres of web mercator, which is 3.7 km on the ground at this latitude.
+reach() {
+  gdal_calc.py -A "$FILLED" -B "$PROX" --outfile="$1" --NoDataValue=-9999 \
+    --type Float32 --co TILED=YES --co COMPRESS=DEFLATE --co PREDICTOR=3 --quiet \
+    --calc="where(B<=5000, A, -9999)"
 }
 
 # Nodata lands on 0 to match `build_dem.sh`, which is what the mosaic and the
@@ -162,7 +194,7 @@ to_elevation() {
     -multi -wo NUM_THREADS=ALL_CPUS \
     -co TILED=YES -co BLOCKXSIZE=512 -co BLOCKYSIZE=512 \
     -co COMPRESS=DEFLATE -co PREDICTOR=3 -co NUM_THREADS=ALL_CPUS -co BIGTIFF=YES \
-    "$FILLED" "$1"
+    "$REACHED" "$1"
 }
 
 stage "$LINES" merge_lines
@@ -170,6 +202,9 @@ stage "$TILES" tile_lines
 printf 'wrote %s (%s)\n' "$TILES" "$(ls -lh "$TILES" | awk '{print $5}')"
 
 stage "$BURN" burn
+stage "$PRESENT" present
+stage "$PROX" prox
 stage "$FILLED" fill
+stage "$REACHED" reach
 stage "$DEM" to_elevation
 printf 'wrote %s (%s)\n' "$DEM" "$(ls -lh "$DEM" | awk '{print $5}')"
