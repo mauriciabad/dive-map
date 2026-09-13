@@ -4,6 +4,7 @@ import type {
 	ExpressionSpecification,
 	LayerSpecification,
 	LineLayerSpecification,
+	PropertyValueSpecification,
 	StyleSpecification
 } from 'maplibre-gl';
 import {
@@ -31,7 +32,9 @@ import {
 	KEY_KINDS,
 	LABEL_ONLY_KINDS,
 	MARKERS,
+	MARKER_CLOSE,
 	MARKER_DISC_IMAGE,
+	MARKER_HALO,
 	MARKER_INK,
 	MARKER_PLATE,
 	MARKER_RIM,
@@ -535,20 +538,35 @@ const byKind = (
 	return ['coalesce', ['get', ['get', 'kind'], ['literal', lookup]], fallback];
 };
 
+/** An expression rather than a property value, so a step can nest one. */
 const byNumberKind = (
 	kinds: readonly DiveFeatureKind[],
 	value: (kind: DiveFeatureKind) => number,
 	fallback: number
-): DataDrivenPropertyValueSpecification<number> => {
+): ExpressionSpecification => {
 	const lookup: Record<string, number> = {};
 	for (const kind of kinds) lookup[kind] = value(kind);
 	return ['coalesce', ['get', ['get', 'kind'], ['literal', lookup]], fallback];
 };
 
 /**
- * One layer per collision group. Key marks are few and must never be dropped;
- * minor ones run to four hundred mooring piles inside a single marina, so they
- * thin out as they crowd instead of painting a mat.
+ * A key mark holds its pixels from `MARKER_CLOSE` in and gives way outside it.
+ * Out there the whole survey is in one frame and every dive site on the coast is
+ * stacked on one headland, so letting a mark drop is what turns that pile back
+ * into a spread. See `MARKER_CLOSE` for why the switch cannot sit anywhere else.
+ */
+const KEY_OVERLAP: PropertyValueSpecification<boolean> = [
+	'step',
+	['zoom'],
+	false,
+	MARKER_CLOSE,
+	true
+];
+
+/**
+ * One layer per collision group. Minor marks run to four hundred mooring piles
+ * inside a single marina, so they thin out as they crowd instead of painting a
+ * mat, at every zoom they are drawn at.
  */
 const markerLayer = (
 	id: string,
@@ -572,9 +590,7 @@ const markerLayer = (
 		visibility: vis(options, 'osm'),
 		'icon-image': byKind(kinds, markerImageId, MARKER_DISC_IMAGE),
 		'icon-size': MARKER_SIZE,
-		// A key mark is never dropped, but it still occupies its pixels, so a
-		// neighbour's label steps around it rather than landing on top of it.
-		'icon-allow-overlap': !crowds,
+		'icon-allow-overlap': crowds ? false : KEY_OVERLAP,
 		'icon-ignore-placement': false,
 		// The dive site outranks the furniture when two marks want the same pixels.
 		'symbol-sort-key': ['index-of', ['get', 'kind'], ['literal', [...kinds]]]
@@ -584,7 +600,13 @@ const markerLayer = (
 		'icon-halo-color': MARKER_INK,
 		// MapLibre divides this by icon-size before reading the field, so a constant
 		// is a constant on screen. Past 6 the shader draws no halo at all.
-		'icon-halo-width': byNumberKind(kinds, (kind) => markerHalo(MARKERS[kind]), 2.2)
+		'icon-halo-width': [
+			'step',
+			['zoom'],
+			MARKER_HALO,
+			MARKER_CLOSE,
+			byNumberKind(kinds, (kind) => markerHalo(MARKERS[kind]), MARKER_HALO)
+		]
 	}
 });
 
@@ -660,6 +682,9 @@ const osmLayers = (options: StyleOptions): LayerSpecification[] => {
 			id: 'osm-marker-shadow',
 			type: 'circle',
 			source: 'osm',
+			// A circle is never dropped, so out where the glyphs thin out this would
+			// leave a blur under every site whose mark gave way.
+			minzoom: MARKER_CLOSE,
 			// Points only. A circle layer draws one circle per vertex, so a dive site
 			// mapped as an area would be ringed with shadows along its outline.
 			filter: ['all', ['==', ['geometry-type'], 'Point'], isKind(...discs)],
@@ -678,6 +703,7 @@ const osmLayers = (options: StyleOptions): LayerSpecification[] => {
 			id: 'osm-marker-disc',
 			type: 'symbol',
 			source: 'osm',
+			minzoom: MARKER_CLOSE,
 			filter: isKind(...discs),
 			layout: {
 				visibility,
@@ -723,6 +749,9 @@ const osmLayers = (options: StyleOptions): LayerSpecification[] => {
 			id: 'osm-dive-site-label',
 			type: 'symbol',
 			source: 'osm',
+			// Nineteen names over two hundred kilometres of coast was a list, not a
+			// map. A name arrives with the plate, once the frame holds one bay.
+			minzoom: MARKER_CLOSE,
 			filter: isKind(...shown(options, ['dive-site'])),
 			layout: {
 				visibility,

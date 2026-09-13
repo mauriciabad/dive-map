@@ -3,6 +3,7 @@ import { featureFilter } from '@maplibre/maplibre-gl-style-spec';
 import { GROUND_DEPTH_LAYER, type StyleOptions, buildStyle } from './style.ts';
 import { DEFAULT_ISOBATHS, DEFAULT_LAYERS, type LayerId } from '$lib/domain/card';
 import { DANGER_TAG_PREFIX, DIVE_NUMBER_KEYS, DIVE_TAG_KEYS } from '$lib/domain/osm';
+import { MARKER_CLOSE } from './markers.ts';
 
 const options = (extra: Partial<StyleOptions> = {}): StyleOptions => ({
 	locale: 'ca',
@@ -324,5 +325,44 @@ describe('the 0 m line the isobath panel can now ask for', () => {
 
 	it('still draws the depths it always did', () => {
 		expect(drawsDepth(emphasising(0, 18), 18)).toBe(true);
+	});
+});
+
+/**
+ * The bug: at the whole-coast view every dive site on two hundred kilometres was
+ * inside one frame, and 47 discs drew on top of each other around one headland.
+ * Key marks now give way to each other out there, which is only safe while the
+ * plate is not drawn, because the plate is a second layer over the glyph and the
+ * two can never agree about which of them collided.
+ */
+describe('the dive site out where the whole coast is on screen', () => {
+	const layerAt = (id: string) => {
+		const layer = buildStyle(options()).layers.find((l) => l.id === id);
+		if (layer === undefined) throw new Error(`no layer ${id}`);
+		return layer;
+	};
+
+	it('draws nothing that cannot be dropped until the marks stop dropping', () => {
+		for (const id of ['osm-marker-shadow', 'osm-marker-disc', 'osm-dive-site-label']) {
+			expect(layerAt(id).minzoom).toBe(MARKER_CLOSE);
+		}
+	});
+
+	it('lets a key mark give way outside that zoom and hold its pixels inside it', () => {
+		const layer = layerAt('osm-marker-key');
+		if (layer.type !== 'symbol') throw new Error('the key markers are not a symbol layer');
+		expect(layer.layout?.['icon-allow-overlap']).toEqual([
+			'step',
+			['zoom'],
+			false,
+			MARKER_CLOSE,
+			true
+		]);
+	});
+
+	it('keeps thinning the furniture at every zoom it is drawn at', () => {
+		const layer = layerAt('osm-marker-minor');
+		if (layer.type !== 'symbol') throw new Error('the minor markers are not a symbol layer');
+		expect(layer.layout?.['icon-allow-overlap']).toBe(false);
 	});
 });

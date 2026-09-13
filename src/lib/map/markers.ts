@@ -64,6 +64,33 @@ export interface MarkerStyle {
 }
 
 /**
+ * The zoom a key mark stops giving way and puts on its full dress.
+ *
+ * The `from` column above answers when a kind is worth drawing at all. This
+ * answers a different question for the three kinds whose answer is always. Out
+ * where the whole survey is on screen, every dive site on two hundred kilometres
+ * of coast is inside one frame, which drew 47 discs on top of each other around
+ * one headland and told a diver nothing. So out there a key mark is a bare glyph
+ * that gives way to its neighbour, and what survives is spread across the coast:
+ * where the diving is, rather than how much of it there is.
+ *
+ * From this zoom in, nothing is dropped again, and the plate, its shadow and the
+ * site's name all arrive together.
+ *
+ * The same number has to govern all four of those layers, and that is a
+ * constraint rather than a tidiness. The plate is a second symbol layer sitting
+ * under the glyph at the same point, and two layers can never agree about which
+ * of them collided: MapLibre places the upper one first, so the glyph would take
+ * the pixels and then drop its own plate. The plate is therefore only allowed to
+ * exist in the range where nothing collides at all.
+ *
+ * Ten is where a frame holds one stretch of coast rather than all of it, which
+ * is the point a site stops being a dot on a region and starts being somewhere
+ * you are reading the name of.
+ */
+export const MARKER_CLOSE = 10;
+
+/**
  * Screen pixels of dark outline around a glyph. This is what makes a cream mark
  * survive a sunlit sand texture and a red one survive deep water, and it is also
  * the number that decides how far apart two strokes of one drawing have to sit:
@@ -71,9 +98,13 @@ export interface MarkerStyle {
  *
  * A glyph on a plate needs almost none of it, and cannot afford it either: the
  * plate is only twenty pixels across at z14 and a full halo closed every gap in
- * the bubbles.
+ * the bubbles. Which is why the answer is only the answer from `MARKER_CLOSE`
+ * in: out there the plate is gone and the dive site is a glyph on bare seabed
+ * like every other kind, so it takes the full outline.
  */
-export const markerHalo = (style: MarkerStyle): number => (style.disc ? 0.8 : 2.2);
+export const MARKER_HALO = 2.2;
+
+export const markerHalo = (style: MarkerStyle): number => (style.disc ? 0.8 : MARKER_HALO);
 
 /** The ink every marker is outlined in, and the plate the dive site sits on. */
 export const MARKER_INK = '#14100c';
