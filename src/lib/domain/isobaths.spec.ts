@@ -217,10 +217,23 @@ describe('the contours a ruler has to draw', () => {
 	it('follows the zoom while the interval is automatic', () => {
 		expect(intervalAt(DEFAULT_ISOBATHS, 10)).toBe(20);
 		expect(intervalAt(DEFAULT_ISOBATHS, 14.5)).toBe(5);
-		// Five is as fine as it goes, because five is as fine as the survey goes.
-		// Zooming past 15 used to offer a row per metre for depths no archive holds.
-		expect(intervalAt(DEFAULT_ISOBATHS, 17)).toBe(5);
+		expect(intervalAt(DEFAULT_ISOBATHS, 17)).toBe(1);
 		expect(intervalAt({ ...DEFAULT_ISOBATHS, autoInterval: false, intervalM: 2 }, 17)).toBe(2);
+	});
+
+	/**
+	 * Every metre where the ICGC survey measured every metre, fives past its edge
+	 * where the national contours are only ever fives. Offering 81 m and 82 m was
+	 * offering depths no archive can draw.
+	 */
+	it('keeps every metre above the shelf and fives below it', () => {
+		const fine = contourDepths({ ...DEFAULT_ISOBATHS, maxDepthM: 120 }, 17);
+		expect(fine).toContain(41);
+		expect(fine).toContain(79);
+		expect(fine).toContain(85);
+		expect(fine).not.toContain(81);
+		expect(fine).not.toContain(119);
+		expect(fine.filter((d) => d > 80 && d <= 120)).toEqual([85, 90, 95, 100, 105, 110, 115, 120]);
 	});
 
 	it('draws the marked depths whatever the interval says', () => {

@@ -299,24 +299,30 @@ export const contourColour = (bands: readonly PaintedBand[], depthM: number): st
  * compiled into a `step` expression for the map, so the panel can never draw an
  * interval the map is not using.
  *
- * It stops at five because the survey does. Every contour in both archives is a
- * multiple of five, fifty of them from 5 m to 250 m with no gaps, above and
- * below the 80 m the deep set takes over at. The table used to go to two metres
- * at z15 and one at z16, which drew the map no extra line, since a filter of
- * `depth % 1` and one of `depth % 5` select the same contours out of a set that
- * is all fives. What it did do was fill the ruler with a row per metre, most of
- * them offering a depth the data cannot draw: 250 rows where 50 exist. That is
- * the "many unnecessary lines" in issue #51.
- *
- * A diver who wants a mark between the fives can still place one, by dragging a
- * grip or nudging it with the arrow keys, which move by one metre. This governs
- * what the ruler offers unasked, not what it allows.
+ * This is the interval in the shallow water the ICGC survey measured metre by
+ * metre. Past `SHELF_FROM_M` the national contours take over and they are only
+ * ever multiples of `SHELF_STEP_M`, so `contourDepths` coarsens itself there
+ * rather than offering depths nothing can draw.
  */
 export const AUTO_INTERVAL: readonly { readonly fromZoom: number; readonly intervalM: number }[] = [
 	{ fromZoom: 0, intervalM: 20 },
 	{ fromZoom: 12, intervalM: 10 },
-	{ fromZoom: 14, intervalM: 5 }
+	{ fromZoom: 14, intervalM: 5 },
+	{ fromZoom: 15, intervalM: 2 },
+	{ fromZoom: 16, intervalM: 1 }
 ];
+
+/**
+ * Where the ICGC survey stops and the national shelf contours begin.
+ *
+ * Above this the archive holds every metre, so a ruler that offers every metre
+ * is offering something real. Below it the shelf set is fives and nothing
+ * finer, so a row per metre would be 170 rows promising depths no archive can
+ * draw. That is the "many unnecessary lines" in issue #51: the fix is to
+ * coarsen past 80 m, not everywhere.
+ */
+export const SHELF_FROM_M = 80;
+export const SHELF_STEP_M = 5;
 
 export const intervalAt = (style: IsobathStyle, zoom: number): number => {
 	if (!style.autoInterval) return Math.max(1, style.intervalM);
@@ -327,8 +333,17 @@ export const intervalAt = (style: IsobathStyle, zoom: number): number => {
 /** The contours the map draws between the surface and the maximum depth, at one zoom. */
 export const contourDepths = (style: IsobathStyle, zoom: number): readonly number[] => {
 	const interval = intervalAt(style, zoom);
+	// Past the survey's edge the step is never finer than the shelf contours are.
+	const deepInterval = Math.max(interval, SHELF_STEP_M);
 	const drawn = new Set<number>();
-	for (let depth = 0; depth <= style.maxDepthM; depth += interval) drawn.add(depth);
+	for (let depth = 0; depth <= Math.min(style.maxDepthM, SHELF_FROM_M); depth += interval)
+		drawn.add(depth);
+	for (
+		let depth = Math.ceil(SHELF_FROM_M / deepInterval) * deepInterval;
+		depth <= style.maxDepthM;
+		depth += deepInterval
+	)
+		drawn.add(depth);
 	for (const depth of style.emphasised)
 		if (depth <= style.maxDepthM && depth >= 0) drawn.add(depth);
 	// The shoreline is the 0 m contour, so it ships marked and draws in the contour

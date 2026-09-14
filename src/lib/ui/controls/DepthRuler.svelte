@@ -39,18 +39,17 @@
 	const { locale, style, zoom, onchange }: Props = $props();
 
 	/**
-	 * How tall a metre is drawn. Enough that two marks five metres apart, which is
-	 * the closest pair a dive plan actually uses, each keep a row a thumb can land
-	 * on. The panel scrolls; a ruler that fits the screen by squashing 80 m into
-	 * one screenful is a ruler nothing can be pressed on.
+	 * How tall one row is drawn, not how tall a metre is.
+	 *
+	 * The ruler used to place each line at its share of the maximum depth, which
+	 * made the spacing a picture of the water rather than of the list. Once the
+	 * contours past 80 m coarsened to fives, that stretched the deep half into
+	 * five times the gap for the same number of rows, with a metre of ink and
+	 * nothing to press between them. Rows are evenly spaced now: every line is
+	 * one thumb tall wherever it sits, and the ruler is as long as it has rows.
 	 */
-	const PER_METRE_REM = 0.34;
+	const PER_ROW_REM = 0.34;
 	const SHORTEST_REM = 16;
-	/**
-	 * Raised with the maximum depth when the national contours joined the ruler.
-	 * 250 m at the density above is 85 rem, and squashing it into the old 40 would
-	 * halve the row spacing at every depth, including the ones a diver plans on.
-	 */
 	const TALLEST_REM = 85;
 
 	let ruler = $state<HTMLElement | undefined>(undefined);
@@ -71,11 +70,19 @@
 		return drawn.includes(0) ? drawn : [0, ...drawn];
 	});
 	const height = $derived(
-		Math.min(TALLEST_REM, Math.max(SHORTEST_REM, style.maxDepthM * PER_METRE_REM))
+		Math.min(TALLEST_REM, Math.max(SHORTEST_REM, contours.length * PER_ROW_REM))
 	);
 
-	const at = (depthM: number): number =>
-		style.maxDepthM <= 0 ? 0 : (depthM / style.maxDepthM) * 100;
+	/** A line's share of the list, not of the water. */
+	const at = (depthM: number): number => {
+		const last = contours.length - 1;
+		if (last <= 0) return 0;
+		const index = contours.indexOf(depthM);
+		// A depth the list does not hold is placed by depth, so a mark mid-drag never
+		// jumps to the top before the list catches up with it.
+		if (index < 0) return style.maxDepthM <= 0 ? 0 : (depthM / style.maxDepthM) * 100;
+		return (index / last) * 100;
+	};
 
 	const taken = (depthM: number): boolean => style.emphasised.includes(depthM);
 
@@ -87,10 +94,18 @@
 		const box = ruler.getBoundingClientRect();
 		// Where the line is now, which is not where it started once it has moved.
 		let held = depthM;
+		/*
+		 * The rows as they stand at the press. Moving a mark rewrites the list it is
+		 * in, so reading `contours` during the drag would measure the pointer against
+		 * a ruler that moved underneath it.
+		 */
+		const rows = [...contours];
 		const move = (moved: PointerEvent): void => {
-			const wanted = Math.round(((moved.clientY - box.top) / box.height) * style.maxDepthM);
-			const to = Math.min(style.maxDepthM, Math.max(0, wanted));
-			if (to === held || taken(to)) return;
+			const last = rows.length - 1;
+			if (last <= 0) return;
+			const wanted = Math.round(((moved.clientY - box.top) / box.height) * last);
+			const to = rows[Math.min(last, Math.max(0, wanted))];
+			if (to === undefined || to === held || taken(to)) return;
 			const from = held;
 			held = to;
 			raised = to;
