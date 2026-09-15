@@ -1510,15 +1510,6 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			}
 		},
 
-		// Under the ICGC contours, which is the order the two surveys rank in. Where
-		// they somehow overlap, the better one is the one on top.
-		...deepIsobathLayers(options),
-		...isobathLayers(options),
-
-		// Over the contours. Under them it was buried in a metre-interval set and
-		// could not be judged, which is the one thing this layer exists to be.
-		...rockEdgeLayers(options.visible.includes('rock-edge')),
-
 		// Before the surveyed land, so that where the two datasets disagree by a few
 		// metres along the Catalan shore the ICGC polygon is the one that wins.
 		...worldLayers({
@@ -1575,6 +1566,19 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 			visible: options.visible.includes('coastline'),
 			photoFade: photoFade(options)
 		}),
+
+		// Before the ICGC contours rather than after: the land fill above is opaque,
+		// and the 0 m contour is the coastline itself, sitting exactly on the land's
+		// own edge. Drawn under the land it lost its landward half to the fill, which
+		// printed the shoreline as a dotted rather than a solid line. On top of the
+		// land it prints whole. Between the two isobath sets the better one is still
+		// the one on top where they somehow overlap.
+		...deepIsobathLayers(options),
+		...isobathLayers(options),
+
+		// Over the contours. Under them it was buried in a metre-interval set and
+		// could not be judged, which is the one thing this layer exists to be.
+		...rockEdgeLayers(options.visible.includes('rock-edge')),
 
 		// Under the chart marks, so a dive site always wins the pixels a gorgonian
 		// record wants. MapLibre places the later layer first and a placed symbol
