@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ISOBATHS, type IsobathStyle } from './card.ts';
 import {
+	COASTLINE_DEFAULT_COLOUR,
 	DEFAULT_HALO,
 	DEFAULT_PAINT,
 	type PaintMethod,
@@ -83,11 +84,6 @@ describe('painted bands', () => {
 });
 
 describe('the line no band reaches', () => {
-	it('is the 0 m contour painting upwards', () => {
-		const marks = depthMarks(wireframe('upwards'));
-		expect(marks.filter((mark) => mark.noBand).map((mark) => mark.depthM)).toEqual([0]);
-	});
-
 	it('is the deepest contour painting downwards, when it sits on the maximum', () => {
 		const marks = depthMarks(wireframe('downwards'));
 		expect(marks.filter((mark) => mark.noBand).map((mark) => mark.depthM)).toEqual([80]);
@@ -99,25 +95,33 @@ describe('the line no band reaches', () => {
 		expect(colourAt(style, 85)).toBe(colourAt(style, 80));
 	});
 
-	/**
-	 * It used to keep a colour of its own, under a switch in the panel. The owner
-	 * asked twice for the 0 m contour to be the coastline and nothing else, so the
-	 * switch and the colour are gone and the line follows its neighbour.
-	 */
 	it('follows the band beside it', () => {
 		const down = wireframe('downwards');
 		expect(colourAt(down, 80)).toBe(colourAt(down, 79));
+	});
 
+	/**
+	 * The coastline used to follow its neighbour's colour this same way, painting
+	 * upwards. A diver asked for it back as a colour of its own, so 0 m is never
+	 * `noBand` any more and keeps whatever it was painted, the coastline default
+	 * included.
+	 */
+	it('is never the 0 m contour any more, either way the paint runs', () => {
 		const up = wireframe('upwards');
-		expect(colourAt(up, 0)).toBe(colourAt(up, 1));
+		expect(depthMarks(up).some((mark) => mark.noBand)).toBe(false);
+		expect(colourAt(up, 0)).not.toBe(colourAt(up, 1));
+
+		const down = wireframe('downwards');
+		expect(depthMarks(down).find((mark) => mark.depthM === 0)?.noBand).toBe(false);
 	});
 });
 
 describe('switching which line names a band', () => {
 	it('ships painting upwards, in the colours the depth ramp has always given', () => {
-		// [0, 5] is the shallow gold band and (5, 18] the green one, which is what
-		// the map drew before any of this was a diver's to change.
-		expect(colourAt(DEFAULT_ISOBATHS, 0)).toBe(defaultColour(4));
+		// 0 m is the coastline's own default rather than a ramp colour, (0, 5] is
+		// the shallow gold band and (5, 18] the green one, which is what the map
+		// drew before any of this was a diver's to change.
+		expect(colourAt(DEFAULT_ISOBATHS, 0)).toBe(COASTLINE_DEFAULT_COLOUR);
 		expect(colourAt(DEFAULT_ISOBATHS, 4)).toBe(defaultColour(4));
 		expect(colourAt(DEFAULT_ISOBATHS, 6)).toBe(defaultColour(17));
 		expect(colourAt(DEFAULT_ISOBATHS, 18)).toBe(defaultColour(17));
@@ -155,9 +159,9 @@ describe('switching which line names a band', () => {
 	});
 
 	/**
-	 * The owner's words: the coastline is the 0 m isobar and no special line, so
-	 * neither method is allowed to take it off the ruler any more. Painting
-	 * upwards it governs no band, and `noBand` is what keeps it a drawn line.
+	 * The owner's words: the coastline is the 0 m isobar, so neither method is
+	 * allowed to take it off the ruler. It keeps a colour of its own whichever way
+	 * the paint runs, so it is never `noBand` either.
 	 */
 	it('marks the end the method can paint from and never gives up the surface', () => {
 		const shipped = DEFAULT_ISOBATHS.emphasised;
@@ -166,7 +170,7 @@ describe('switching which line names a band', () => {
 		expect(downwards.emphasised).toEqual(shipped.filter((d) => d !== DEFAULT_ISOBATHS.maxDepthM));
 		const upwards = withMethod(downwards, 'upwards');
 		expect(upwards.emphasised).toEqual([...shipped]);
-		expect(depthMarks(upwards).find((mark) => mark.depthM === 0)?.noBand).toBe(true);
+		expect(depthMarks(upwards).find((mark) => mark.depthM === 0)?.noBand).toBe(false);
 	});
 
 	it('carries the colour of both end bands across the switch', () => {

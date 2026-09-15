@@ -171,15 +171,28 @@ export const paintOf = (style: IsobathStyle): IsobathPaint => style.paint ?? DEF
 export const haloOf = (style: IsobathStyle): IsobathHalo => paintOf(style).halo;
 
 /**
+ * The coastline's own default, a brown neither method's ramp gives it. 0 m is
+ * the shore rather than a point on the depth ramp, and the ramp's own shallow
+ * band already belongs to whichever mark sits just past it, so a diver who has
+ * painted nothing still opens on a coastline that reads apart from the 5 m
+ * default beside it and sits easily against the land fill it borders.
+ */
+export const COASTLINE_DEFAULT_COLOUR = '#8a5a34';
+
+/**
  * What a marked depth is painted in before anybody paints it.
  *
  * The band a mark governs is the one above it going upwards and the one below it
  * going downwards, so one mark has two answers and both of them are the depth
  * ramp the map has always drawn. That is what lets the method be switched on a
- * ruler nobody has painted and leave the map exactly as it was.
+ * ruler nobody has painted and leave the map exactly as it was. 0 m is the one
+ * exception: it is the coastline whichever way the paint runs, so it keeps
+ * `COASTLINE_DEFAULT_COLOUR` rather than taking either method's ramp answer.
  */
 export const defaultColourFor = (method: PaintMethod, depthM: number): string =>
-	defaultColour(method === 'upwards' ? Math.max(0, depthM - 1) : depthM);
+	depthM === 0
+		? COASTLINE_DEFAULT_COLOUR
+		: defaultColour(method === 'upwards' ? Math.max(0, depthM - 1) : depthM);
 
 export const markPaint = (style: IsobathStyle, depthM: number): MarkPaint =>
 	paintOf(style).marks[depthM] ?? {
@@ -194,9 +207,10 @@ export interface DepthMark {
 	/** A heavy line and a number on the map. Off is a colour change only. */
 	readonly emphasised: boolean;
 	/**
-	 * True when no band reaches this line, so its colour paints the line and
-	 * nothing else. Only ever the shallowest mark painting upwards or the deepest
-	 * one painting downwards, and only when it sits on the end of the ruler.
+	 * True when no band reaches this line, so its colour paints nothing but that
+	 * one line: only the deepest mark painting downwards, and only when it sits on
+	 * the maximum depth. The coastline used to be this too, painting upwards, until
+	 * a diver asked for it back as a colour of its own; see `COASTLINE_DEFAULT_COLOUR`.
 	 */
 	readonly noBand: boolean;
 }
@@ -217,10 +231,7 @@ export const depthMarks = (style: IsobathStyle): readonly DepthMark[] => {
 			depthM,
 			colour: paint.colour,
 			emphasised: !paint.plain,
-			noBand:
-				method === 'upwards'
-					? index === 0 && depthM === 0
-					: index === last && depthM === style.maxDepthM
+			noBand: method === 'downwards' && index === last && depthM === style.maxDepthM
 		};
 	});
 };
@@ -250,9 +261,10 @@ export const paintedBands = (style: IsobathStyle): readonly PaintedBand[] => {
 	const beside = (index: number): string | undefined =>
 		marks[paintOf(style).method === 'upwards' ? index + 1 : index - 1]?.colour;
 
-	// A line no band reaches follows the band beside it. The 0 m contour painting
-	// upwards is the case that matters: it is the coastline, and a colour of its
-	// own there is the special line the owner asked twice to be rid of.
+	// A line no band reaches follows the band beside it. That is only ever the
+	// deepest mark painting downwards now: the 0 m contour used to be the other
+	// case, but the coastline keeps a colour of its own whichever way the paint
+	// runs, so it is never noBand and always paints in its own mark's colour.
 	const colourOf = (mark: DepthMark, index: number): string | undefined =>
 		mark.noBand ? beside(index) : mark.colour;
 
@@ -375,7 +387,7 @@ const governorOf = (style: IsobathStyle, depthM: number): number | undefined => 
  * Only the deepest mark is ever given up, and only on the way to downwards where
  * it would name a band of one line and nothing else. 0 m is not given up either
  * way. It is the coastline, a diver asked for it to stay drawn whichever way the
- * paint runs, and painting upwards it is exactly the line `noBand` is for.
+ * paint runs, and to carry a colour of its own while it does.
  *
  * Between them every colour lands on the mark that now names the water it was
  * already on, so the map does not move and the swatches do. A mark the switch
