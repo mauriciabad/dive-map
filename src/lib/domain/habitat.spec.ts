@@ -176,7 +176,7 @@ describe('texture choices', () => {
 	});
 
 	it('can paint every class the catalogues name', () => {
-		expect(CATALOGUE_TEXTURES).toHaveLength(31);
+		expect(CATALOGUE_TEXTURES).toHaveLength(30);
 		expect(CATALOGUE_TEXTURES.filter((name) => !isSeabedTexture(name))).toEqual([]);
 	});
 });

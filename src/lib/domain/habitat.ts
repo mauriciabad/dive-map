@@ -406,7 +406,7 @@ export const HABITATS: readonly HabitatClass[] = [
 		en: 'Harbour mud and muddy sand',
 		hic: undefined,
 		prominence: 'background',
-		texture: 'ch_dirt_dark'
+		texture: 'ch_bluestones'
 	},
 	{
 		raster: 33,
@@ -861,7 +861,7 @@ export const CATALOGUE_TEXTURES: readonly string[] = [
 
 /**
  * Every texture a class may be painted with, which is every texture the build
- * emits. Forty-nine of them, against the thirty-one the catalogues name.
+ * emits. Forty-nine of them, against the thirty the catalogues name.
  *
  * This list and the built set are the same set, and `habitat.spec.ts` reads
  * `static/textures/index.json` to hold them that way. A name here that the build

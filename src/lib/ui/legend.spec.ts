@@ -81,12 +81,14 @@ describe('the legend of a ground layer', () => {
 	// holding one holds the other as far as the map can tell. Naming only the port
 	// structures promised a distinction the pixels do not make, and left the
 	// groynes listed as somewhere else while the diver was floating over one.
+	// Harbour mud (32) shares the same texture on its own catalogue account, so it
+	// falls into the same row rather than the same code.
 	it('names both classes of a shared code when that code is in the frame', () => {
 		const legend = buildLegend('habitats', HABITAT_CODES, NO_TEXTURE_CHOICES);
 		const stones = [...legend.inFrame, ...legend.elsewhere].find(
 			(row) => row.texture === 'ch_bluestones'
 		);
-		expect(stones?.inFrame.map((entry) => entry.seabed.raster)).toEqual([29, 30]);
+		expect(stones?.inFrame.map((entry) => entry.seabed.raster)).toEqual([32, 29, 30]);
 		expect(stones?.elsewhere).toEqual([]);
 	});
 });
