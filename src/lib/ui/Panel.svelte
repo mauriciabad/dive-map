@@ -255,9 +255,16 @@
 		gap: 0.55rem;
 		inset: auto 0 0 0;
 		max-height: 46svh;
+		/*
+		 * Read by the header, the scroller and the footer below, not spent here: a
+		 * panel that padded its own box left the scrollbar with nowhere to sit but
+		 * on top of whatever a row put at its right edge, a toggle or a chevron
+		 * cut in half by it. Each of the three insets its own content instead, so
+		 * the scrollbar lands in the gutter the scroller reserved for it.
+		 */
+		--panel-pad-start: max(var(--panel-pad), env(safe-area-inset-left));
+		--panel-pad-end: max(var(--panel-pad), env(safe-area-inset-right));
 		padding-block: 0.35rem 0;
-		padding-inline: max(var(--panel-pad), env(safe-area-inset-left))
-			max(var(--panel-pad), env(safe-area-inset-right));
 		padding-bottom: calc(0.6rem + env(safe-area-inset-bottom));
 		background: var(--panel-face);
 		border: 1px solid var(--ctrl-edge);
@@ -287,10 +294,12 @@
 	@media (min-width: 48rem), (max-height: 30rem) {
 		.panel {
 			--reach: calc(100svh - var(--ctrl-inset-top) - var(--ctrl-inset-bottom));
+			--panel-pad-start: var(--panel-pad);
+			--panel-pad-end: var(--panel-pad);
 			inset: var(--ctrl-inset-top) auto auto var(--ctrl-inset-left);
 			width: min(var(--panel-width), calc(100vw - var(--ctrl-inset-left) - var(--ctrl-gap)));
 			max-height: var(--reach);
-			padding: 0.35rem var(--panel-pad) 0.7rem;
+			padding-block: 0.35rem 0.7rem;
 			border: 1px solid var(--ctrl-edge);
 			border-radius: var(--radius-rail);
 			translate: none;
@@ -323,6 +332,7 @@
 		gap: 0.5rem;
 		flex: none;
 		min-height: var(--spacing-touch);
+		padding-inline: var(--panel-pad-start) var(--panel-pad-end);
 	}
 
 	/*
@@ -413,6 +423,7 @@
 		overflow-y: auto;
 		overscroll-behavior: contain;
 		padding-block: 0.35rem;
+		padding-inline: var(--panel-pad-start) var(--panel-pad-end);
 	}
 
 	.body.overflowing {
@@ -425,5 +436,6 @@
 		gap: 0.45rem;
 		flex: none;
 		padding-top: 0.55rem;
+		padding-inline: var(--panel-pad-start) var(--panel-pad-end);
 	}
 </style>
