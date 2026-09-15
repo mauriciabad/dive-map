@@ -307,10 +307,12 @@
 		min-width: 0;
 	}
 
-	/* The hatch has no class list, so its hint stands in for one and sits beside it. */
+	/* The hatch has no class list, so its hint stands in for one and sits beside it.
+	   Same width as a legend row's swatch, so the hatch reads as one more texture
+	   rather than a smaller afterthought beside the classes above it. */
 	.lone {
 		display: grid;
-		grid-template-columns: var(--spacing-touch) minmax(0, 1fr);
+		grid-template-columns: 6.5rem minmax(0, 1fr);
 		gap: 0.4rem;
 		align-items: center;
 	}

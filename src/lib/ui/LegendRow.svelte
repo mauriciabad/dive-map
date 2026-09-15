@@ -73,10 +73,15 @@
 </li>
 
 <style>
-	/* The strip is a touch target wide, so a single-class row reads as a square. */
+	/*
+	 * Wide enough to read the pattern rather than guess it from a sliver. It used
+	 * to sit at the touch floor, one width, which is a button's width and not a
+	 * texture's: forty-nine bands differ in grain and colour and a 44px strip
+	 * flattened most of that difference away.
+	 */
 	.row {
 		display: grid;
-		grid-template-columns: var(--spacing-touch) minmax(0, 1fr);
+		grid-template-columns: 6.5rem minmax(0, 1fr);
 		gap: 0.4rem;
 		align-items: stretch;
 	}
