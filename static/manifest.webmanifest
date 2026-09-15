@@ -13,11 +13,6 @@
 	"theme_color": "#14100c",
 	"icons": [
 		{
-			"src": "favicon.svg",
-			"sizes": "any",
-			"type": "image/svg+xml"
-		},
-		{
 			"src": "icons/icon-192.png",
 			"sizes": "192x192",
 			"type": "image/png",
@@ -40,6 +35,21 @@
 			"sizes": "512x512",
 			"type": "image/png",
 			"purpose": "maskable"
+		}
+	],
+	"screenshots": [
+		{
+			"src": "screenshots/wide.jpg",
+			"sizes": "1280x800",
+			"type": "image/jpeg",
+			"form_factor": "wide",
+			"label": "Mapa de busseig amb isòbates, hàbitats i punts d’immersió a les Illes Medes"
+		},
+		{
+			"src": "screenshots/narrow.jpg",
+			"sizes": "720x1280",
+			"type": "image/jpeg",
+			"label": "Mapa de busseig amb isòbates, hàbitats i punts d’immersió a les Illes Medes"
 		}
 	]
 }
