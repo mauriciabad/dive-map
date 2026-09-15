@@ -5,16 +5,14 @@
 	import Chip from './controls/Chip.svelte';
 	import Field from './controls/Field.svelte';
 	import Note from './controls/Note.svelte';
-	import Segmented from './controls/Segmented.svelte';
 	import Swatch from './controls/Swatch.svelte';
-	import type { Choice } from './controls/types';
 	import LegendRow from './LegendRow.svelte';
 	import MarkerRow from './MarkerRow.svelte';
 	import TexturePicker from './TexturePicker.svelte';
 	import { buildLegend } from './legend';
 	import { InFrameGround } from './legend.svelte';
 	import { PANEL_ID } from './panel';
-	import type { Ground, SeabedClass } from '$lib/domain/habitat';
+	import type { SeabedClass } from '$lib/domain/habitat';
 	import { DIVE_FEATURE_KINDS } from '$lib/domain/osm';
 	import { HABITAT_POINTS } from '$lib/map/habitat-points';
 	import { markerLayerId } from '$lib/domain/card';
@@ -73,11 +71,6 @@
 		format === undefined ? undefined : textureUrl(texture, THUMBNAIL_SIZE, format);
 
 	const changed = $derived(Object.keys(view.textures).length);
-
-	const grounds = $derived<readonly Choice<Ground>[]>([
-		{ value: 'habitats', label: t(view.locale, 'habitats'), icon: 'habitat' },
-		{ value: 'substrate', label: t(view.locale, 'substrate'), icon: 'substrate' }
-	]);
 </script>
 
 <Panel
@@ -105,20 +98,6 @@
 			}}
 		/>
 	{:else}
-		<Field label={t(view.locale, 'ground')}>
-			<Segmented
-				options={grounds}
-				value={view.groundLayer}
-				onselect={(ground: Ground) => {
-					view.groundLayer = ground;
-					if (!view.shows(ground)) view.toggle(ground);
-				}}
-			/>
-			<Note>
-				{t(view.locale, view.groundLayer === 'habitats' ? 'habitatEstimate' : 'substrateEstimate')}
-			</Note>
-		</Field>
-
 		{#if changed > 0}
 			<Field label={t(view.locale, 'legendTexture')}>
 				<Note>
