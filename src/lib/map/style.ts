@@ -72,12 +72,7 @@ import {
 	landLayers,
 	worldLayers
 } from './land.ts';
-import {
-	FLOURISH_TEXTURE,
-	GROUND_FALLBACK_TEXTURE,
-	LAND_TEXTURE,
-	UNSURVEYED_TEXTURE
-} from './textures.ts';
+import { FLOURISH_TEXTURE, GROUND_FALLBACK_TEXTURE, LAND_TEXTURE } from './textures.ts';
 
 /**
  * The seabed drawn as painted terrain, in the grammar of the texture pack it is
@@ -1386,23 +1381,13 @@ export const buildStyle = (options: StyleOptions): StyleSpecification => ({
 		// itself, because what it replaces is the picture under the chart.
 		...(graftDraws(options) ? (options.graft?.layers ?? []) : []),
 
-		{
-			// Where the bathymetry reached but the habitat survey did not. Left bare it
-			// showed the background through, which reads as a hole in the map next to
-			// the shore and as a stepped cliff at the survey's offshore limit. Hatch is
-			// the chart convention for ground nobody has classified, and it is generated
-			// rather than taken from the texture pack, so it cannot be read as a class.
-			id: 'seabed-unmapped',
-			type: 'fill',
-			source: 'dem-edge',
-			filter: ['==', ['get', 'kind'], 'covered'],
-			layout: { visibility: vis(options, options.groundLayer) },
-			paint: {
-				'fill-pattern': UNSURVEYED_TEXTURE,
-				'fill-opacity': groundOpacity(options)
-			}
-		},
-
+		// Where the bathymetry reached but the habitat survey did not used to draw a
+		// hatch, the chart convention for ground nobody has classified. `dem-edge`'s
+		// `covered` polygon is the DEM's own extent rather than a shape clipped to
+		// the sea, and that extent runs well past the coast, so at full seabed paint
+		// over a photograph the hatch covered the land too and made the map unusable.
+		// See issue #66. Unclassified seabed reads as blank now, the photograph or the
+		// void showing through exactly as open water the DEM never reached already does.
 		...groundLayers(options),
 		...groundProbeLayers(options),
 

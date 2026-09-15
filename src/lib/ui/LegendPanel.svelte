@@ -5,7 +5,6 @@
 	import Chip from './controls/Chip.svelte';
 	import Field from './controls/Field.svelte';
 	import Note from './controls/Note.svelte';
-	import Swatch from './controls/Swatch.svelte';
 	import LegendRow from './LegendRow.svelte';
 	import MarkerRow from './MarkerRow.svelte';
 	import TexturePicker from './TexturePicker.svelte';
@@ -20,7 +19,6 @@
 	import {
 		THUMBNAIL_SIZE,
 		type TextureFormat,
-		UNSURVEYED_TEXTURE,
 		sizeForScreen,
 		textureFormat,
 		textureUrl
@@ -230,17 +228,6 @@
 				{/if}
 			{/if}
 
-			<Field label={t(view.locale, 'legendUnsurveyed')}>
-				<div class="lone">
-					<Swatch
-						url={sampleOf(UNSURVEYED_TEXTURE)}
-						missing={t(view.locale, 'legendNoSwatch')}
-						shape="column"
-					/>
-					<Note>{t(view.locale, 'legendUnsurveyedHint')}</Note>
-				</div>
-			</Field>
-
 			{#if view.groundLayer === 'habitats'}
 				<Note>{t(view.locale, 'legendHicNote')}</Note>
 			{/if}
@@ -305,15 +292,5 @@
 	.point .text {
 		flex: 1 1 8rem;
 		min-width: 0;
-	}
-
-	/* The hatch has no class list, so its hint stands in for one and sits beside it.
-	   Same width as a legend row's swatch, so the hatch reads as one more texture
-	   rather than a smaller afterthought beside the classes above it. */
-	.lone {
-		display: grid;
-		grid-template-columns: 6.5rem minmax(0, 1fr);
-		gap: 0.4rem;
-		align-items: center;
 	}
 </style>

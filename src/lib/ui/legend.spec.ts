@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NO_BASE_MAP } from '$lib/domain/basemaps';
-import { DEFAULT_ISOBATHS, DEFAULT_LAYERS } from '$lib/domain/card';
 import { HABITATS, NO_TEXTURE_CHOICES, SUBSTRATES, catalogueOf } from '$lib/domain/habitat';
-import { buildStyle } from '$lib/map/style';
 import { type Legend, type LegendEntry, buildLegend, codesOf } from './legend.ts';
 
 /**
@@ -101,22 +98,5 @@ describe('reading the codes off what the map rendered', () => {
 			{ properties: { name: 'no code here' } }
 		]);
 		expect([...codes]).toEqual(['30512']);
-	});
-});
-
-describe('the hatch the panel explains by name', () => {
-	// A renamed layer in style.ts would leave the panel describing a pattern the
-	// map no longer paints, and nothing on screen would say so.
-	it.each(['habitats', 'substrate'] as const)('is in the %s style', (groundLayer) => {
-		const style = buildStyle({
-			locale: 'ca',
-			smoothed: true,
-			worldPainted: true,
-			baseMap: NO_BASE_MAP,
-			isobaths: DEFAULT_ISOBATHS,
-			visible: [...DEFAULT_LAYERS],
-			groundLayer
-		});
-		expect(style.layers.map((layer) => layer.id)).toContain('seabed-unmapped');
 	});
 });
