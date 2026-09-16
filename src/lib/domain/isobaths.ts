@@ -310,11 +310,6 @@ export const contourColour = (bands: readonly PaintedBand[], depthM: number): st
  * where even five is a solid mat of ink. One table, compiled into a `step`
  * expression for the map, so nothing else has to guess what the map is drawing.
  * The ruler used to be built out of it and is not any more: see `rulerDepths`.
- *
- * This is the interval in the shallow water the ICGC survey measured metre by
- * metre. Past `SHELF_FROM_M` the national contours take over and they are only
- * ever multiples of `SHELF_STEP_M`, so `contourDepths` coarsens itself there
- * rather than offering depths nothing can draw.
  */
 export const AUTO_INTERVAL: readonly { readonly fromZoom: number; readonly intervalM: number }[] = [
 	{ fromZoom: 0, intervalM: 20 },
@@ -347,29 +342,6 @@ export const intervalAt = (style: IsobathStyle, zoom: number): number => {
 	if (!style.autoInterval) return Math.max(1, style.intervalM);
 	const step = AUTO_INTERVAL.findLast((entry) => zoom >= entry.fromZoom);
 	return step?.intervalM ?? 20;
-};
-
-/** The contours the map draws between the surface and the maximum depth, at one zoom. */
-export const contourDepths = (style: IsobathStyle, zoom: number): readonly number[] => {
-	const interval = intervalAt(style, zoom);
-	// Past the survey's edge the step is never finer than the shelf contours are.
-	const deepInterval = Math.max(interval, SHELF_STEP_M);
-	const drawn = new Set<number>();
-	for (let depth = 0; depth <= Math.min(style.maxDepthM, SHELF_FROM_M); depth += interval)
-		drawn.add(depth);
-	for (
-		let depth = Math.ceil(SHELF_FROM_M / deepInterval) * deepInterval;
-		depth <= style.maxDepthM;
-		depth += deepInterval
-	)
-		drawn.add(depth);
-	for (const depth of style.emphasised)
-		if (depth <= style.maxDepthM && depth >= 0) drawn.add(depth);
-	// The shoreline is the 0 m contour, so it ships marked and draws in the contour
-	// ink. A diver who takes it off the ruler takes it out of here too, which is the
-	// rule the map's own filter follows.
-	if (!style.emphasised.includes(0)) drawn.delete(0);
-	return [...drawn].sort(ascending);
 };
 
 /**
