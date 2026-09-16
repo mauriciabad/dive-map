@@ -153,11 +153,18 @@ const look = (page) =>
 const zoomedOut = (state) => near(state.zoom, state.minZoom, 0.02);
 
 const overlap = ([a, b]) =>
-	a !== undefined && b !== undefined && a.x < b.right && b.x < a.right && a.y < b.bottom && b.y < a.bottom;
+	a !== undefined &&
+	b !== undefined &&
+	a.x < b.right &&
+	b.x < a.right &&
+	a.y < b.bottom &&
+	b.y < a.bottom;
 
 const inside = (boxes, viewport) =>
 	boxes.length > 0 &&
-	boxes.every((b) => b.x >= 0 && b.y >= 0 && b.right <= viewport.width && b.bottom <= viewport.height);
+	boxes.every(
+		(b) => b.x >= 0 && b.y >= 0 && b.right <= viewport.width && b.bottom <= viewport.height
+	);
 
 const jumpTo = async (page, camera) => {
 	await page.evaluate((to) => {
@@ -220,20 +227,18 @@ await a.mouse.move(grab.x + 40 - 130, grab.y + 20 + 70, { steps: 12 });
 await a.mouse.up();
 await settle(a);
 const dragged = await look(a);
-check(
-	'dragging the map through a hint moves the map',
-	!sameCamera(dragged, opened),
-	{ before: { lng: opened.lng, lat: opened.lat }, after: { lng: dragged.lng, lat: dragged.lat } }
-);
+check('dragging the map through a hint moves the map', !sameCamera(dragged, opened), {
+	before: { lng: opened.lng, lat: opened.lat },
+	after: { lng: dragged.lng, lat: dragged.lat }
+});
 check('and does not put the hints away', dragged.hints === 2 && dragged.strokes === 4, {
 	hints: dragged.hints,
 	strokes: dragged.strokes
 });
-check(
-	'and the arrow follows the coast it is pointing at',
-	dragged.tip !== opened.tip,
-	{ before: opened.tip, after: dragged.tip }
-);
+check('and the arrow follows the coast it is pointing at', dragged.tip !== opened.tip, {
+	before: opened.tip,
+	after: dragged.tip
+});
 if (shotDir) await a.screenshot({ path: `${shotDir}/firstrun-desktop-1440x900-dragged.png` });
 
 // Zooming in is the thing the hints exist to ask for, so it is what finishes them.
@@ -260,11 +265,7 @@ await waitForShared(a, MOVED.zoom);
 const b = await open(first, 'second tab');
 const second = await look(b);
 check('a second tab does not get the hints either', second.hints === 0, second);
-check(
-	'a second tab opens on the last camera any tab wrote',
-	sameCamera(second, MOVED),
-	second
-);
+check('a second tab opens on the last camera any tab wrote', sameCamera(second, MOVED), second);
 
 // Picking a camera up once is not following it about.
 await jumpTo(a, BEGUR);
@@ -292,10 +293,14 @@ const pocket = await browser.newContext({ viewport: PHONE, isMobile: true, hasTo
 const p = await open(pocket, 'phone', PHONE);
 const phone = await look(p);
 check('the map opens as far out as the guard allows on a phone too', zoomedOut(phone), phone);
-check('both hints fit on a phone without touching each other', phone.hints === 2 && !overlap(phone.boxes) && inside(phone.boxes, PHONE), {
-	boxes: phone.boxes,
-	hints: phone.hints
-});
+check(
+	'both hints fit on a phone without touching each other',
+	phone.hints === 2 && !overlap(phone.boxes) && inside(phone.boxes, PHONE),
+	{
+		boxes: phone.boxes,
+		hints: phone.hints
+	}
+);
 if (shotDir) await p.screenshot({ path: `${shotDir}/firstrun-phone-390x844.png` });
 await p.close();
 await pocket.close();
@@ -331,7 +336,11 @@ const withPosition = async (tag, at, shot) => {
 	return state;
 };
 
-const aboard = await withPosition('granted, on the coast', ABOARD, 'firstrun-desktop-1440x900-aboard.png');
+const aboard = await withPosition(
+	'granted, on the coast',
+	ABOARD,
+	'firstrun-desktop-1440x900-aboard.png'
+);
 check(
 	'a tab opens on the diver when the browser already knows where they are',
 	near(aboard.lng, ABOARD.longitude, 0.01) &&
@@ -339,7 +348,11 @@ check(
 		aboard.zoom >= 15,
 	aboard
 );
-check('and the hints stay out of the way of a map that is already where it should be', aboard.hints === 0, aboard);
+check(
+	'and the hints stay out of the way of a map that is already where it should be',
+	aboard.hints === 0,
+	aboard
+);
 
 const away = await withPosition('granted, far from the coast', AWAY);
 check(

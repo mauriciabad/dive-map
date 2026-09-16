@@ -347,9 +347,7 @@ body {
 	);
 }
 
-.maplibregl-map
-	.maplibregl-ctrl-attrib.maplibregl-compact-show
-	.maplibregl-ctrl-attrib-inner {
+.maplibregl-map .maplibregl-ctrl-attrib.maplibregl-compact-show .maplibregl-ctrl-attrib-inner {
 	min-width: 0;
 }
 

@@ -38,12 +38,18 @@ describe('parseAnnotation', () => {
 
 	it('takes the id from properties when the feature has none at the top level', () => {
 		const withoutId = { ...(feature() as Record<string, unknown>), id: undefined };
-		expect(parseAnnotation({ ...withoutId, properties: { id: 'from-props' } })?.id).toBe('from-props');
+		expect(parseAnnotation({ ...withoutId, properties: { id: 'from-props' } })?.id).toBe(
+			'from-props'
+		);
 	});
 
 	it('drops altitude so two writings of one point compare equal', () => {
-		const flat = parseAnnotation(feature({ geometry: { type: 'Point', coordinates: [3.2, 41.9] } }));
-		const deep = parseAnnotation(feature({ geometry: { type: 'Point', coordinates: [3.2, 41.9, -12] } }));
+		const flat = parseAnnotation(
+			feature({ geometry: { type: 'Point', coordinates: [3.2, 41.9] } })
+		);
+		const deep = parseAnnotation(
+			feature({ geometry: { type: 'Point', coordinates: [3.2, 41.9, -12] } })
+		);
 		expect(deep?.geometry.coordinates).toEqual([3.2, 41.9]);
 		expect(flat).toEqual(deep);
 	});
@@ -52,14 +58,26 @@ describe('parseAnnotation', () => {
 		expect(parseAnnotation(null)).toBeUndefined();
 		expect(parseAnnotation({ type: 'NotAFeature' })).toBeUndefined();
 		expect(parseAnnotation(feature({ id: undefined, properties: {} }))).toBeUndefined();
-		expect(parseAnnotation(feature({ geometry: { type: 'Point', coordinates: ['x', 1] } }))).toBeUndefined();
-		expect(parseAnnotation(feature({ geometry: { type: 'LineString', coordinates: [[3, 41]] } }))).toBeUndefined();
-		expect(parseAnnotation(feature({ geometry: { type: 'MultiPolygon', coordinates: [] } }))).toBeUndefined();
+		expect(
+			parseAnnotation(feature({ geometry: { type: 'Point', coordinates: ['x', 1] } }))
+		).toBeUndefined();
+		expect(
+			parseAnnotation(feature({ geometry: { type: 'LineString', coordinates: [[3, 41]] } }))
+		).toBeUndefined();
+		expect(
+			parseAnnotation(feature({ geometry: { type: 'MultiPolygon', coordinates: [] } }))
+		).toBeUndefined();
 	});
 
 	it('rejects a polygon ring that cannot close', () => {
-		const ring = [[3, 41], [3.1, 41], [3, 41]];
-		expect(parseAnnotation(feature({ geometry: { type: 'Polygon', coordinates: [ring] } }))).toBeUndefined();
+		const ring = [
+			[3, 41],
+			[3.1, 41],
+			[3, 41]
+		];
+		expect(
+			parseAnnotation(feature({ geometry: { type: 'Polygon', coordinates: [ring] } }))
+		).toBeUndefined();
 	});
 });
 
@@ -67,7 +85,12 @@ describe('parseCollection', () => {
 	it('keeps what parses, drops what does not, and ignores a repeated id', () => {
 		const parsed = parseCollection({
 			type: 'FeatureCollection',
-			features: [feature(), feature({ properties: { kind: 'route' } }), { type: 'Feature' }, 'rubbish']
+			features: [
+				feature(),
+				feature({ properties: { kind: 'route' } }),
+				{ type: 'Feature' },
+				'rubbish'
+			]
 		});
 		expect(parsed).toHaveLength(1);
 		expect(parsed[0]?.kind).toBe('hazard');
@@ -88,7 +111,11 @@ describe('toFeature', () => {
 	};
 
 	it('always writes the id, the kind and the kind colour', () => {
-		expect(toFeature(point).properties).toEqual({ id: 'x', kind: 'route', colour: KINDS.route.colour });
+		expect(toFeature(point).properties).toEqual({
+			id: 'x',
+			kind: 'route',
+			colour: KINDS.route.colour
+		});
 	});
 
 	it('omits label entirely rather than writing an empty one', () => {
@@ -99,7 +126,12 @@ describe('toFeature', () => {
 
 describe('toCollection', () => {
 	const made: readonly Annotation[] = [
-		{ id: 'b', kind: 'hazard', label: undefined, geometry: { type: 'Point', coordinates: [3, 41] } },
+		{
+			id: 'b',
+			kind: 'hazard',
+			label: undefined,
+			geometry: { type: 'Point', coordinates: [3, 41] }
+		},
 		{ id: 'a', kind: 'entry', label: 'Boia', geometry: { type: 'Point', coordinates: [4, 42] } }
 	];
 
@@ -109,7 +141,11 @@ describe('toCollection', () => {
 
 	it('round-trips through the parser', () => {
 		expect(parseCollection(toCollection(made))).toHaveLength(2);
-		expect(parseCollection(toCollection(made)).map((a) => a.id).sort()).toEqual(['a', 'b']);
+		expect(
+			parseCollection(toCollection(made))
+				.map((a) => a.id)
+				.sort()
+		).toEqual(['a', 'b']);
 	});
 });
 

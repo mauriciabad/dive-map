@@ -334,7 +334,8 @@ export const createDraw = (map: MapLibreMap, callbacks: DrawCallbacks): DrawHand
 			const missing = annotations.filter((a) => !held.has(a.id)).map(toDrawFeature);
 			if (missing.length === 0) return;
 			for (const result of draw.addFeatures(missing)) {
-				if (!result.valid) console.warn('terra-draw rejected an annotation', result.id, result.reason);
+				if (!result.valid)
+					console.warn('terra-draw rejected an annotation', result.id, result.reason);
 			}
 		},
 

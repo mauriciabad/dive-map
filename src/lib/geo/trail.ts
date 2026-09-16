@@ -113,8 +113,7 @@ export const staleness = (
 	newest: TrailPoint,
 	window: TrailWindow
 ): number => {
-	const span =
-		window.kind === 'duration' ? newest.at - oldest.at : newest.cumM - oldest.cumM;
+	const span = window.kind === 'duration' ? newest.at - oldest.at : newest.cumM - oldest.cumM;
 	if (span <= 0) return 0;
 	const back = window.kind === 'duration' ? newest.at - point.at : newest.cumM - point.cumM;
 	return Math.min(1, Math.max(0, back / span));
@@ -156,8 +155,7 @@ export const gradientStops = (
 	const spanM = newest.cumM - oldest.cumM;
 	if (spanM < MIN_TRAIL_M) return [];
 
-	const alphaOf = (p: TrailPoint): number =>
-		MAX_ALPHA * (1 - staleness(p, oldest, newest, window));
+	const alphaOf = (p: TrailPoint): number => MAX_ALPHA * (1 - staleness(p, oldest, newest, window));
 	const step = 1 / Math.max(1, maxStops - 1);
 
 	const stops: TrailStop[] = [];

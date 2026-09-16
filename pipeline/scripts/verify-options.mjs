@@ -19,7 +19,9 @@ if (shotDir) mkdirSync(shotDir, { recursive: true });
 const browser = await chromium.launch();
 const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
 const errors = [];
-page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 140)); });
+page.on('console', (m) => {
+	if (m.type() === 'error') errors.push(m.text().slice(0, 140));
+});
 page.on('pageerror', (e) => errors.push(`pageerror: ${e.message.slice(0, 140)}`));
 
 await page.goto(url, { waitUntil: 'domcontentloaded' });
@@ -30,7 +32,11 @@ const counts = async () =>
 		await new Promise((r) => setTimeout(r, 3500));
 		const m = window.diveMap;
 		const at = (id) => {
-			try { return m.queryRenderedFeatures({ layers: [id] }).length; } catch { return -1; }
+			try {
+				return m.queryRenderedFeatures({ layers: [id] }).length;
+			} catch {
+				return -1;
+			}
 		};
 		const label = m.queryRenderedFeatures({ layers: ['osm-dive-site-label'] })[0];
 		return {
@@ -51,10 +57,16 @@ const result = { steps: [] };
 result.steps.push({ step: 'initial', ...(await counts()) });
 
 await open(/layers|capes|capas/i);
-await page.getByRole('button', { name: /seafloor type|tipus de fons|tipo de fondo/i }).first().click();
+await page
+	.getByRole('button', { name: /seafloor type|tipus de fons|tipo de fondo/i })
+	.first()
+	.click();
 result.steps.push({ step: 'switched to seafloor type', ...(await counts()) });
 
-await page.getByRole('button', { name: /^habitats$|hàbitats|hábitats/i }).first().click();
+await page
+	.getByRole('button', { name: /^habitats$|hàbitats|hábitats/i })
+	.first()
+	.click();
 result.steps.push({ step: 'switched back to habitats', ...(await counts()) });
 
 await open(/language|idioma/i);
@@ -71,13 +83,26 @@ result.textures = await page.evaluate(async () => {
 	const spread = () => {
 		const c = m.getCanvas();
 		const gl = c.getContext('webgl2') ?? c.getContext('webgl');
-		const w = 240, h = 240;
+		const w = 240,
+			h = 240;
 		const px = new Uint8Array(w * h * 4);
-		gl.readPixels(Math.floor(c.width * 0.35), Math.floor(c.height * 0.45), w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
-		let sum = 0, sumSq = 0, n = 0;
+		gl.readPixels(
+			Math.floor(c.width * 0.35),
+			Math.floor(c.height * 0.45),
+			w,
+			h,
+			gl.RGBA,
+			gl.UNSIGNED_BYTE,
+			px
+		);
+		let sum = 0,
+			sumSq = 0,
+			n = 0;
 		for (let i = 0; i < px.length; i += 4) {
 			const l = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
-			sum += l; sumSq += l * l; n++;
+			sum += l;
+			sumSq += l * l;
+			n++;
 		}
 		const mean = sum / n;
 		return +Math.sqrt(sumSq / n - mean * mean).toFixed(2);
@@ -109,7 +134,17 @@ const switched = (grounds[1]?.substrate ?? 0) > 0 && (grounds[1]?.habitats ?? -1
 const switchedBack = (grounds[2]?.habitats ?? 0) > 0 && (grounds[2]?.substrate ?? -1) === 0;
 const patternsHeld = result.textures.every((r) => r.hasPattern && r.spread > 8);
 const ok =
-	switched && switchedBack && patternsHeld && result.attribution.links.length >= 3 && errors.length === 0;
+	switched &&
+	switchedBack &&
+	patternsHeld &&
+	result.attribution.links.length >= 3 &&
+	errors.length === 0;
 
-console.log(JSON.stringify({ url, ok, switched, switchedBack, patternsHeld, ...result, consoleErrors: errors.slice(0, 5) }, null, 2));
+console.log(
+	JSON.stringify(
+		{ url, ok, switched, switchedBack, patternsHeld, ...result, consoleErrors: errors.slice(0, 5) },
+		null,
+		2
+	)
+);
 process.exit(ok ? 0 : 1);

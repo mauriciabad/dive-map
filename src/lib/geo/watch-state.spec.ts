@@ -75,7 +75,11 @@ describe('reduceWatch', () => {
 	});
 
 	it('lets the user try again after a denial', () => {
-		const state = run({ type: 'start' }, { type: 'fail', failure: 'denied', at: 1 }, { type: 'start' });
+		const state = run(
+			{ type: 'start' },
+			{ type: 'fail', failure: 'denied', at: 1 },
+			{ type: 'start' }
+		);
 		expect(state).toEqual({ status: 'locating' });
 	});
 });

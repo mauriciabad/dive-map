@@ -16,8 +16,7 @@ export const distanceM = (a: LngLat, b: LngLat): number => {
 	const dLng = rad(b.lng - a.lng);
 	const latA = rad(a.lat);
 	const latB = rad(b.lat);
-	const h =
-		Math.sin(dLat / 2) ** 2 + Math.cos(latA) * Math.cos(latB) * Math.sin(dLng / 2) ** 2;
+	const h = Math.sin(dLat / 2) ** 2 + Math.cos(latA) * Math.cos(latB) * Math.sin(dLng / 2) ** 2;
 	return 2 * R_M * Math.asin(Math.min(1, Math.sqrt(h)));
 };
 

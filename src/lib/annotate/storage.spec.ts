@@ -1,12 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import type { Annotation } from './annotation.ts';
-import { STORAGE_KEY, type KeyValueStore, loadSession, memoryStore, saveSession } from './storage.ts';
+import {
+	STORAGE_KEY,
+	type KeyValueStore,
+	loadSession,
+	memoryStore,
+	saveSession
+} from './storage.ts';
 
 const one: Annotation = {
 	id: 'a',
 	kind: 'hazard',
 	label: 'Xarxa',
-	geometry: { type: 'LineString', coordinates: [[3, 41], [3.1, 41.1]] }
+	geometry: {
+		type: 'LineString',
+		coordinates: [
+			[3, 41],
+			[3.1, 41.1]
+		]
+	}
 };
 
 const two: Annotation = {

@@ -50,8 +50,10 @@ export const lastFix = (state: WatchState): Fix | undefined => {
 
 /** True while the watch is registered, so a late callback is ours to act on. */
 export const isWatching = (state: WatchState): boolean =>
-	state.status === 'locating' || state.status === 'tracking' ||
-	state.status === 'unavailable' || state.status === 'timeout';
+	state.status === 'locating' ||
+	state.status === 'tracking' ||
+	state.status === 'unavailable' ||
+	state.status === 'timeout';
 
 /**
  * The recovery the boat needs is the `fix` case below: `unavailable` and

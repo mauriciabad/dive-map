@@ -12,7 +12,10 @@ const numbers = (path: string): number[] =>
 		.map(Number);
 
 const within = (at: { x: number; y: number }, plaque = PLAQUE, viewport = PHONE): boolean =>
-	at.x >= 0 && at.y >= 0 && at.x + plaque.width <= viewport.width && at.y + plaque.height <= viewport.height;
+	at.x >= 0 &&
+	at.y >= 0 &&
+	at.x + plaque.width <= viewport.width &&
+	at.y + plaque.height <= viewport.height;
 
 describe('placing a hint', () => {
 	it('puts the plaque where it was asked for when there is room', () => {

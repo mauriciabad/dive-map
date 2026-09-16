@@ -93,7 +93,8 @@ export interface BaseMap {
  */
 const ICGC_BOUNDS = [0.024303, 40.061468, 3.360594, 43.400669] as const;
 
-const CC_BY = '<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>';
+const CC_BY =
+	'<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>';
 const ICGC = '<a href="https://www.icgc.cat/" target="_blank" rel="noopener">ICGC</a>';
 const IGN = '<a href="https://www.ign.es/" target="_blank" rel="noopener">IGN</a>';
 
@@ -230,7 +231,8 @@ const OSM_STANDARD: TileService = {
  */
 const ICGC_STANDARD: TileService = {
 	id: 'standard-icgc',
-	tiles: 'https://geoserveis.icgc.cat/servei/catalunya/mapa-base/wmts/estandard/MON3857NW/{z}/{x}/{y}.png',
+	tiles:
+		'https://geoserveis.icgc.cat/servei/catalunya/mapa-base/wmts/estandard/MON3857NW/{z}/{x}/{y}.png',
 	maxzoom: 20,
 	bounds: ICGC_BOUNDS,
 	attribution: `${ICGC} mapa estàndard, ${CC_BY}`
@@ -270,8 +272,7 @@ const IGN_STANDARD: TileService = {
 /** ICGC's topographic sheet, the one a walker on this coast knows. */
 const ICGC_TOPO: TileService = {
 	id: 'classic-icgc',
-	tiles:
-		'https://geoserveis.icgc.cat/icc_mapesmultibase/noutm/wmts/topo/GRID3857/{z}/{x}/{y}.png',
+	tiles: 'https://geoserveis.icgc.cat/icc_mapesmultibase/noutm/wmts/topo/GRID3857/{z}/{x}/{y}.png',
 	maxzoom: 20,
 	attribution: `${ICGC} mapa topogràfic, ${CC_BY}`
 };
@@ -327,7 +328,13 @@ export const BASE_MAPS: readonly BaseMap[] = [
 		services: [ESRI_IMAGERY],
 		recommended: false
 	},
-	{ id: 'standard-osm', kind: 'standard', name: 'OSM', services: [OSM_STANDARD], recommended: true },
+	{
+		id: 'standard-osm',
+		kind: 'standard',
+		name: 'OSM',
+		services: [OSM_STANDARD],
+		recommended: true
+	},
 	{
 		id: 'standard-icgc',
 		kind: 'standard',
@@ -373,8 +380,7 @@ export const isBaseMapId = (value: unknown): value is BaseMapId =>
 export const baseMapOf = (id: BaseMapId): BaseMap | undefined => BY_ID.get(id);
 
 /** Which services a chosen base map draws, coarsest first. Empty for `none`. */
-export const servicesOf = (id: BaseMapId): readonly TileService[] =>
-	BY_ID.get(id)?.services ?? [];
+export const servicesOf = (id: BaseMapId): readonly TileService[] => BY_ID.get(id)?.services ?? [];
 
 /** Whether a service draws under the given choice, which is what a style asks per layer. */
 export const serviceDraws = (id: BaseMapId, service: string): boolean =>

@@ -7,3 +7,6 @@ bun.lockb
 
 # Miscellaneous
 /static/
+
+# Tool state, rewritten by the tool that owns it
+/.impeccable/

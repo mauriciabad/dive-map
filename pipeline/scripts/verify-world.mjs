@@ -109,7 +109,8 @@ for (const viewport of VIEWPORTS) {
 			};
 
 			const measured = probes.map((probe) => {
-				if (probe.on !== undefined && probe.on !== viewport) return { ...probe, reads: 'n/a', ok: true };
+				if (probe.on !== undefined && probe.on !== viewport)
+					return { ...probe, reads: 'n/a', ok: true };
 				const point = map.project(probe.at);
 				const rgb = read(point);
 				// Painted land is warm, red over blue. Every sea on this map is the other

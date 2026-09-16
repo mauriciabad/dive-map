@@ -349,10 +349,7 @@ describe('which map is under the chart', () => {
 		const older: Record<string, unknown> = { ...ca, layers };
 		delete older['baseMap'];
 		const store = memoryStore();
-		store.write(
-			WORKING_KEY,
-			JSON.stringify({ version: STORAGE_VERSION, configuration: older })
-		);
+		store.write(WORKING_KEY, JSON.stringify({ version: STORAGE_VERSION, configuration: older }));
 		return readWorking(store, 'ca')?.configuration;
 	};
 

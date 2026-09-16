@@ -279,7 +279,11 @@ check(
 	opened.hillshade === 'visible' && opened.failure === undefined,
 	opened
 );
-check('and as far out as the camera guard allows, having never been here', zoomedOut(opened), opened);
+check(
+	'and as far out as the camera guard allows, having never been here',
+	zoomedOut(opened),
+	opened
+);
 
 await openSection(a, /layers|capes|capas/i);
 await panel(a)
@@ -574,11 +578,7 @@ for (const { name, seed, andThen } of broken) {
 	const state = await look(page);
 	// These contexts carry only the blob being tested, so there is no camera
 	// anywhere and the map has to fall all the way back to the whole survey.
-	check(
-		`the map still opens with ${name}`,
-		zoomedOut(state) && state.failure === undefined,
-		state
-	);
+	check(`the map still opens with ${name}`, zoomedOut(state) && state.failure === undefined, state);
 	await andThen?.(page);
 	await context.close();
 }

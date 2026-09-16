@@ -544,7 +544,9 @@ describe('tiles in bounds', () => {
  */
 describe('an archive rebuilt under a warm cache', () => {
 	const REBUILT = new Uint8Array(
-		ARCHIVE.slice(0, ARCHIVE.length - 512).map((byte, index) => (index === 700 ? byte ^ 0xff : byte))
+		ARCHIVE.slice(0, ARCHIVE.length - 512).map((byte, index) =>
+			index === 700 ? byte ^ 0xff : byte
+		)
 	);
 	interface Rebuild {
 		body: Uint8Array<ArrayBuffer>;

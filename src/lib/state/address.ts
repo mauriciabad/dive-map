@@ -90,7 +90,8 @@ export const parseAddress = (query: string): Address => {
 };
 
 /** Trailing zeros are noise in something meant to be pasted into a message. */
-const trimmed = (value: number, decimals: number): string => String(Number(value.toFixed(decimals)));
+const trimmed = (value: number, decimals: number): string =>
+	String(Number(value.toFixed(decimals)));
 
 /**
  * The query for what is on screen, `?` included, or the empty string when there
@@ -142,7 +143,10 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  * point, a ring, a ring of rings. The recursion stops at the first pair of
  * numbers, which is what a position is at every level of GeoJSON.
  */
-const grow = (box: { west: number; south: number; east: number; north: number }, coordinates: unknown): void => {
+const grow = (
+	box: { west: number; south: number; east: number; north: number },
+	coordinates: unknown
+): void => {
 	if (!isArray(coordinates)) return;
 	const [lng, lat] = coordinates;
 	if (typeof lng === 'number' && typeof lat === 'number') {

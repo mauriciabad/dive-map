@@ -47,10 +47,19 @@ const inside = (lng: number, lat: number): boolean => {
 	return hit;
 };
 
-const toSegment = (px: number, py: number, ax: number, ay: number, bx: number, by: number): number => {
+const toSegment = (
+	px: number,
+	py: number,
+	ax: number,
+	ay: number,
+	bx: number,
+	by: number
+): number => {
 	const span = (bx - ax) ** 2 + (by - ay) ** 2;
 	const along =
-		span === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * (bx - ax) + (py - ay) * (by - ay)) / span));
+		span === 0
+			? 0
+			: Math.max(0, Math.min(1, ((px - ax) * (bx - ax) + (py - ay) * (by - ay)) / span));
 	return Math.hypot(px - (ax + along * (bx - ax)), py - (ay + along * (by - ay)));
 };
 
@@ -74,7 +83,14 @@ export const metresFromSurvey = (at: LngLat): number => {
 		if (a === undefined || b === undefined) continue;
 		best = Math.min(
 			best,
-			toSegment(px, py, a[0] * east, a[1] * METRES_PER_DEGREE, b[0] * east, b[1] * METRES_PER_DEGREE)
+			toSegment(
+				px,
+				py,
+				a[0] * east,
+				a[1] * METRES_PER_DEGREE,
+				b[0] * east,
+				b[1] * METRES_PER_DEGREE
+			)
 		);
 	}
 	return best;

@@ -27,7 +27,8 @@ const SEA = '#2b9fe4';
 const HAZARD = '#d4553f';
 const OLIVE = '#7d8a3c';
 
-const ink = (w) => `stroke="${INK}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`;
+const ink = (w) =>
+	`stroke="${INK}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`;
 
 /** A pale flick of broken water off the bow, which also says which end is the front. */
 const wake = (d) => `<path d="${d}" fill="none" stroke="${PAPER}" stroke-width="4.5"

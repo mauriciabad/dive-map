@@ -1,1 +1,1141 @@
-{"version":0.6,"osm3s":{"timestamp_osm_base":"2026-09-13T06:34:34Z","copyright":"The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."},"elements":[{"type":"relation","id":7330568,"bounds":{"minlat":40.5697098,"minlon":0.5473044,"maxlat":40.5744551,"maxlon":0.5565461},"members":[{"type":"way","ref":500266048,"role":"outer","geometry":[{"lat":40.5730603,"lon":0.5483834},{"lat":40.5698968,"lon":0.5509867},{"lat":40.5697857,"lon":0.5511094},{"lat":40.5697098,"lon":0.551306},{"lat":40.5697199,"lon":0.5515158},{"lat":40.5706411,"lon":0.5541542},{"lat":40.5714103,"lon":0.5564062},{"lat":40.571509,"lon":0.5565461},{"lat":40.5716341,"lon":0.5565131},{"lat":40.5717342,"lon":0.5564229},{"lat":40.5717595,"lon":0.556283}]},{"type":"way","ref":162354164,"role":"outer","geometry":[{"lat":40.5730603,"lon":0.5483834},{"lat":40.5743488,"lon":0.5473044}]},{"type":"way","ref":1089830148,"role":"outer","geometry":[{"lat":40.5743488,"lon":0.5473044},{"lat":40.5743777,"lon":0.5473617}]},{"type":"way","ref":1089830145,"role":"outer","geometry":[{"lat":40.5743777,"lon":0.5473617},{"lat":40.5744165,"lon":0.5474386},{"lat":40.5744551,"lon":0.5475149}]},{"type":"way","ref":1089830139,"role":"outer","geometry":[{"lat":40.5744551,"lon":0.5475149},{"lat":40.573972,"lon":0.5479356}]},{"type":"way","ref":500266050,"role":"outer","geometry":[{"lat":40.573972,"lon":0.5479356},{"lat":40.5738366,"lon":0.5526936},{"lat":40.5717595,"lon":0.556283}]}],"tags":{"industrial":"port","landuse":"industrial","leisure":"marina","name":"Port industrial d'Alcanar","name:ca":"Port industrial d'Alcanar","seamark:type":"harbour","type":"multipolygon","wikidata":"Q130221061","wikipedia":"ca:Port d'Alcanar"}},{"type":"relation","id":7330565,"bounds":{"minlat":40.6090269,"minlon":0.5928502,"maxlat":40.6229467,"maxlon":0.6085145},"members":[{"type":"way","ref":500266039,"role":"outer","geometry":[{"lat":40.609151,"lon":0.6046893},{"lat":40.6166022,"lon":0.6085005}]},{"type":"way","ref":500266040,"role":"outer","geometry":[{"lat":40.6090269,"lon":0.6045534},{"lat":40.609042,"lon":0.6046151},{"lat":40.6090897,"lon":0.6046745},{"lat":40.609151,"lon":0.6046893}]},{"type":"way","ref":500266044,"role":"outer","geometry":[{"lat":40.613782,"lon":0.5959652},{"lat":40.6137434,"lon":0.5960728},{"lat":40.6131669,"lon":0.596771},{"lat":40.6127957,"lon":0.59722},{"lat":40.6116538,"lon":0.5986174},{"lat":40.6115031,"lon":0.5987954},{"lat":40.6103686,"lon":0.6014748},{"lat":40.610046,"lon":0.6022047},{"lat":40.6097842,"lon":0.6028141},{"lat":40.6094748,"lon":0.6035023},{"lat":40.6093207,"lon":0.6038602},{"lat":40.609107,"lon":0.6043463},{"lat":40.6090269,"lon":0.6045534}]},{"type":"way","ref":1089861891,"role":"outer","geometry":[{"lat":40.6138259,"lon":0.596019},{"lat":40.613782,"lon":0.5959652}]},{"type":"way","ref":500266045,"role":"outer","geometry":[{"lat":40.6152923,"lon":0.5942653},{"lat":40.6146322,"lon":0.5950466},{"lat":40.6138259,"lon":0.596019}]},{"type":"way","ref":500266046,"role":"outer","geometry":[{"lat":40.6152923,"lon":0.5942653},{"lat":40.6155427,"lon":0.5939689},{"lat":40.6163169,"lon":0.5928502},{"lat":40.617331,"lon":0.5942232},{"lat":40.6170259,"lon":0.5954109},{"lat":40.6193068,"lon":0.5986822},{"lat":40.6198812,"lon":0.5979128},{"lat":40.620223,"lon":0.5990139}]},{"type":"way","ref":1089863670,"role":"outer","geometry":[{"lat":40.620223,"lon":0.5990139},{"lat":40.6202729,"lon":0.5991901},{"lat":40.6203555,"lon":0.5991616},{"lat":40.6205606,"lon":0.599827},{"lat":40.6205715,"lon":0.5999162},{"lat":40.6205914,"lon":0.6003693},{"lat":40.6206887,"lon":0.6003938}]},{"type":"way","ref":500266043,"role":"outer","geometry":[{"lat":40.6206887,"lon":0.6003938},{"lat":40.6207014,"lon":0.6007029},{"lat":40.620671,"lon":0.6008225},{"lat":40.6206753,"lon":0.6009981},{"lat":40.6207685,"lon":0.6013951},{"lat":40.6207755,"lon":0.6014806},{"lat":40.6210405,"lon":0.6015356},{"lat":40.621173,"lon":0.601982},{"lat":40.6213443,"lon":0.6019581},{"lat":40.6217974,"lon":0.6017233}]},{"type":"way","ref":1089861883,"role":"outer","geometry":[{"lat":40.6228682,"lon":0.6065727},{"lat":40.6228661,"lon":0.6065388},{"lat":40.6228203,"lon":0.6065436},{"lat":40.6227564,"lon":0.6050058},{"lat":40.6225891,"lon":0.6038154},{"lat":40.6219827,"lon":0.6018311},{"lat":40.6217974,"lon":0.6017233}]},{"type":"way","ref":500266041,"role":"outer","geometry":[{"lat":40.6166022,"lon":0.6085005},{"lat":40.6180419,"lon":0.6083855},{"lat":40.618081,"lon":0.6084292},{"lat":40.6181328,"lon":0.6084847},{"lat":40.61822,"lon":0.6085145},{"lat":40.6183305,"lon":0.6084744},{"lat":40.6184039,"lon":0.6083704},{"lat":40.618457,"lon":0.6083409},{"lat":40.6184855,"lon":0.608338},{"lat":40.6186257,"lon":0.6083236},{"lat":40.620216,"lon":0.6081605},{"lat":40.6207364,"lon":0.6081026},{"lat":40.6227397,"lon":0.6078798},{"lat":40.6229467,"lon":0.6078568},{"lat":40.6228682,"lon":0.6065727}]}],"tags":{"leisure":"marina","name":"Port de la Ràpita","name:ca":"Port de la Ràpita","seamark:harbour:category":"marina","seamark:type":"harbour","type":"multipolygon"}},{"type":"relation","id":7336052,"bounds":{"minlat":40.766335,"minlon":0.737622,"maxlat":40.7685359,"maxlon":0.740056},"members":[{"type":"way","ref":500887702,"role":"outer","geometry":[{"lat":40.7665002,"lon":0.7399878},{"lat":40.766461,"lon":0.7398659},{"lat":40.766335,"lon":0.7395628},{"lat":40.7664691,"lon":0.7393295},{"lat":40.7666275,"lon":0.7388708},{"lat":40.7665585,"lon":0.7385221},{"lat":40.7663675,"lon":0.7378355},{"lat":40.766612,"lon":0.737622},{"lat":40.7676325,"lon":0.7376801}]},{"type":"way","ref":500887701,"role":"outer","geometry":[{"lat":40.7665002,"lon":0.7399878},{"lat":40.7674787,"lon":0.740056},{"lat":40.7675677,"lon":0.7399353},{"lat":40.7675992,"lon":0.739692},{"lat":40.7677249,"lon":0.7396485},{"lat":40.7678627,"lon":0.7395536},{"lat":40.7680303,"lon":0.7394745},{"lat":40.7681637,"lon":0.7393553}]},{"type":"way","ref":1089560767,"role":"outer","geometry":[{"lat":40.7681637,"lon":0.7393553},{"lat":40.7682309,"lon":0.7392571},{"lat":40.7684165,"lon":0.7389725}]},{"type":"way","ref":500887699,"role":"outer","geometry":[{"lat":40.7685359,"lon":0.7387214},{"lat":40.7684165,"lon":0.7389725}]},{"type":"way","ref":500887700,"role":"outer","geometry":[{"lat":40.7685359,"lon":0.7387214},{"lat":40.768521,"lon":0.7386624},{"lat":40.7684327,"lon":0.738609},{"lat":40.7683713,"lon":0.73853},{"lat":40.7680764,"lon":0.7382928},{"lat":40.7680584,"lon":0.7382391},{"lat":40.7680764,"lon":0.7381781},{"lat":40.7681019,"lon":0.7381524},{"lat":40.7680703,"lon":0.7380889},{"lat":40.768033,"lon":0.7380615},{"lat":40.7680001,"lon":0.7379449},{"lat":40.7679237,"lon":0.7378975},{"lat":40.76778,"lon":0.7378698},{"lat":40.7677486,"lon":0.7378362},{"lat":40.7677471,"lon":0.7377907},{"lat":40.7676325,"lon":0.7376801}]}],"tags":{"leisure":"marina","name":"Port d'Illa de Mar","name:ca":"Port d'Illa de Mar","seamark:harbour:category":"marina","seamark:type":"harbour","type":"multipolygon"}},{"type":"relation","id":7336027,"bounds":{"minlat":40.8075234,"minlon":0.7069587,"maxlat":40.8122326,"maxlon":0.7129351},"members":[{"type":"way","ref":500885728,"role":"outer","geometry":[{"lat":40.8119067,"lon":0.7128839},{"lat":40.8119691,"lon":0.7127608},{"lat":40.8119127,"lon":0.7126567},{"lat":40.811944,"lon":0.7126629},{"lat":40.8119499,"lon":0.7126421},{"lat":40.8118142,"lon":0.7125953},{"lat":40.8118694,"lon":0.7122325},{"lat":40.8119532,"lon":0.7122529},{"lat":40.8119699,"lon":0.7121568},{"lat":40.8119387,"lon":0.7121301},{"lat":40.8120879,"lon":0.7118181},{"lat":40.8122326,"lon":0.7115155},{"lat":40.8121967,"lon":0.7114434},{"lat":40.8121901,"lon":0.7114278},{"lat":40.8119986,"lon":0.7109765},{"lat":40.8117688,"lon":0.7109608},{"lat":40.811726,"lon":0.7108145},{"lat":40.811611,"lon":0.7104472},{"lat":40.8114711,"lon":0.7100029},{"lat":40.8112128,"lon":0.7096678},{"lat":40.8108077,"lon":0.7090475},{"lat":40.8107658,"lon":0.7089859},{"lat":40.810742,"lon":0.7089218},{"lat":40.8107401,"lon":0.7088677},{"lat":40.8107496,"lon":0.7088162},{"lat":40.8108411,"lon":0.7084855},{"lat":40.8108155,"lon":0.7082693},{"lat":40.810802,"lon":0.7081609},{"lat":40.8107415,"lon":0.7079671},{"lat":40.8107058,"lon":0.7078938},{"lat":40.8102208,"lon":0.7069587}]},{"type":"way","ref":500885733,"role":"outer","geometry":[{"lat":40.8102208,"lon":0.7069587},{"lat":40.8101483,"lon":0.7072184}]},{"type":"way","ref":1089567279,"role":"outer","geometry":[{"lat":40.8101483,"lon":0.7072184},{"lat":40.8100619,"lon":0.7072761}]},{"type":"way","ref":500885731,"role":"outer","geometry":[{"lat":40.8100619,"lon":0.7072761},{"lat":40.8097634,"lon":0.7081664},{"lat":40.8097793,"lon":0.7082065}]},{"type":"way","ref":1089567278,"role":"outer","geometry":[{"lat":40.8097793,"lon":0.7082065},{"lat":40.8093299,"lon":0.7095989}]},{"type":"way","ref":500885729,"role":"outer","geometry":[{"lat":40.8093299,"lon":0.7095989},{"lat":40.8079426,"lon":0.7097965}]},{"type":"way","ref":500885730,"role":"outer","geometry":[{"lat":40.8079426,"lon":0.7097965},{"lat":40.8078864,"lon":0.7097614},{"lat":40.807838,"lon":0.7097779},{"lat":40.8078182,"lon":0.7098772},{"lat":40.8078142,"lon":0.7102455},{"lat":40.8076458,"lon":0.7102506},{"lat":40.8076478,"lon":0.7104832},{"lat":40.8076161,"lon":0.710461},{"lat":40.8075653,"lon":0.7104683},{"lat":40.8075311,"lon":0.7105048},{"lat":40.8075234,"lon":0.7105646},{"lat":40.8075333,"lon":0.71062},{"lat":40.8075686,"lon":0.7106682},{"lat":40.8076168,"lon":0.7106875},{"lat":40.8079418,"lon":0.7106667},{"lat":40.8081521,"lon":0.7106557},{"lat":40.8087169,"lon":0.7106288},{"lat":40.8088549,"lon":0.7106901},{"lat":40.8092733,"lon":0.7109249},{"lat":40.8096796,"lon":0.7111539},{"lat":40.8098309,"lon":0.711275},{"lat":40.8099821,"lon":0.7113236},{"lat":40.8101776,"lon":0.711418},{"lat":40.810489,"lon":0.7117122},{"lat":40.8109131,"lon":0.7121083},{"lat":40.8112765,"lon":0.7124246},{"lat":40.8116015,"lon":0.7127254},{"lat":40.8117553,"lon":0.712879},{"lat":40.8117896,"lon":0.7129351}]},{"type":"way","ref":1089568048,"role":"outer","geometry":[{"lat":40.8118922,"lon":0.7128902},{"lat":40.8117896,"lon":0.7129351}]},{"type":"way","ref":500885735,"role":"outer","geometry":[{"lat":40.8119067,"lon":0.7128839},{"lat":40.8118922,"lon":0.7128902}]}],"tags":{"leisure":"marina","name":"Port de l'Ampolla","name:ca":"Port de l'Ampolla","seamark:harbour:category":"marina","seamark:type":"harbour","type":"multipolygon"}},{"type":"way","id":1191224310,"bounds":{"minlat":40.841565,"minlon":2.1656421,"maxlat":41.3624155,"maxlon":8.4109437},"nodes":[30707380,11059396566,11059396581,11059396597,11059396531,11059396549,11059396564,11059396579,11059396595,11059396529,11059396547,11059396562,11059396577,11059396593,11059396527,3581051204,7937921274,7937921276,3581051203,6281271576,7937921240,6281271575,3592596463,7937921216,7937921214,3581051198,7937902079,3581051197,7937902075,3581051196,7937902083,1772952848],"geometry":[{"lat":41.3624155,"lon":2.1737703},{"lat":41.3621547,"lon":2.1765697},{"lat":41.3618889,"lon":2.1771812},{"lat":41.3616071,"lon":2.1775246},{"lat":41.3610273,"lon":2.1777177},{"lat":41.3602784,"lon":2.1775675},{"lat":41.3472382,"lon":2.1696804},{"lat":41.3464443,"lon":2.1693061},{"lat":41.3456827,"lon":2.1691012},{"lat":41.3282931,"lon":2.165652},{"lat":41.3267059,"lon":2.1656421},{"lat":41.3243914,"lon":2.1661811},{"lat":41.3141559,"lon":2.1705732},{"lat":41.3000695,"lon":2.1936286},{"lat":41.3218283,"lon":2.3167617},{"lat":41.1406613,"lon":8.3188648},{"lat":41.1032388,"lon":8.4104288},{"lat":41.1028633,"lon":8.4107973},{"lat":41.1023388,"lon":8.4109437},{"lat":40.8536822,"lon":8.3905985},{"lat":40.8523487,"lon":8.3897689},{"lat":40.8511863,"lon":8.3884262},{"lat":40.8500202,"lon":8.3863501},{"lat":40.8496661,"lon":8.385551},{"lat":40.8495554,"lon":8.3846965},{"lat":40.8497132,"lon":8.3790742},{"lat":40.8496099,"lon":8.3783923},{"lat":40.8493339,"lon":8.3777904},{"lat":40.8489179,"lon":8.3773889},{"lat":40.8483189,"lon":8.3771961},{"lat":40.8445284,"lon":8.3771257},{"lat":40.841565,"lon":8.3781441}],"tags":{"duration":"11:45","foot":"yes","motor_vehicle":"yes","motorcar":"yes","name":"Barcelona (E) – Posthudorra / Porto Torres (I)","operator":"Grimaldi Lines","route":"ferry","seamark:type":"ferry_route"}},{"type":"way","id":1191224312,"bounds":{"minlat":41.2908433,"minlon":2.1658214,"maxlat":42.1107965,"maxlon":11.782536},"nodes":[30707380,11059396534,11059396552,11059396567,11059396582,11059396598,11059396532,11059396550,11059396565,11059396580,11059396596,11059396530,11059396548,11059396563,11059396578,7937664884,4527045089,4527045090,7937664859,7937654483,3582600408,7937654484,7937664807,3582600405,3582600401,3582600402,7937664833,7937664819,7937664826,456381084],"geometry":[{"lat":41.3624155,"lon":2.1737703},{"lat":41.3624285,"lon":2.1765911},{"lat":41.3621708,"lon":2.1773529},{"lat":41.3616151,"lon":2.1779537},{"lat":41.3611078,"lon":2.1780503},{"lat":41.3601335,"lon":2.1777713},{"lat":41.3471858,"lon":2.169846},{"lat":41.346408,"lon":2.1694793},{"lat":41.3456593,"lon":2.1692779},{"lat":41.3282827,"lon":2.1658312},{"lat":41.3267173,"lon":2.1658214},{"lat":41.324424,"lon":2.1663555},{"lat":41.3141975,"lon":2.1707437},{"lat":41.3004281,"lon":2.1935596},{"lat":41.3302063,"lon":2.3149026},{"lat":41.2908433,"lon":9.1605582},{"lat":41.2910605,"lon":9.1622221},{"lat":41.3240243,"lon":9.2903547},{"lat":42.1080278,"lon":11.7312753},{"lat":42.1102235,"lon":11.7428862},{"lat":42.1107965,"lon":11.7514872},{"lat":42.1100274,"lon":11.7591684},{"lat":42.1088995,"lon":11.7625939},{"lat":42.1075877,"lon":11.7659829},{"lat":42.0973197,"lon":11.7797894},{"lat":42.0972379,"lon":11.7800034},{"lat":42.0972613,"lon":11.7802058},{"lat":42.0975151,"lon":11.7806917},{"lat":42.0982236,"lon":11.7815138},{"lat":42.0990729,"lon":11.782536}],"tags":{"duration":"20:00","name":"Barcelona (E) – Civitavecchia (I)","operator":"Grimaldi Lines","route":"ferry","seamark:type":"ferry_route"}},{"type":"way","id":761201702,"bounds":{"minlat":41.40435,"minlon":2.40562,"maxlat":43.32808,"maxlon":5.06723},"nodes":[7111834610,7111820227,7111834619,7111820236,7111792580,7111834596,7111820233,7111792576,7111834591,7111834587,7111834603,7111834615,7111820232,7111834599,7111834611,7111820228,7111792572,7111820237,7111792581,7111834597,7111834609,7111792577,7111834592,7111834606,7111834618,7111820230,7111792573,7111834588,7111834604,7111792570,7111792584,7111834600,7111834612,7111834608,7111834620,7111792568,7111792582,7111834617,7111820234,7111792578,7111834593,7111792574,7111834589,7111834605,7111834616,7111834585,7111834601,7111834613,7111820229,7111820225,7111792569,7111792583,7111834598,7111820235,7111792579,7111834594,7111834607,7111834614,7111820231,7111792575,7111834590,7111820226,7111792571,7111834586,7111834602,7111834595],"geometry":[{"lat":43.32808,"lon":5.05517},{"lat":43.32713,"lon":5.05638},{"lat":43.32618,"lon":5.05805},{"lat":43.32577,"lon":5.05852},{"lat":43.3249,"lon":5.05927},{"lat":43.32287,"lon":5.05942},{"lat":43.32167,"lon":5.06},{"lat":43.32063,"lon":5.06055},{"lat":43.31987,"lon":5.06092},{"lat":43.3183,"lon":5.06267},{"lat":43.31793,"lon":5.06353},{"lat":43.31703,"lon":5.06525},{"lat":43.31663,"lon":5.06638},{"lat":43.30955,"lon":5.06723},{"lat":43.29645,"lon":5.06308},{"lat":43.294,"lon":5.06108},{"lat":43.23665,"lon":5.03967},{"lat":43.2354,"lon":5.03903},{"lat":43.21767,"lon":5.026},{"lat":43.1585,"lon":5.00333},{"lat":43.1531,"lon":4.99595},{"lat":43.1293,"lon":4.98662},{"lat":43.12025,"lon":4.98095},{"lat":43.06893,"lon":4.9547},{"lat":42.87165,"lon":4.93857},{"lat":42.8218,"lon":4.95122},{"lat":42.81687,"lon":4.95198},{"lat":42.72088,"lon":4.9346},{"lat":42.6401,"lon":4.9189},{"lat":42.63782,"lon":4.91827},{"lat":42.62317,"lon":4.90912},{"lat":42.61927,"lon":4.90588},{"lat":42.54298,"lon":4.78482},{"lat":42.43832,"lon":4.67522},{"lat":42.36955,"lon":4.58702},{"lat":42.03333,"lon":4.25995},{"lat":41.97122,"lon":4.19108},{"lat":41.92107,"lon":4.13592},{"lat":41.80413,"lon":3.99317},{"lat":41.73763,"lon":3.8345},{"lat":41.72313,"lon":3.79043},{"lat":41.69322,"lon":3.73353},{"lat":41.5387,"lon":3.60203},{"lat":41.51975,"lon":3.5178},{"lat":41.48267,"lon":3.34085},{"lat":41.45857,"lon":3.22595},{"lat":41.43472,"lon":3.0903},{"lat":41.40745,"lon":3.00037},{"lat":41.40435,"lon":2.97265},{"lat":41.40457,"lon":2.97137},{"lat":41.42968,"lon":2.82233},{"lat":41.4346,"lon":2.79418},{"lat":41.43458,"lon":2.79143},{"lat":41.43458,"lon":2.78873},{"lat":41.46703,"lon":2.58523},{"lat":41.46732,"lon":2.58385},{"lat":41.46892,"lon":2.56945},{"lat":41.47103,"lon":2.55053},{"lat":41.47105,"lon":2.55032},{"lat":41.47197,"lon":2.54115},{"lat":41.47577,"lon":2.52392},{"lat":41.50185,"lon":2.43933},{"lat":41.50442,"lon":2.42215},{"lat":41.50447,"lon":2.422},{"lat":41.50448,"lon":2.42188},{"lat":41.50625,"lon":2.40562}],"tags":{"communication":"line","location":"underwater","name":"BARMAR","seamark:cable_submarine:category":"fiber_optic","seamark:cable_submarine:name":"BARMAR","seamark:type":"cable_submarine","source":"https://www.sigcables.com/index.php/cableliste/fiche_cable/6"}},{"type":"way","id":1110609473,"bounds":{"minlat":41.0361667,"minlon":2.5121667,"maxlat":41.4085,"maxlon":3.6878333},"nodes":[10160156567,10160156566,10160156565,10160156564,10160156563,10160156562,10160156561,10160156560],"geometry":[{"lat":41.4085,"lon":2.5121667},{"lat":41.392,"lon":2.6813333},{"lat":41.1251667,"lon":2.8321667},{"lat":41.0816667,"lon":2.8931667},{"lat":41.051,"lon":2.9693333},{"lat":41.0361667,"lon":3.1045},{"lat":41.0475,"lon":3.25},{"lat":41.1848333,"lon":3.6878333}],"tags":{"seamark:type":"cable_submarine"}},{"type":"way","id":154212471,"bounds":{"minlat":40.5515371,"minlon":0.5302226,"maxlat":40.5516384,"maxlon":0.5304552},"nodes":[1667824227,1667824200],"geometry":[{"lat":40.5516384,"lon":0.5302226},{"lat":40.5515371,"lon":0.5304552}],"tags":{"highway":"service","seamark:information":"by car","seamark:small_craft_facility:category":"slipway","seamark:type":"small_craft_facility"}},{"type":"way","id":1508241605,"bounds":{"minlat":40.771843,"minlon":0.7410928,"maxlat":40.7727028,"maxlon":0.7432913},"nodes":[13790069299,13790163024,13790069297,13790163015,13790069299],"geometry":[{"lat":40.771843,"lon":0.7432093},{"lat":40.7725573,"lon":0.7410928},{"lat":40.7727028,"lon":0.7411809},{"lat":40.7719706,"lon":0.7432913},{"lat":40.771843,"lon":0.7432093}],"tags":{"landuse":"aquaculture","produce":"mussels","seamark:type":"marine_farm"}},{"type":"node","id":1566249251,"lat":40.5518013,"lon":0.532318,"tags":{"seamark:light:character":"Fl","seamark:light:colour":"green","seamark:light:height":"7","seamark:light:period":"4","seamark:light:range":"3","seamark:light:reference":"E 0370.35","seamark:light:sequence":"1+(3)","seamark:type":"light_minor","source":"US NGA Pub. 113. 2011-10-20."}},{"type":"node","id":860935275,"lat":40.5720766,"lon":0.5513185,"tags":{"harbour":"yes","name":"Port industrial d'Alcanar","seamark:type":"harbour"}},{"type":"node","id":1566247599,"lat":40.6016453,"lon":0.6894566,"tags":{"seamark:buoy_cardinal:category":"north","seamark:buoy_cardinal:colour":"black;yellow","seamark:buoy_cardinal:colour_pattern":"horizontal","seamark:buoy_cardinal:shape":"spar","seamark:light:1:character":"Q","seamark:light:1:colour":"white","seamark:light:1:height":"8","seamark:light:1:range":"3","seamark:light:1:sector_end":"229","seamark:light:1:sector_start":"82","seamark:light:reference":"E 0375","seamark:name":"27960","seamark:topmark:colour":"black","seamark:topmark:shape":"2 cones up","seamark:type":"buoy_cardinal","source":"US NGA Pub. 113. 2011-10-20."}},{"type":"node","id":13062011458,"lat":40.8270519,"lon":0.186356,"tags":{"seamark:type":"gate","waterway":"lock_gate"}},{"type":"node","id":9545070472,"lat":40.8317167,"lon":0.8241667,"tags":{"seamark:beacon_special_purpose:colour":"yellow","seamark:light:colour":"yellow","seamark:light:period":"13","seamark:light:range":"3","seamark:name":"Fl(5)Y 13s 3","seamark:topmark:colour":"yellow","seamark:topmark:shape":"x-shape","seamark:type":"beacon_special_purpose"}},{"type":"node","id":1668054319,"lat":40.8822328,"lon":0.8022707,"tags":{"crane:type":"travel_lift","leisure":"slipway","man_made":"crane","seamark:crane:category":"a-frame","seamark:type":"crane"}},{"type":"node","id":10067752728,"lat":40.9076296,"lon":0.8119309,"tags":{"addr:city":"Les Tres Cales","addr:housenumber":"284","addr:postcode":"43860","addr:street":"Carrer Número Vint-i-Tres","amenity":"dive_centre","email":"info@planctondiving.cat","name":"Plàncton Diving","phone":"+34 977 457741","scuba_diving:courses":"yes","scuba_diving:rental":"yes","website":"https://www.planctondiving.cat"}},{"type":"node","id":2974377831,"lat":40.8586551,"lon":0.8500943,"tags":{"seamark:buoy_special_purpose:colour":"yellow","seamark:buoy_special_purpose:shape":"conical","seamark:light:character":"Fl","seamark:light:colour":"yellow","seamark:light:period":"5","seamark:light:range":"3","seamark:topmark:colour":"yellow","seamark:topmark:shape":"x-shape","seamark:type":"buoy_special_purpose"}},{"type":"node","id":5017720023,"lat":41.0649409,"lon":1.0780043,"tags":{"addr:city":"Cambrils","addr:housenumber":"38","addr:postcode":"43850","addr:street":"Avinguda de la Diputació","addr:unit":"2","check_date":"2026-09-06","club":"scuba_diving","contact:facebook":"https://es-es.facebook.com/glupsdiving/","contact:twitter":"GLUPSDIVING","email":"buceo@glupsdiving.com","mobile":"+34 605 820 107","name":"Glups Diving","opening_hours":"Mo-Sa 09:00-20:00; Su 09:00-14:00, 17:00-19:00","phone":"+34 977 79 18 28","sport":"scuba_diving","start_date":"1998","website":"https://glupsdiving.com/","wheelchair":"limited","wheelchair:description":"Entrant-hi des dol vorera de l'Av.Diputació hi ha unes escales sense rampa. Aquestes escales es poden salvar a través d'un parell de rampes que hi ha al C/N.Sra. del Pilar, però es força tomb... A més, hi ha un petit escaló just abans d'entrar al local.","wheelchair:description:ca":"Entrant-hi des dol vorera de l'Av.Diputació hi ha unes escales sense rampa. Aquestes escales es poden salvar a través d'un parell de rampes que hi ha al C/N.Sra. del Pilar, però es força tomb... A més, hi ha un petit escaló just abans d'entrar al local."}},{"type":"node","id":1566242298,"lat":41.0557324,"lon":1.171917,"tags":{"seamark:light:character":"Fl","seamark:light:colour":"white","seamark:light:group":"4","seamark:light:height":"43","seamark:light:period":"20","seamark:light:range":"23","seamark:light:reference":"E 0386","seamark:light:sequence":"0.2+(3.1)+0.2+(3.1)+0.2+(3.1)+0.2+(9.9)","seamark:name":"Cabo de Salou","seamark:type":"light_major","source":"US NGA Pub. 113. 2011-10-20."}},{"type":"node","id":1566242132,"lat":41.0669518,"lon":1.1831658,"tags":{"seamark:beacon_cardinal:category":"east","seamark:beacon_cardinal:colour":"black;yellow;black","seamark:beacon_cardinal:colour_pattern":"horizontal","seamark:beacon_cardinal:height":"6","seamark:light:character":"Q","seamark:light:colour":"white","seamark:light:group":"3","seamark:light:height":"8","seamark:light:period":"10","seamark:light:range":"1","seamark:light:reference":"E 0386.1","seamark:type":"beacon_cardinal","source":"US NGA Pub. 113. 2011-10-20."}},{"type":"node","id":13339151350,"lat":41.0700002,"lon":1.1899999,"tags":{"ref":"Boya de Tarragona","seamark:type":"buoy_lateral"}},{"type":"node","id":11646646590,"lat":41.0875877,"lon":1.2281513,"tags":{"seamark:type":"wreck","seamark:wreck:category":"non-dangerous"}},{"type":"node","id":3737345802,"lat":40.7260693,"lon":1.3583285,"tags":{"seamark:name":"Plataforma Casablanca","seamark:platform:category":"oil","seamark:type":"platform"}},{"type":"node","id":13807194766,"lat":41.1861704,"lon":1.6075355,"tags":{"man_made":"beacon","seamark:beacon_lateral:colour":"red","seamark:type":"beacon_lateral"}},{"type":"node","id":12901397907,"lat":41.2513524,"lon":1.8990602,"tags":{"brand":"Petroprix","brand:wikidata":"Q128327113","fixme":"Corregir posición","fuel:diesel":"yes","fuel:octane_95":"yes","name":"Petroprix Sitges","seamark:small_craft_facility:category":"fuel_station","seamark:type":"small_craft_facility","source":"https://petroprix.com/gasolineras/petroprix-sitges","waterway":"fuel"}},{"type":"node","id":11594185821,"lat":41.3997418,"lon":1.9999707,"tags":{"seamark:type":"beacon_isolated_danger"}},{"type":"node","id":12860820941,"lat":41.4788749,"lon":2.0384876,"tags":{"access":"yes","handrail":"no","highway":"ladder","material":"wood","width":"2"}},{"type":"node","id":1566190579,"lat":41.281217,"lon":2.1806667,"tags":{"seamark:buoy_safe_water:colour":"red;white","seamark:buoy_safe_water:colour_pattern":"vertical","seamark:buoy_safe_water:shape":"pillar","seamark:light:character":"Mo","seamark:light:colour":"white","seamark:light:group":"A","seamark:light:period":"10","seamark:light:range":"7","seamark:name":"Barcelona Approach","seamark:radar_transponder:category":"racon","seamark:radar_transponder:group":"B","seamark:type":"buoy_safe_water","source":"US NGA Pub. 113. 2011-10-20."}},{"type":"node","id":10870493568,"lat":41.3867875,"lon":2.2013761,"tags":{"ref":"701","seamark:type":"mooring"}},{"type":"node","id":4250855432,"lat":41.5541045,"lon":2.5033002,"tags":{"seamark:name":"BOYA OESTE.- ATERRAMIENTOS","seamark:type":"buoy_isolated_danger"}},{"type":"node","id":12132826525,"lat":41.915449,"lon":3.2129398,"tags":{"name":"Roca Montiell","scuba_diving:difficulty":"1","scuba_diving:divespot":"yes","scuba_diving:entry":"boat","scuba_diving:maxdepth":"25","seamark:rock:water_level":"submerged","seamark:type":"rock","sport":"scuba_diving"}},{"type":"node","id":12104526256,"lat":41.9347853,"lon":3.2168885,"tags":{"seamark:buoy_special_purpose:category":"recreation_zone","seamark:buoy_special_purpose:colour":"yellow","seamark:buoy_special_purpose:shape":"spherical","seamark:restricted_area:category":"recreation_zone","seamark:type":"restricted_area"}},{"type":"node","id":3241051376,"lat":42.054675,"lon":3.2025243,"tags":{"addr:city":"L'Estartit","addr:housenumber":"43","addr:postcode":"17258","addr:street":"Passeig Marítim","amenity":"bicycle_rental","bicycle_rental":"shop","contact:phone":"+34 687 70 21 28","contact:website":"https://www.estartitrentaboat.com/","name":"Complements Nàutics","name:ca":"Complements Nàutics","rental":"e-bike;city_bike;mtb","shop":"scuba_diving"}},{"type":"node","id":13589277575,"lat":42.2461797,"lon":3.1244544,"tags":{"seamark:type":"bridge"}}]}
+{
+	"version": 0.6,
+	"osm3s": {
+		"timestamp_osm_base": "2026-09-13T06:34:34Z",
+		"copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+	},
+	"elements": [
+		{
+			"type": "relation",
+			"id": 7330568,
+			"bounds": {
+				"minlat": 40.5697098,
+				"minlon": 0.5473044,
+				"maxlat": 40.5744551,
+				"maxlon": 0.5565461
+			},
+			"members": [
+				{
+					"type": "way",
+					"ref": 500266048,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.5730603, "lon": 0.5483834 },
+						{ "lat": 40.5698968, "lon": 0.5509867 },
+						{ "lat": 40.5697857, "lon": 0.5511094 },
+						{ "lat": 40.5697098, "lon": 0.551306 },
+						{ "lat": 40.5697199, "lon": 0.5515158 },
+						{ "lat": 40.5706411, "lon": 0.5541542 },
+						{ "lat": 40.5714103, "lon": 0.5564062 },
+						{ "lat": 40.571509, "lon": 0.5565461 },
+						{ "lat": 40.5716341, "lon": 0.5565131 },
+						{ "lat": 40.5717342, "lon": 0.5564229 },
+						{ "lat": 40.5717595, "lon": 0.556283 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 162354164,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.5730603, "lon": 0.5483834 },
+						{ "lat": 40.5743488, "lon": 0.5473044 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 1089830148,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.5743488, "lon": 0.5473044 },
+						{ "lat": 40.5743777, "lon": 0.5473617 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 1089830145,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.5743777, "lon": 0.5473617 },
+						{ "lat": 40.5744165, "lon": 0.5474386 },
+						{ "lat": 40.5744551, "lon": 0.5475149 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 1089830139,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.5744551, "lon": 0.5475149 },
+						{ "lat": 40.573972, "lon": 0.5479356 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 500266050,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.573972, "lon": 0.5479356 },
+						{ "lat": 40.5738366, "lon": 0.5526936 },
+						{ "lat": 40.5717595, "lon": 0.556283 }
+					]
+				}
+			],
+			"tags": {
+				"industrial": "port",
+				"landuse": "industrial",
+				"leisure": "marina",
+				"name": "Port industrial d'Alcanar",
+				"name:ca": "Port industrial d'Alcanar",
+				"seamark:type": "harbour",
+				"type": "multipolygon",
+				"wikidata": "Q130221061",
+				"wikipedia": "ca:Port d'Alcanar"
+			}
+		},
+		{
+			"type": "relation",
+			"id": 7330565,
+			"bounds": {
+				"minlat": 40.6090269,
+				"minlon": 0.5928502,
+				"maxlat": 40.6229467,
+				"maxlon": 0.6085145
+			},
+			"members": [
+				{
+					"type": "way",
+					"ref": 500266039,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.609151, "lon": 0.6046893 },
+						{ "lat": 40.6166022, "lon": 0.6085005 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 500266040,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.6090269, "lon": 0.6045534 },
+						{ "lat": 40.609042, "lon": 0.6046151 },
+						{ "lat": 40.6090897, "lon": 0.6046745 },
+						{ "lat": 40.609151, "lon": 0.6046893 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 500266044,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.613782, "lon": 0.5959652 },
+						{ "lat": 40.6137434, "lon": 0.5960728 },
+						{ "lat": 40.6131669, "lon": 0.596771 },
+						{ "lat": 40.6127957, "lon": 0.59722 },
+						{ "lat": 40.6116538, "lon": 0.5986174 },
+						{ "lat": 40.6115031, "lon": 0.5987954 },
+						{ "lat": 40.6103686, "lon": 0.6014748 },
+						{ "lat": 40.610046, "lon": 0.6022047 },
+						{ "lat": 40.6097842, "lon": 0.6028141 },
+						{ "lat": 40.6094748, "lon": 0.6035023 },
+						{ "lat": 40.6093207, "lon": 0.6038602 },
+						{ "lat": 40.609107, "lon": 0.6043463 },
+						{ "lat": 40.6090269, "lon": 0.6045534 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 1089861891,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.6138259, "lon": 0.596019 },
+						{ "lat": 40.613782, "lon": 0.5959652 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 500266045,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.6152923, "lon": 0.5942653 },
+						{ "lat": 40.6146322, "lon": 0.5950466 },
+						{ "lat": 40.6138259, "lon": 0.596019 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 500266046,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.6152923, "lon": 0.5942653 },
+						{ "lat": 40.6155427, "lon": 0.5939689 },
+						{ "lat": 40.6163169, "lon": 0.5928502 },
+						{ "lat": 40.617331, "lon": 0.5942232 },
+						{ "lat": 40.6170259, "lon": 0.5954109 },
+						{ "lat": 40.6193068, "lon": 0.5986822 },
+						{ "lat": 40.6198812, "lon": 0.5979128 },
+						{ "lat": 40.620223, "lon": 0.5990139 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 1089863670,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.620223, "lon": 0.5990139 },
+						{ "lat": 40.6202729, "lon": 0.5991901 },
+						{ "lat": 40.6203555, "lon": 0.5991616 },
+						{ "lat": 40.6205606, "lon": 0.599827 },
+						{ "lat": 40.6205715, "lon": 0.5999162 },
+						{ "lat": 40.6205914, "lon": 0.6003693 },
+						{ "lat": 40.6206887, "lon": 0.6003938 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 500266043,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.6206887, "lon": 0.6003938 },
+						{ "lat": 40.6207014, "lon": 0.6007029 },
+						{ "lat": 40.620671, "lon": 0.6008225 },
+						{ "lat": 40.6206753, "lon": 0.6009981 },
+						{ "lat": 40.6207685, "lon": 0.6013951 },
+						{ "lat": 40.6207755, "lon": 0.6014806 },
+						{ "lat": 40.6210405, "lon": 0.6015356 },
+						{ "lat": 40.621173, "lon": 0.601982 },
+						{ "lat": 40.6213443, "lon": 0.6019581 },
+						{ "lat": 40.6217974, "lon": 0.6017233 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 1089861883,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.6228682, "lon": 0.6065727 },
+						{ "lat": 40.6228661, "lon": 0.6065388 },
+						{ "lat": 40.6228203, "lon": 0.6065436 },
+						{ "lat": 40.6227564, "lon": 0.6050058 },
+						{ "lat": 40.6225891, "lon": 0.6038154 },
+						{ "lat": 40.6219827, "lon": 0.6018311 },
+						{ "lat": 40.6217974, "lon": 0.6017233 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 500266041,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.6166022, "lon": 0.6085005 },
+						{ "lat": 40.6180419, "lon": 0.6083855 },
+						{ "lat": 40.618081, "lon": 0.6084292 },
+						{ "lat": 40.6181328, "lon": 0.6084847 },
+						{ "lat": 40.61822, "lon": 0.6085145 },
+						{ "lat": 40.6183305, "lon": 0.6084744 },
+						{ "lat": 40.6184039, "lon": 0.6083704 },
+						{ "lat": 40.618457, "lon": 0.6083409 },
+						{ "lat": 40.6184855, "lon": 0.608338 },
+						{ "lat": 40.6186257, "lon": 0.6083236 },
+						{ "lat": 40.620216, "lon": 0.6081605 },
+						{ "lat": 40.6207364, "lon": 0.6081026 },
+						{ "lat": 40.6227397, "lon": 0.6078798 },
+						{ "lat": 40.6229467, "lon": 0.6078568 },
+						{ "lat": 40.6228682, "lon": 0.6065727 }
+					]
+				}
+			],
+			"tags": {
+				"leisure": "marina",
+				"name": "Port de la Ràpita",
+				"name:ca": "Port de la Ràpita",
+				"seamark:harbour:category": "marina",
+				"seamark:type": "harbour",
+				"type": "multipolygon"
+			}
+		},
+		{
+			"type": "relation",
+			"id": 7336052,
+			"bounds": {
+				"minlat": 40.766335,
+				"minlon": 0.737622,
+				"maxlat": 40.7685359,
+				"maxlon": 0.740056
+			},
+			"members": [
+				{
+					"type": "way",
+					"ref": 500887702,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.7665002, "lon": 0.7399878 },
+						{ "lat": 40.766461, "lon": 0.7398659 },
+						{ "lat": 40.766335, "lon": 0.7395628 },
+						{ "lat": 40.7664691, "lon": 0.7393295 },
+						{ "lat": 40.7666275, "lon": 0.7388708 },
+						{ "lat": 40.7665585, "lon": 0.7385221 },
+						{ "lat": 40.7663675, "lon": 0.7378355 },
+						{ "lat": 40.766612, "lon": 0.737622 },
+						{ "lat": 40.7676325, "lon": 0.7376801 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 500887701,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.7665002, "lon": 0.7399878 },
+						{ "lat": 40.7674787, "lon": 0.740056 },
+						{ "lat": 40.7675677, "lon": 0.7399353 },
+						{ "lat": 40.7675992, "lon": 0.739692 },
+						{ "lat": 40.7677249, "lon": 0.7396485 },
+						{ "lat": 40.7678627, "lon": 0.7395536 },
+						{ "lat": 40.7680303, "lon": 0.7394745 },
+						{ "lat": 40.7681637, "lon": 0.7393553 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 1089560767,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.7681637, "lon": 0.7393553 },
+						{ "lat": 40.7682309, "lon": 0.7392571 },
+						{ "lat": 40.7684165, "lon": 0.7389725 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 500887699,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.7685359, "lon": 0.7387214 },
+						{ "lat": 40.7684165, "lon": 0.7389725 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 500887700,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.7685359, "lon": 0.7387214 },
+						{ "lat": 40.768521, "lon": 0.7386624 },
+						{ "lat": 40.7684327, "lon": 0.738609 },
+						{ "lat": 40.7683713, "lon": 0.73853 },
+						{ "lat": 40.7680764, "lon": 0.7382928 },
+						{ "lat": 40.7680584, "lon": 0.7382391 },
+						{ "lat": 40.7680764, "lon": 0.7381781 },
+						{ "lat": 40.7681019, "lon": 0.7381524 },
+						{ "lat": 40.7680703, "lon": 0.7380889 },
+						{ "lat": 40.768033, "lon": 0.7380615 },
+						{ "lat": 40.7680001, "lon": 0.7379449 },
+						{ "lat": 40.7679237, "lon": 0.7378975 },
+						{ "lat": 40.76778, "lon": 0.7378698 },
+						{ "lat": 40.7677486, "lon": 0.7378362 },
+						{ "lat": 40.7677471, "lon": 0.7377907 },
+						{ "lat": 40.7676325, "lon": 0.7376801 }
+					]
+				}
+			],
+			"tags": {
+				"leisure": "marina",
+				"name": "Port d'Illa de Mar",
+				"name:ca": "Port d'Illa de Mar",
+				"seamark:harbour:category": "marina",
+				"seamark:type": "harbour",
+				"type": "multipolygon"
+			}
+		},
+		{
+			"type": "relation",
+			"id": 7336027,
+			"bounds": {
+				"minlat": 40.8075234,
+				"minlon": 0.7069587,
+				"maxlat": 40.8122326,
+				"maxlon": 0.7129351
+			},
+			"members": [
+				{
+					"type": "way",
+					"ref": 500885728,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.8119067, "lon": 0.7128839 },
+						{ "lat": 40.8119691, "lon": 0.7127608 },
+						{ "lat": 40.8119127, "lon": 0.7126567 },
+						{ "lat": 40.811944, "lon": 0.7126629 },
+						{ "lat": 40.8119499, "lon": 0.7126421 },
+						{ "lat": 40.8118142, "lon": 0.7125953 },
+						{ "lat": 40.8118694, "lon": 0.7122325 },
+						{ "lat": 40.8119532, "lon": 0.7122529 },
+						{ "lat": 40.8119699, "lon": 0.7121568 },
+						{ "lat": 40.8119387, "lon": 0.7121301 },
+						{ "lat": 40.8120879, "lon": 0.7118181 },
+						{ "lat": 40.8122326, "lon": 0.7115155 },
+						{ "lat": 40.8121967, "lon": 0.7114434 },
+						{ "lat": 40.8121901, "lon": 0.7114278 },
+						{ "lat": 40.8119986, "lon": 0.7109765 },
+						{ "lat": 40.8117688, "lon": 0.7109608 },
+						{ "lat": 40.811726, "lon": 0.7108145 },
+						{ "lat": 40.811611, "lon": 0.7104472 },
+						{ "lat": 40.8114711, "lon": 0.7100029 },
+						{ "lat": 40.8112128, "lon": 0.7096678 },
+						{ "lat": 40.8108077, "lon": 0.7090475 },
+						{ "lat": 40.8107658, "lon": 0.7089859 },
+						{ "lat": 40.810742, "lon": 0.7089218 },
+						{ "lat": 40.8107401, "lon": 0.7088677 },
+						{ "lat": 40.8107496, "lon": 0.7088162 },
+						{ "lat": 40.8108411, "lon": 0.7084855 },
+						{ "lat": 40.8108155, "lon": 0.7082693 },
+						{ "lat": 40.810802, "lon": 0.7081609 },
+						{ "lat": 40.8107415, "lon": 0.7079671 },
+						{ "lat": 40.8107058, "lon": 0.7078938 },
+						{ "lat": 40.8102208, "lon": 0.7069587 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 500885733,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.8102208, "lon": 0.7069587 },
+						{ "lat": 40.8101483, "lon": 0.7072184 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 1089567279,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.8101483, "lon": 0.7072184 },
+						{ "lat": 40.8100619, "lon": 0.7072761 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 500885731,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.8100619, "lon": 0.7072761 },
+						{ "lat": 40.8097634, "lon": 0.7081664 },
+						{ "lat": 40.8097793, "lon": 0.7082065 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 1089567278,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.8097793, "lon": 0.7082065 },
+						{ "lat": 40.8093299, "lon": 0.7095989 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 500885729,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.8093299, "lon": 0.7095989 },
+						{ "lat": 40.8079426, "lon": 0.7097965 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 500885730,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.8079426, "lon": 0.7097965 },
+						{ "lat": 40.8078864, "lon": 0.7097614 },
+						{ "lat": 40.807838, "lon": 0.7097779 },
+						{ "lat": 40.8078182, "lon": 0.7098772 },
+						{ "lat": 40.8078142, "lon": 0.7102455 },
+						{ "lat": 40.8076458, "lon": 0.7102506 },
+						{ "lat": 40.8076478, "lon": 0.7104832 },
+						{ "lat": 40.8076161, "lon": 0.710461 },
+						{ "lat": 40.8075653, "lon": 0.7104683 },
+						{ "lat": 40.8075311, "lon": 0.7105048 },
+						{ "lat": 40.8075234, "lon": 0.7105646 },
+						{ "lat": 40.8075333, "lon": 0.71062 },
+						{ "lat": 40.8075686, "lon": 0.7106682 },
+						{ "lat": 40.8076168, "lon": 0.7106875 },
+						{ "lat": 40.8079418, "lon": 0.7106667 },
+						{ "lat": 40.8081521, "lon": 0.7106557 },
+						{ "lat": 40.8087169, "lon": 0.7106288 },
+						{ "lat": 40.8088549, "lon": 0.7106901 },
+						{ "lat": 40.8092733, "lon": 0.7109249 },
+						{ "lat": 40.8096796, "lon": 0.7111539 },
+						{ "lat": 40.8098309, "lon": 0.711275 },
+						{ "lat": 40.8099821, "lon": 0.7113236 },
+						{ "lat": 40.8101776, "lon": 0.711418 },
+						{ "lat": 40.810489, "lon": 0.7117122 },
+						{ "lat": 40.8109131, "lon": 0.7121083 },
+						{ "lat": 40.8112765, "lon": 0.7124246 },
+						{ "lat": 40.8116015, "lon": 0.7127254 },
+						{ "lat": 40.8117553, "lon": 0.712879 },
+						{ "lat": 40.8117896, "lon": 0.7129351 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 1089568048,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.8118922, "lon": 0.7128902 },
+						{ "lat": 40.8117896, "lon": 0.7129351 }
+					]
+				},
+				{
+					"type": "way",
+					"ref": 500885735,
+					"role": "outer",
+					"geometry": [
+						{ "lat": 40.8119067, "lon": 0.7128839 },
+						{ "lat": 40.8118922, "lon": 0.7128902 }
+					]
+				}
+			],
+			"tags": {
+				"leisure": "marina",
+				"name": "Port de l'Ampolla",
+				"name:ca": "Port de l'Ampolla",
+				"seamark:harbour:category": "marina",
+				"seamark:type": "harbour",
+				"type": "multipolygon"
+			}
+		},
+		{
+			"type": "way",
+			"id": 1191224310,
+			"bounds": {
+				"minlat": 40.841565,
+				"minlon": 2.1656421,
+				"maxlat": 41.3624155,
+				"maxlon": 8.4109437
+			},
+			"nodes": [
+				30707380, 11059396566, 11059396581, 11059396597, 11059396531, 11059396549, 11059396564,
+				11059396579, 11059396595, 11059396529, 11059396547, 11059396562, 11059396577, 11059396593,
+				11059396527, 3581051204, 7937921274, 7937921276, 3581051203, 6281271576, 7937921240,
+				6281271575, 3592596463, 7937921216, 7937921214, 3581051198, 7937902079, 3581051197,
+				7937902075, 3581051196, 7937902083, 1772952848
+			],
+			"geometry": [
+				{ "lat": 41.3624155, "lon": 2.1737703 },
+				{ "lat": 41.3621547, "lon": 2.1765697 },
+				{ "lat": 41.3618889, "lon": 2.1771812 },
+				{ "lat": 41.3616071, "lon": 2.1775246 },
+				{ "lat": 41.3610273, "lon": 2.1777177 },
+				{ "lat": 41.3602784, "lon": 2.1775675 },
+				{ "lat": 41.3472382, "lon": 2.1696804 },
+				{ "lat": 41.3464443, "lon": 2.1693061 },
+				{ "lat": 41.3456827, "lon": 2.1691012 },
+				{ "lat": 41.3282931, "lon": 2.165652 },
+				{ "lat": 41.3267059, "lon": 2.1656421 },
+				{ "lat": 41.3243914, "lon": 2.1661811 },
+				{ "lat": 41.3141559, "lon": 2.1705732 },
+				{ "lat": 41.3000695, "lon": 2.1936286 },
+				{ "lat": 41.3218283, "lon": 2.3167617 },
+				{ "lat": 41.1406613, "lon": 8.3188648 },
+				{ "lat": 41.1032388, "lon": 8.4104288 },
+				{ "lat": 41.1028633, "lon": 8.4107973 },
+				{ "lat": 41.1023388, "lon": 8.4109437 },
+				{ "lat": 40.8536822, "lon": 8.3905985 },
+				{ "lat": 40.8523487, "lon": 8.3897689 },
+				{ "lat": 40.8511863, "lon": 8.3884262 },
+				{ "lat": 40.8500202, "lon": 8.3863501 },
+				{ "lat": 40.8496661, "lon": 8.385551 },
+				{ "lat": 40.8495554, "lon": 8.3846965 },
+				{ "lat": 40.8497132, "lon": 8.3790742 },
+				{ "lat": 40.8496099, "lon": 8.3783923 },
+				{ "lat": 40.8493339, "lon": 8.3777904 },
+				{ "lat": 40.8489179, "lon": 8.3773889 },
+				{ "lat": 40.8483189, "lon": 8.3771961 },
+				{ "lat": 40.8445284, "lon": 8.3771257 },
+				{ "lat": 40.841565, "lon": 8.3781441 }
+			],
+			"tags": {
+				"duration": "11:45",
+				"foot": "yes",
+				"motor_vehicle": "yes",
+				"motorcar": "yes",
+				"name": "Barcelona (E) – Posthudorra / Porto Torres (I)",
+				"operator": "Grimaldi Lines",
+				"route": "ferry",
+				"seamark:type": "ferry_route"
+			}
+		},
+		{
+			"type": "way",
+			"id": 1191224312,
+			"bounds": {
+				"minlat": 41.2908433,
+				"minlon": 2.1658214,
+				"maxlat": 42.1107965,
+				"maxlon": 11.782536
+			},
+			"nodes": [
+				30707380, 11059396534, 11059396552, 11059396567, 11059396582, 11059396598, 11059396532,
+				11059396550, 11059396565, 11059396580, 11059396596, 11059396530, 11059396548, 11059396563,
+				11059396578, 7937664884, 4527045089, 4527045090, 7937664859, 7937654483, 3582600408,
+				7937654484, 7937664807, 3582600405, 3582600401, 3582600402, 7937664833, 7937664819,
+				7937664826, 456381084
+			],
+			"geometry": [
+				{ "lat": 41.3624155, "lon": 2.1737703 },
+				{ "lat": 41.3624285, "lon": 2.1765911 },
+				{ "lat": 41.3621708, "lon": 2.1773529 },
+				{ "lat": 41.3616151, "lon": 2.1779537 },
+				{ "lat": 41.3611078, "lon": 2.1780503 },
+				{ "lat": 41.3601335, "lon": 2.1777713 },
+				{ "lat": 41.3471858, "lon": 2.169846 },
+				{ "lat": 41.346408, "lon": 2.1694793 },
+				{ "lat": 41.3456593, "lon": 2.1692779 },
+				{ "lat": 41.3282827, "lon": 2.1658312 },
+				{ "lat": 41.3267173, "lon": 2.1658214 },
+				{ "lat": 41.324424, "lon": 2.1663555 },
+				{ "lat": 41.3141975, "lon": 2.1707437 },
+				{ "lat": 41.3004281, "lon": 2.1935596 },
+				{ "lat": 41.3302063, "lon": 2.3149026 },
+				{ "lat": 41.2908433, "lon": 9.1605582 },
+				{ "lat": 41.2910605, "lon": 9.1622221 },
+				{ "lat": 41.3240243, "lon": 9.2903547 },
+				{ "lat": 42.1080278, "lon": 11.7312753 },
+				{ "lat": 42.1102235, "lon": 11.7428862 },
+				{ "lat": 42.1107965, "lon": 11.7514872 },
+				{ "lat": 42.1100274, "lon": 11.7591684 },
+				{ "lat": 42.1088995, "lon": 11.7625939 },
+				{ "lat": 42.1075877, "lon": 11.7659829 },
+				{ "lat": 42.0973197, "lon": 11.7797894 },
+				{ "lat": 42.0972379, "lon": 11.7800034 },
+				{ "lat": 42.0972613, "lon": 11.7802058 },
+				{ "lat": 42.0975151, "lon": 11.7806917 },
+				{ "lat": 42.0982236, "lon": 11.7815138 },
+				{ "lat": 42.0990729, "lon": 11.782536 }
+			],
+			"tags": {
+				"duration": "20:00",
+				"name": "Barcelona (E) – Civitavecchia (I)",
+				"operator": "Grimaldi Lines",
+				"route": "ferry",
+				"seamark:type": "ferry_route"
+			}
+		},
+		{
+			"type": "way",
+			"id": 761201702,
+			"bounds": { "minlat": 41.40435, "minlon": 2.40562, "maxlat": 43.32808, "maxlon": 5.06723 },
+			"nodes": [
+				7111834610, 7111820227, 7111834619, 7111820236, 7111792580, 7111834596, 7111820233,
+				7111792576, 7111834591, 7111834587, 7111834603, 7111834615, 7111820232, 7111834599,
+				7111834611, 7111820228, 7111792572, 7111820237, 7111792581, 7111834597, 7111834609,
+				7111792577, 7111834592, 7111834606, 7111834618, 7111820230, 7111792573, 7111834588,
+				7111834604, 7111792570, 7111792584, 7111834600, 7111834612, 7111834608, 7111834620,
+				7111792568, 7111792582, 7111834617, 7111820234, 7111792578, 7111834593, 7111792574,
+				7111834589, 7111834605, 7111834616, 7111834585, 7111834601, 7111834613, 7111820229,
+				7111820225, 7111792569, 7111792583, 7111834598, 7111820235, 7111792579, 7111834594,
+				7111834607, 7111834614, 7111820231, 7111792575, 7111834590, 7111820226, 7111792571,
+				7111834586, 7111834602, 7111834595
+			],
+			"geometry": [
+				{ "lat": 43.32808, "lon": 5.05517 },
+				{ "lat": 43.32713, "lon": 5.05638 },
+				{ "lat": 43.32618, "lon": 5.05805 },
+				{ "lat": 43.32577, "lon": 5.05852 },
+				{ "lat": 43.3249, "lon": 5.05927 },
+				{ "lat": 43.32287, "lon": 5.05942 },
+				{ "lat": 43.32167, "lon": 5.06 },
+				{ "lat": 43.32063, "lon": 5.06055 },
+				{ "lat": 43.31987, "lon": 5.06092 },
+				{ "lat": 43.3183, "lon": 5.06267 },
+				{ "lat": 43.31793, "lon": 5.06353 },
+				{ "lat": 43.31703, "lon": 5.06525 },
+				{ "lat": 43.31663, "lon": 5.06638 },
+				{ "lat": 43.30955, "lon": 5.06723 },
+				{ "lat": 43.29645, "lon": 5.06308 },
+				{ "lat": 43.294, "lon": 5.06108 },
+				{ "lat": 43.23665, "lon": 5.03967 },
+				{ "lat": 43.2354, "lon": 5.03903 },
+				{ "lat": 43.21767, "lon": 5.026 },
+				{ "lat": 43.1585, "lon": 5.00333 },
+				{ "lat": 43.1531, "lon": 4.99595 },
+				{ "lat": 43.1293, "lon": 4.98662 },
+				{ "lat": 43.12025, "lon": 4.98095 },
+				{ "lat": 43.06893, "lon": 4.9547 },
+				{ "lat": 42.87165, "lon": 4.93857 },
+				{ "lat": 42.8218, "lon": 4.95122 },
+				{ "lat": 42.81687, "lon": 4.95198 },
+				{ "lat": 42.72088, "lon": 4.9346 },
+				{ "lat": 42.6401, "lon": 4.9189 },
+				{ "lat": 42.63782, "lon": 4.91827 },
+				{ "lat": 42.62317, "lon": 4.90912 },
+				{ "lat": 42.61927, "lon": 4.90588 },
+				{ "lat": 42.54298, "lon": 4.78482 },
+				{ "lat": 42.43832, "lon": 4.67522 },
+				{ "lat": 42.36955, "lon": 4.58702 },
+				{ "lat": 42.03333, "lon": 4.25995 },
+				{ "lat": 41.97122, "lon": 4.19108 },
+				{ "lat": 41.92107, "lon": 4.13592 },
+				{ "lat": 41.80413, "lon": 3.99317 },
+				{ "lat": 41.73763, "lon": 3.8345 },
+				{ "lat": 41.72313, "lon": 3.79043 },
+				{ "lat": 41.69322, "lon": 3.73353 },
+				{ "lat": 41.5387, "lon": 3.60203 },
+				{ "lat": 41.51975, "lon": 3.5178 },
+				{ "lat": 41.48267, "lon": 3.34085 },
+				{ "lat": 41.45857, "lon": 3.22595 },
+				{ "lat": 41.43472, "lon": 3.0903 },
+				{ "lat": 41.40745, "lon": 3.00037 },
+				{ "lat": 41.40435, "lon": 2.97265 },
+				{ "lat": 41.40457, "lon": 2.97137 },
+				{ "lat": 41.42968, "lon": 2.82233 },
+				{ "lat": 41.4346, "lon": 2.79418 },
+				{ "lat": 41.43458, "lon": 2.79143 },
+				{ "lat": 41.43458, "lon": 2.78873 },
+				{ "lat": 41.46703, "lon": 2.58523 },
+				{ "lat": 41.46732, "lon": 2.58385 },
+				{ "lat": 41.46892, "lon": 2.56945 },
+				{ "lat": 41.47103, "lon": 2.55053 },
+				{ "lat": 41.47105, "lon": 2.55032 },
+				{ "lat": 41.47197, "lon": 2.54115 },
+				{ "lat": 41.47577, "lon": 2.52392 },
+				{ "lat": 41.50185, "lon": 2.43933 },
+				{ "lat": 41.50442, "lon": 2.42215 },
+				{ "lat": 41.50447, "lon": 2.422 },
+				{ "lat": 41.50448, "lon": 2.42188 },
+				{ "lat": 41.50625, "lon": 2.40562 }
+			],
+			"tags": {
+				"communication": "line",
+				"location": "underwater",
+				"name": "BARMAR",
+				"seamark:cable_submarine:category": "fiber_optic",
+				"seamark:cable_submarine:name": "BARMAR",
+				"seamark:type": "cable_submarine",
+				"source": "https://www.sigcables.com/index.php/cableliste/fiche_cable/6"
+			}
+		},
+		{
+			"type": "way",
+			"id": 1110609473,
+			"bounds": {
+				"minlat": 41.0361667,
+				"minlon": 2.5121667,
+				"maxlat": 41.4085,
+				"maxlon": 3.6878333
+			},
+			"nodes": [
+				10160156567, 10160156566, 10160156565, 10160156564, 10160156563, 10160156562, 10160156561,
+				10160156560
+			],
+			"geometry": [
+				{ "lat": 41.4085, "lon": 2.5121667 },
+				{ "lat": 41.392, "lon": 2.6813333 },
+				{ "lat": 41.1251667, "lon": 2.8321667 },
+				{ "lat": 41.0816667, "lon": 2.8931667 },
+				{ "lat": 41.051, "lon": 2.9693333 },
+				{ "lat": 41.0361667, "lon": 3.1045 },
+				{ "lat": 41.0475, "lon": 3.25 },
+				{ "lat": 41.1848333, "lon": 3.6878333 }
+			],
+			"tags": { "seamark:type": "cable_submarine" }
+		},
+		{
+			"type": "way",
+			"id": 154212471,
+			"bounds": {
+				"minlat": 40.5515371,
+				"minlon": 0.5302226,
+				"maxlat": 40.5516384,
+				"maxlon": 0.5304552
+			},
+			"nodes": [1667824227, 1667824200],
+			"geometry": [
+				{ "lat": 40.5516384, "lon": 0.5302226 },
+				{ "lat": 40.5515371, "lon": 0.5304552 }
+			],
+			"tags": {
+				"highway": "service",
+				"seamark:information": "by car",
+				"seamark:small_craft_facility:category": "slipway",
+				"seamark:type": "small_craft_facility"
+			}
+		},
+		{
+			"type": "way",
+			"id": 1508241605,
+			"bounds": {
+				"minlat": 40.771843,
+				"minlon": 0.7410928,
+				"maxlat": 40.7727028,
+				"maxlon": 0.7432913
+			},
+			"nodes": [13790069299, 13790163024, 13790069297, 13790163015, 13790069299],
+			"geometry": [
+				{ "lat": 40.771843, "lon": 0.7432093 },
+				{ "lat": 40.7725573, "lon": 0.7410928 },
+				{ "lat": 40.7727028, "lon": 0.7411809 },
+				{ "lat": 40.7719706, "lon": 0.7432913 },
+				{ "lat": 40.771843, "lon": 0.7432093 }
+			],
+			"tags": { "landuse": "aquaculture", "produce": "mussels", "seamark:type": "marine_farm" }
+		},
+		{
+			"type": "node",
+			"id": 1566249251,
+			"lat": 40.5518013,
+			"lon": 0.532318,
+			"tags": {
+				"seamark:light:character": "Fl",
+				"seamark:light:colour": "green",
+				"seamark:light:height": "7",
+				"seamark:light:period": "4",
+				"seamark:light:range": "3",
+				"seamark:light:reference": "E 0370.35",
+				"seamark:light:sequence": "1+(3)",
+				"seamark:type": "light_minor",
+				"source": "US NGA Pub. 113. 2011-10-20."
+			}
+		},
+		{
+			"type": "node",
+			"id": 860935275,
+			"lat": 40.5720766,
+			"lon": 0.5513185,
+			"tags": { "harbour": "yes", "name": "Port industrial d'Alcanar", "seamark:type": "harbour" }
+		},
+		{
+			"type": "node",
+			"id": 1566247599,
+			"lat": 40.6016453,
+			"lon": 0.6894566,
+			"tags": {
+				"seamark:buoy_cardinal:category": "north",
+				"seamark:buoy_cardinal:colour": "black;yellow",
+				"seamark:buoy_cardinal:colour_pattern": "horizontal",
+				"seamark:buoy_cardinal:shape": "spar",
+				"seamark:light:1:character": "Q",
+				"seamark:light:1:colour": "white",
+				"seamark:light:1:height": "8",
+				"seamark:light:1:range": "3",
+				"seamark:light:1:sector_end": "229",
+				"seamark:light:1:sector_start": "82",
+				"seamark:light:reference": "E 0375",
+				"seamark:name": "27960",
+				"seamark:topmark:colour": "black",
+				"seamark:topmark:shape": "2 cones up",
+				"seamark:type": "buoy_cardinal",
+				"source": "US NGA Pub. 113. 2011-10-20."
+			}
+		},
+		{
+			"type": "node",
+			"id": 13062011458,
+			"lat": 40.8270519,
+			"lon": 0.186356,
+			"tags": { "seamark:type": "gate", "waterway": "lock_gate" }
+		},
+		{
+			"type": "node",
+			"id": 9545070472,
+			"lat": 40.8317167,
+			"lon": 0.8241667,
+			"tags": {
+				"seamark:beacon_special_purpose:colour": "yellow",
+				"seamark:light:colour": "yellow",
+				"seamark:light:period": "13",
+				"seamark:light:range": "3",
+				"seamark:name": "Fl(5)Y 13s 3",
+				"seamark:topmark:colour": "yellow",
+				"seamark:topmark:shape": "x-shape",
+				"seamark:type": "beacon_special_purpose"
+			}
+		},
+		{
+			"type": "node",
+			"id": 1668054319,
+			"lat": 40.8822328,
+			"lon": 0.8022707,
+			"tags": {
+				"crane:type": "travel_lift",
+				"leisure": "slipway",
+				"man_made": "crane",
+				"seamark:crane:category": "a-frame",
+				"seamark:type": "crane"
+			}
+		},
+		{
+			"type": "node",
+			"id": 10067752728,
+			"lat": 40.9076296,
+			"lon": 0.8119309,
+			"tags": {
+				"addr:city": "Les Tres Cales",
+				"addr:housenumber": "284",
+				"addr:postcode": "43860",
+				"addr:street": "Carrer Número Vint-i-Tres",
+				"amenity": "dive_centre",
+				"email": "info@planctondiving.cat",
+				"name": "Plàncton Diving",
+				"phone": "+34 977 457741",
+				"scuba_diving:courses": "yes",
+				"scuba_diving:rental": "yes",
+				"website": "https://www.planctondiving.cat"
+			}
+		},
+		{
+			"type": "node",
+			"id": 2974377831,
+			"lat": 40.8586551,
+			"lon": 0.8500943,
+			"tags": {
+				"seamark:buoy_special_purpose:colour": "yellow",
+				"seamark:buoy_special_purpose:shape": "conical",
+				"seamark:light:character": "Fl",
+				"seamark:light:colour": "yellow",
+				"seamark:light:period": "5",
+				"seamark:light:range": "3",
+				"seamark:topmark:colour": "yellow",
+				"seamark:topmark:shape": "x-shape",
+				"seamark:type": "buoy_special_purpose"
+			}
+		},
+		{
+			"type": "node",
+			"id": 5017720023,
+			"lat": 41.0649409,
+			"lon": 1.0780043,
+			"tags": {
+				"addr:city": "Cambrils",
+				"addr:housenumber": "38",
+				"addr:postcode": "43850",
+				"addr:street": "Avinguda de la Diputació",
+				"addr:unit": "2",
+				"check_date": "2026-09-06",
+				"club": "scuba_diving",
+				"contact:facebook": "https://es-es.facebook.com/glupsdiving/",
+				"contact:twitter": "GLUPSDIVING",
+				"email": "buceo@glupsdiving.com",
+				"mobile": "+34 605 820 107",
+				"name": "Glups Diving",
+				"opening_hours": "Mo-Sa 09:00-20:00; Su 09:00-14:00, 17:00-19:00",
+				"phone": "+34 977 79 18 28",
+				"sport": "scuba_diving",
+				"start_date": "1998",
+				"website": "https://glupsdiving.com/",
+				"wheelchair": "limited",
+				"wheelchair:description": "Entrant-hi des dol vorera de l'Av.Diputació hi ha unes escales sense rampa. Aquestes escales es poden salvar a través d'un parell de rampes que hi ha al C/N.Sra. del Pilar, però es força tomb... A més, hi ha un petit escaló just abans d'entrar al local.",
+				"wheelchair:description:ca": "Entrant-hi des dol vorera de l'Av.Diputació hi ha unes escales sense rampa. Aquestes escales es poden salvar a través d'un parell de rampes que hi ha al C/N.Sra. del Pilar, però es força tomb... A més, hi ha un petit escaló just abans d'entrar al local."
+			}
+		},
+		{
+			"type": "node",
+			"id": 1566242298,
+			"lat": 41.0557324,
+			"lon": 1.171917,
+			"tags": {
+				"seamark:light:character": "Fl",
+				"seamark:light:colour": "white",
+				"seamark:light:group": "4",
+				"seamark:light:height": "43",
+				"seamark:light:period": "20",
+				"seamark:light:range": "23",
+				"seamark:light:reference": "E 0386",
+				"seamark:light:sequence": "0.2+(3.1)+0.2+(3.1)+0.2+(3.1)+0.2+(9.9)",
+				"seamark:name": "Cabo de Salou",
+				"seamark:type": "light_major",
+				"source": "US NGA Pub. 113. 2011-10-20."
+			}
+		},
+		{
+			"type": "node",
+			"id": 1566242132,
+			"lat": 41.0669518,
+			"lon": 1.1831658,
+			"tags": {
+				"seamark:beacon_cardinal:category": "east",
+				"seamark:beacon_cardinal:colour": "black;yellow;black",
+				"seamark:beacon_cardinal:colour_pattern": "horizontal",
+				"seamark:beacon_cardinal:height": "6",
+				"seamark:light:character": "Q",
+				"seamark:light:colour": "white",
+				"seamark:light:group": "3",
+				"seamark:light:height": "8",
+				"seamark:light:period": "10",
+				"seamark:light:range": "1",
+				"seamark:light:reference": "E 0386.1",
+				"seamark:type": "beacon_cardinal",
+				"source": "US NGA Pub. 113. 2011-10-20."
+			}
+		},
+		{
+			"type": "node",
+			"id": 13339151350,
+			"lat": 41.0700002,
+			"lon": 1.1899999,
+			"tags": { "ref": "Boya de Tarragona", "seamark:type": "buoy_lateral" }
+		},
+		{
+			"type": "node",
+			"id": 11646646590,
+			"lat": 41.0875877,
+			"lon": 1.2281513,
+			"tags": { "seamark:type": "wreck", "seamark:wreck:category": "non-dangerous" }
+		},
+		{
+			"type": "node",
+			"id": 3737345802,
+			"lat": 40.7260693,
+			"lon": 1.3583285,
+			"tags": {
+				"seamark:name": "Plataforma Casablanca",
+				"seamark:platform:category": "oil",
+				"seamark:type": "platform"
+			}
+		},
+		{
+			"type": "node",
+			"id": 13807194766,
+			"lat": 41.1861704,
+			"lon": 1.6075355,
+			"tags": {
+				"man_made": "beacon",
+				"seamark:beacon_lateral:colour": "red",
+				"seamark:type": "beacon_lateral"
+			}
+		},
+		{
+			"type": "node",
+			"id": 12901397907,
+			"lat": 41.2513524,
+			"lon": 1.8990602,
+			"tags": {
+				"brand": "Petroprix",
+				"brand:wikidata": "Q128327113",
+				"fixme": "Corregir posición",
+				"fuel:diesel": "yes",
+				"fuel:octane_95": "yes",
+				"name": "Petroprix Sitges",
+				"seamark:small_craft_facility:category": "fuel_station",
+				"seamark:type": "small_craft_facility",
+				"source": "https://petroprix.com/gasolineras/petroprix-sitges",
+				"waterway": "fuel"
+			}
+		},
+		{
+			"type": "node",
+			"id": 11594185821,
+			"lat": 41.3997418,
+			"lon": 1.9999707,
+			"tags": { "seamark:type": "beacon_isolated_danger" }
+		},
+		{
+			"type": "node",
+			"id": 12860820941,
+			"lat": 41.4788749,
+			"lon": 2.0384876,
+			"tags": {
+				"access": "yes",
+				"handrail": "no",
+				"highway": "ladder",
+				"material": "wood",
+				"width": "2"
+			}
+		},
+		{
+			"type": "node",
+			"id": 1566190579,
+			"lat": 41.281217,
+			"lon": 2.1806667,
+			"tags": {
+				"seamark:buoy_safe_water:colour": "red;white",
+				"seamark:buoy_safe_water:colour_pattern": "vertical",
+				"seamark:buoy_safe_water:shape": "pillar",
+				"seamark:light:character": "Mo",
+				"seamark:light:colour": "white",
+				"seamark:light:group": "A",
+				"seamark:light:period": "10",
+				"seamark:light:range": "7",
+				"seamark:name": "Barcelona Approach",
+				"seamark:radar_transponder:category": "racon",
+				"seamark:radar_transponder:group": "B",
+				"seamark:type": "buoy_safe_water",
+				"source": "US NGA Pub. 113. 2011-10-20."
+			}
+		},
+		{
+			"type": "node",
+			"id": 10870493568,
+			"lat": 41.3867875,
+			"lon": 2.2013761,
+			"tags": { "ref": "701", "seamark:type": "mooring" }
+		},
+		{
+			"type": "node",
+			"id": 4250855432,
+			"lat": 41.5541045,
+			"lon": 2.5033002,
+			"tags": {
+				"seamark:name": "BOYA OESTE.- ATERRAMIENTOS",
+				"seamark:type": "buoy_isolated_danger"
+			}
+		},
+		{
+			"type": "node",
+			"id": 12132826525,
+			"lat": 41.915449,
+			"lon": 3.2129398,
+			"tags": {
+				"name": "Roca Montiell",
+				"scuba_diving:difficulty": "1",
+				"scuba_diving:divespot": "yes",
+				"scuba_diving:entry": "boat",
+				"scuba_diving:maxdepth": "25",
+				"seamark:rock:water_level": "submerged",
+				"seamark:type": "rock",
+				"sport": "scuba_diving"
+			}
+		},
+		{
+			"type": "node",
+			"id": 12104526256,
+			"lat": 41.9347853,
+			"lon": 3.2168885,
+			"tags": {
+				"seamark:buoy_special_purpose:category": "recreation_zone",
+				"seamark:buoy_special_purpose:colour": "yellow",
+				"seamark:buoy_special_purpose:shape": "spherical",
+				"seamark:restricted_area:category": "recreation_zone",
+				"seamark:type": "restricted_area"
+			}
+		},
+		{
+			"type": "node",
+			"id": 3241051376,
+			"lat": 42.054675,
+			"lon": 3.2025243,
+			"tags": {
+				"addr:city": "L'Estartit",
+				"addr:housenumber": "43",
+				"addr:postcode": "17258",
+				"addr:street": "Passeig Marítim",
+				"amenity": "bicycle_rental",
+				"bicycle_rental": "shop",
+				"contact:phone": "+34 687 70 21 28",
+				"contact:website": "https://www.estartitrentaboat.com/",
+				"name": "Complements Nàutics",
+				"name:ca": "Complements Nàutics",
+				"rental": "e-bike;city_bike;mtb",
+				"shop": "scuba_diving"
+			}
+		},
+		{
+			"type": "node",
+			"id": 13589277575,
+			"lat": 42.2461797,
+			"lon": 3.1244544,
+			"tags": { "seamark:type": "bridge" }
+		}
+	]
+}

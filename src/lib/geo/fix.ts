@@ -30,7 +30,8 @@ const finiteOrUndefined = (value: number | null): number | undefined =>
 export const toFix = (position: GeolocationPosition, floorAt: number): Fix | undefined => {
 	const { coords } = position;
 	if (!Number.isFinite(coords.longitude) || !Number.isFinite(coords.latitude)) return undefined;
-	if (!Number.isFinite(coords.accuracy) || coords.accuracy > MAX_USABLE_ACCURACY_M) return undefined;
+	if (!Number.isFinite(coords.accuracy) || coords.accuracy > MAX_USABLE_ACCURACY_M)
+		return undefined;
 	return {
 		lng: coords.longitude,
 		lat: coords.latitude,

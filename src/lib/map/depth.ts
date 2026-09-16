@@ -72,7 +72,10 @@ export const depthAt = (map: MapLibre, at: LngLat): number | undefined => {
 	let best: number | undefined;
 	let bestAway = reach;
 	for (const source of CONTOUR_SOURCES) {
-		let hits: readonly { readonly properties: Record<string, unknown>; readonly geometry: GeoJSON.Geometry }[];
+		let hits: readonly {
+			readonly properties: Record<string, unknown>;
+			readonly geometry: GeoJSON.Geometry;
+		}[];
 		try {
 			hits = map.querySourceFeatures(source.id, { sourceLayer: source.layer });
 		} catch {

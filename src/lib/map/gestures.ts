@@ -86,9 +86,7 @@ export const trackpadGestures: MapAttachment = (map) => {
 		if (event.deltaMode !== 0) return false;
 		const now = performance.now();
 		const fingers =
-			event.deltaX !== 0 ||
-			!Number.isInteger(event.deltaY) ||
-			Math.abs(event.deltaY) < WHEEL_NOTCH;
+			event.deltaX !== 0 || !Number.isInteger(event.deltaY) || Math.abs(event.deltaY) < WHEEL_NOTCH;
 		if (fingers) trackpadUntil = now + GESTURE_MEMORY;
 		return fingers || now < trackpadUntil;
 	};

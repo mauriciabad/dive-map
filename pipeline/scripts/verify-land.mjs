@@ -127,7 +127,12 @@ for (const viewport of only === 'a3' ? [] : VIEWPORTS) {
 						Math.abs(shown[i + 2] - hidden[i + 2]);
 					if (d > 12) moved++;
 				}
-				return { missing: layers.filter((id) => !present.includes(id)), counts, movedPixels: moved, samples: shown.length / 4 };
+				return {
+					missing: layers.filter((id) => !present.includes(id)),
+					counts,
+					movedPixels: moved,
+					samples: shown.length / 4
+				};
 			},
 			{ camera: at, layers: LAND_LAYERS, settle: label === 'initial' ? 20_000 : 6000 }
 		);
@@ -136,9 +141,15 @@ for (const viewport of only === 'a3' ? [] : VIEWPORTS) {
 
 	// The real control, not a style call: this is the path the user reported
 	// breaking, and it is the one that empties the image registry.
-	await page.getByRole('button', { name: /layers|capes|capas/i }).first().click();
+	await page
+		.getByRole('button', { name: /layers|capes|capas/i })
+		.first()
+		.click();
 	await page.waitForTimeout(600);
-	await page.getByRole('button', { name: /relief|ombrejat|sombreado/i }).first().click();
+	await page
+		.getByRole('button', { name: /relief|ombrejat|sombreado/i })
+		.first()
+		.click();
 	await page.waitForTimeout(2500);
 	const rebuilt = await measure('rebuilt');
 
@@ -146,7 +157,10 @@ for (const viewport of only === 'a3' ? [] : VIEWPORTS) {
 		// Put the map back the way a reader would see it. A shot with the panel over
 		// half the frame and the relief switched off is evidence of the test, not of
 		// the map.
-		await page.getByRole('button', { name: /relief|ombrejat|sombreado/i }).first().click();
+		await page
+			.getByRole('button', { name: /relief|ombrejat|sombreado/i })
+			.first()
+			.click();
 		await page.waitForTimeout(2500);
 		await page.keyboard.press('Escape');
 		await page.waitForTimeout(2500);
@@ -160,7 +174,14 @@ for (const viewport of only === 'a3' ? [] : VIEWPORTS) {
 		errors.length === 0 &&
 		failed.length === 0;
 	if (!ok) failures++;
-	report.viewports.push({ ...viewport, ok, initial, rebuilt, errors: errors.slice(0, 6), failed: failed.slice(0, 6) });
+	report.viewports.push({
+		...viewport,
+		ok,
+		initial,
+		rebuilt,
+		errors: errors.slice(0, 6),
+		failed: failed.slice(0, 6)
+	});
 	await context.close();
 }
 
@@ -198,10 +219,16 @@ const exportSheet = async (label, at, expect) => {
 	}, at);
 	await page.waitForTimeout(9000);
 
-	await page.getByRole('button', { name: /^Print$/ }).first().click();
+	await page
+		.getByRole('button', { name: /^Print$/ })
+		.first()
+		.click();
 	await page.waitForTimeout(500);
 	const download = page.waitForEvent('download', { timeout: 260_000 }).catch(() => undefined);
-	await page.getByRole('button', { name: /^Export PDF$/ }).first().click();
+	await page
+		.getByRole('button', { name: /^Export PDF$/ })
+		.first()
+		.click();
 	const file = await download;
 	if (file === undefined) {
 		await context.close();
@@ -210,34 +237,46 @@ const exportSheet = async (label, at, expect) => {
 	const saved = join(tmpdir(), `land-${label}-${Date.now()}.pdf`);
 	await file.saveAs(saved);
 	const png = `${saved}.png`;
-	execFileSync('sips', ['-s', 'format', 'png', '--resampleHeightWidthMax', '2000', saved, '--out', png]);
+	execFileSync('sips', [
+		'-s',
+		'format',
+		'png',
+		'--resampleHeightWidthMax',
+		'2000',
+		saved,
+		'--out',
+		png
+	]);
 
-	const share = await page.evaluate(async (src) => {
-		const image = new Image();
-		await new Promise((resolve, reject) => {
-			image.onload = resolve;
-			image.onerror = reject;
-			image.src = src;
-		});
-		// The map area, less the strip along the foot where the scale bar, the
-		// disclaimer and the attribution sit.
-		const w = image.width;
-		const h = Math.round(image.height * 0.86);
-		const canvas = document.createElement('canvas');
-		canvas.width = w;
-		canvas.height = h;
-		const context2d = canvas.getContext('2d');
-		context2d.drawImage(image, 0, 0, w, h, 0, 0, w, h);
-		const { data } = context2d.getImageData(0, 0, w, h);
-		let cool = 0;
-		let ink = 0;
-		for (let i = 0; i < data.length; i += 4) {
-			const [r, g, b] = [data[i], data[i + 1], data[i + 2]];
-			if (g - r > 6) cool++;
-			else if (r > 75 && r < 140 && r - b > 20) ink++;
-		}
-		return { crop: [w, h], cool, ink, of: data.length / 4 };
-	}, `data:image/png;base64,${readFileSync(png).toString('base64')}`);
+	const share = await page.evaluate(
+		async (src) => {
+			const image = new Image();
+			await new Promise((resolve, reject) => {
+				image.onload = resolve;
+				image.onerror = reject;
+				image.src = src;
+			});
+			// The map area, less the strip along the foot where the scale bar, the
+			// disclaimer and the attribution sit.
+			const w = image.width;
+			const h = Math.round(image.height * 0.86);
+			const canvas = document.createElement('canvas');
+			canvas.width = w;
+			canvas.height = h;
+			const context2d = canvas.getContext('2d');
+			context2d.drawImage(image, 0, 0, w, h, 0, 0, w, h);
+			const { data } = context2d.getImageData(0, 0, w, h);
+			let cool = 0;
+			let ink = 0;
+			for (let i = 0; i < data.length; i += 4) {
+				const [r, g, b] = [data[i], data[i + 1], data[i + 2]];
+				if (g - r > 6) cool++;
+				else if (r > 75 && r < 140 && r - b > 20) ink++;
+			}
+			return { crop: [w, h], cool, ink, of: data.length / 4 };
+		},
+		`data:image/png;base64,${readFileSync(png).toString('base64')}`
+	);
 
 	await context.close();
 	const measured = { cool: share.cool / share.of, ink: share.ink / share.of };

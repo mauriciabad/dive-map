@@ -133,7 +133,9 @@ export const parseAnnotation = (value: unknown): Annotation | undefined => {
 	if (shape === undefined) return undefined;
 
 	const rawProperties = value['properties'];
-	const properties: Readonly<Record<string, unknown>> = isRecord(rawProperties) ? rawProperties : {};
+	const properties: Readonly<Record<string, unknown>> = isRecord(rawProperties)
+		? rawProperties
+		: {};
 
 	const id = value['id'] ?? properties['id'];
 	if (typeof id !== 'string' || id === '') return undefined;

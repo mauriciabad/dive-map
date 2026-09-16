@@ -28,7 +28,13 @@ describe('appendFix', () => {
 
 	it('adds a vertex once the boat has actually moved', () => {
 		const first = appendFix([], { ...TAMARIU, at: 0, accuracyM: 5, speedMs: 0 });
-		const points = appendFix(first, { lng: TAMARIU.lng, lat: TAMARIU.lat + 0.001, at: 1000, accuracyM: 5, speedMs: 3 });
+		const points = appendFix(first, {
+			lng: TAMARIU.lng,
+			lat: TAMARIU.lat + 0.001,
+			at: 1000,
+			accuracyM: 5,
+			speedMs: 3
+		});
 		expect(points).toHaveLength(2);
 		expect(points.at(-1)?.cumM).toBeGreaterThan(100);
 	});
