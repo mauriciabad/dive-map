@@ -665,12 +665,18 @@
 		cursor: grabbing;
 	}
 
+	/*
+	 * Carried on a dark edge, because it lies across whichever contours it lands
+	 * between and the ruler paints those in every colour the ramp has. Brass on
+	 * brass at 4 m is the one place it would otherwise disappear.
+	 */
 	.dash {
 		flex: none;
 		width: var(--well);
 		height: 0;
 		margin-left: calc(var(--gutter) - var(--lane));
 		border-top: 2px dashed var(--control-on-rim);
+		filter: drop-shadow(0 1px 0 rgb(2 9 14 / 0.85)) drop-shadow(0 -1px 0 rgb(2 9 14 / 0.85));
 	}
 
 	/*
