@@ -28,7 +28,7 @@ import {
 	isBaseMapId,
 	isQuickPair
 } from '$lib/domain/basemaps';
-import { parseIsobathPaint } from '$lib/domain/isobaths';
+import { DEEPEST_M, parseIsobathPaint } from '$lib/domain/isobaths';
 import { DIVE_FEATURE_KINDS } from '$lib/domain/osm';
 import { type PrintSettings, parsePrintSettings } from '$lib/domain/print';
 import { type Locale, isLocale } from '$lib/i18n/locale';
@@ -266,8 +266,8 @@ const parseLayers = (value: unknown): readonly LayerId[] | undefined => {
 	return [...ids];
 };
 
-/** Deepest the surveys go. The national shelf archive stops at 250 m. */
-const DEPTH_LIMIT = 250;
+/** Deepest the surveys go, which is as deep as the depth ruler reaches. */
+const DEPTH_LIMIT = DEEPEST_M;
 
 const parseIsobaths = (value: unknown): IsobathStyle => {
 	if (!isRecord(value)) return DEFAULT_ISOBATHS;

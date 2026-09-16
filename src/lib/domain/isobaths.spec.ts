@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_ISOBATHS, type IsobathStyle } from './card.ts';
 import {
 	COASTLINE_DEFAULT_COLOUR,
+	DEEPEST_M,
 	DEFAULT_HALO,
 	DEFAULT_PAINT,
 	type PaintMethod,
@@ -12,6 +13,7 @@ import {
 	intervalAt,
 	paintedBands,
 	parseIsobathPaint,
+	rulerDepths,
 	withColour,
 	withEmphasis,
 	withMark,
@@ -251,6 +253,42 @@ describe('the contours a ruler has to draw', () => {
 		const plain = { ...DEFAULT_ISOBATHS, autoInterval: false, intervalM: 5 };
 		expect(contourDepths(plain, 14)).toContain(0);
 		expect(contourDepths(withoutMark(plain, 0), 14)).not.toContain(0);
+	});
+});
+
+describe('the rows the ruler draws', () => {
+	/**
+	 * The complaint in issue #68: the ruler was built out of the contours the map
+	 * happens to be drawing, so zooming the map and dragging the interval both
+	 * rewrote the list under the diver's thumb.
+	 */
+	it('draws the same rows whatever the zoom and whatever the interval', () => {
+		const auto = rulerDepths(DEFAULT_ISOBATHS);
+		expect(rulerDepths({ ...DEFAULT_ISOBATHS, autoInterval: false, intervalM: 20 })).toEqual(auto);
+		expect(auto.length).toBe(115);
+		// What the map draws does move, which is why the two are no longer the same list.
+		expect(contourDepths(DEFAULT_ISOBATHS, 10)).not.toEqual(contourDepths(DEFAULT_ISOBATHS, 17));
+	});
+
+	it('keeps the rows a cut takes off the map', () => {
+		const shallow = { ...DEFAULT_ISOBATHS, maxDepthM: 60 };
+		expect(rulerDepths(shallow)).toEqual(rulerDepths(DEFAULT_ISOBATHS));
+		// The four deep marks are still marks and still rows, they are just past the cut.
+		expect(rulerDepths(shallow)).toContain(250);
+		expect(contourDepths(shallow, 17)).not.toContain(250);
+	});
+
+	it('holds every metre above the shelf and fives below it', () => {
+		const rows = rulerDepths(DEFAULT_ISOBATHS);
+		expect(rows[0]).toBe(0);
+		expect(rows).toContain(79);
+		expect(rows).toContain(85);
+		expect(rows).not.toContain(81);
+		expect(rows.at(-1)).toBe(DEEPEST_M);
+	});
+
+	it('finds a row for a mark the grid does not land on', () => {
+		expect(rulerDepths(withMark(DEFAULT_ISOBATHS, 83))).toContain(83);
 	});
 });
 

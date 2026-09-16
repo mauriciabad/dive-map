@@ -307,9 +307,9 @@ export const contourColour = (bands: readonly PaintedBand[], depthM: number): st
  * How coarse the contours go when the map is picking for itself, at one zoom.
  *
  * Five metres at a dive site and coarser when the whole coast is on screen,
- * where even five is a solid mat of ink. One table, read here for the ruler and
- * compiled into a `step` expression for the map, so the panel can never draw an
- * interval the map is not using.
+ * where even five is a solid mat of ink. One table, compiled into a `step`
+ * expression for the map, so nothing else has to guess what the map is drawing.
+ * The ruler used to be built out of it and is not any more: see `rulerDepths`.
  *
  * This is the interval in the shallow water the ICGC survey measured metre by
  * metre. Past `SHELF_FROM_M` the national contours take over and they are only
@@ -335,6 +335,13 @@ export const AUTO_INTERVAL: readonly { readonly fromZoom: number; readonly inter
  */
 export const SHELF_FROM_M = 80;
 export const SHELF_STEP_M = 5;
+
+/**
+ * The deepest water any of this reaches. The national survey bottoms out around
+ * here, so it is where the ruler ends, as deep as the cut can be dragged, and
+ * what a stored configuration is read back within.
+ */
+export const DEEPEST_M = 250;
 
 export const intervalAt = (style: IsobathStyle, zoom: number): number => {
 	if (!style.autoInterval) return Math.max(1, style.intervalM);
@@ -363,6 +370,31 @@ export const contourDepths = (style: IsobathStyle, zoom: number): readonly numbe
 	// rule the map's own filter follows.
 	if (!style.emphasised.includes(0)) drawn.delete(0);
 	return [...drawn].sort(ascending);
+};
+
+/**
+ * The rows the depth ruler draws, surface first.
+ *
+ * Not the contours the map is drawing. Those follow the zoom and the interval,
+ * so a ruler built out of them grew and shrank under the thumb every time the
+ * map moved, and pulling the maximum depth up took whole marks off the list
+ * rather than cutting them. These rows are the finest set the archive holds and
+ * nothing else: every metre while the ICGC survey measured every metre, fives
+ * past `SHELF_FROM_M` where the national contours are only ever fives, plus
+ * whatever depths a diver has marked wherever they sit.
+ *
+ * So the maximum depth is drawn across this list rather than cropping it, and
+ * the list a diver scrolls is the same list whatever the map is doing.
+ */
+export const rulerDepths = (style: IsobathStyle): readonly number[] => {
+	const deepest = Math.max(DEEPEST_M, style.maxDepthM, ...style.emphasised);
+	const rows = new Set<number>();
+	// The surface is a row whether or not it is marked: it is the top of the thing,
+	// and pressing it is the only way 0 m ever becomes a mark again.
+	for (let depth = 0; depth <= Math.min(deepest, SHELF_FROM_M); depth += 1) rows.add(depth);
+	for (let depth = SHELF_FROM_M; depth <= deepest; depth += SHELF_STEP_M) rows.add(depth);
+	for (const depth of style.emphasised) if (depth >= 0 && depth <= deepest) rows.add(depth);
+	return [...rows].sort(ascending);
 };
 
 const withPaint = (style: IsobathStyle, paint: IsobathPaint): IsobathStyle => ({ ...style, paint });
