@@ -61,6 +61,9 @@ const ca = {
 	markColour: 'Color de {depth} m',
 	markEmphasis: 'Línia gruixuda i etiqueta a {depth} m',
 	maxDepth: 'Fondària màxima',
+	maxDepthHint:
+		'Per sota de la línia discontínua el mapa no dibuixa res. Arrossega-la per canviar-la.',
+	rulerEnd: 'Final',
 	showLabels: 'Etiquetes de fondària',
 	spotDepths: 'Fondàries puntuals',
 	spotDepthsHint:
@@ -403,6 +406,9 @@ const es: Catalogue = {
 	markColour: 'Color de {depth} m',
 	markEmphasis: 'Línea gruesa y etiqueta en {depth} m',
 	maxDepth: 'Profundidad máxima',
+	maxDepthHint:
+		'Por debajo de la línea discontinua el mapa no dibuja nada. Arrástrala para cambiarla.',
+	rulerEnd: 'Fin',
 	showLabels: 'Etiquetas de profundidad',
 	spotDepths: 'Profundidades puntuales',
 	spotDepthsHint:
@@ -744,6 +750,8 @@ const en: Catalogue = {
 	markColour: 'Colour for {depth} m',
 	markEmphasis: 'Heavy line and label at {depth} m',
 	maxDepth: 'Maximum depth',
+	maxDepthHint: 'Below the dashed line the map draws nothing. Drag it to set where that is.',
+	rulerEnd: 'End',
 	showLabels: 'Depth labels',
 	spotDepths: 'Spot depths',
 	spotDepthsHint:

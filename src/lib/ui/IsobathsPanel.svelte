@@ -38,14 +38,10 @@
 	/** The coarsest interval offered, and what auto falls back to when zoomed out. */
 	const COARSEST_M = 20;
 
-	/** Deep enough for both surveys. The national one bottoms out at 250 m. */
-	const DEEPEST_M = 250;
-
 	const interval = $derived(view.isobaths.autoInterval ? AUTO : view.isobaths.intervalM);
 
 	/** A hand-edited blob can carry a setting past the end of the track. Show it rather than clamp it. */
 	const coarsest = $derived(Math.max(COARSEST_M, view.isobaths.intervalM));
-	const deepest = $derived(Math.max(DEEPEST_M, view.isobaths.maxDepthM));
 
 	const methods = $derived<readonly Choice<PaintMethod>[]>([
 		{ value: 'upwards', label: t(view.locale, 'paintUpwards'), icon: 'paintUp' },
@@ -110,19 +106,6 @@
 		}}
 	/>
 
-	<Field label={t(view.locale, 'maxDepth')}>
-		<Range
-			label={t(view.locale, 'maxDepth')}
-			value={view.isobaths.maxDepthM}
-			min={5}
-			max={deepest}
-			format={metresLabel}
-			onchange={(next: number) => {
-				view.isobaths = { ...view.isobaths, maxDepthM: next };
-			}}
-		/>
-	</Field>
-
 	<Field label={t(view.locale, 'paintMethod')}>
 		<Segmented
 			options={methods}
@@ -139,12 +122,12 @@
 		<DepthRuler
 			locale={view.locale}
 			style={view.isobaths}
-			zoom={view.zoom}
 			onchange={(next: IsobathStyle) => {
 				view.isobaths = next;
 			}}
 		/>
 		<Note>{t(view.locale, 'rulerHint')}</Note>
+		<Note>{t(view.locale, 'maxDepthHint')}</Note>
 		<Note>{t(view.locale, 'zeroIsobathHint')}</Note>
 	</Field>
 
