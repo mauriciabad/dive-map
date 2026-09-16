@@ -1,0 +1,19 @@
+{
+	"zoom": 14,
+	"tile": [
+		8338,
+		6085
+	],
+	"size": 128,
+	"ids": [
+		"satellite-costa",
+		"satellite-icgc",
+		"satellite-ign",
+		"satellite-esri",
+		"standard-osm",
+		"standard-icgc",
+		"standard-ign",
+		"classic-icgc",
+		"classic-ign"
+	]
+}
