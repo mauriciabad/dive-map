@@ -459,7 +459,7 @@
 	}
 
 	.line:hover,
-	.line:focus-within {
+	.line:has(:focus-visible) {
 		background: var(--control-hover);
 		opacity: 1;
 		z-index: 3;
@@ -488,7 +488,7 @@
 	}
 
 	.line:hover .gutter,
-	.line:focus-within .gutter,
+	.line:has(:focus-visible) .gutter,
 	.line.raised .gutter {
 		opacity: 1;
 		color: var(--control-ink-dim);

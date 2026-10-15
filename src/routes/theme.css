@@ -183,6 +183,19 @@ body {
 		color 160ms ease-out;
 }
 
+/*
+ * MapLibre rings a focused button in its own blue and rounds its corners, and it
+ * does it on :focus, which a tap sets as surely as a key does. Out-ranked here
+ * rather than matched: a rule on :focus also lands on the button a finger just
+ * opened a panel with, and wiped the pressed-in look off it (#74). The extra
+ * classes are what beat MapLibre's `button:focus:first-child`; a disabled button
+ * cannot take focus, so leaving it out costs nothing.
+ */
+.maplibregl-map .maplibregl-ctrl.maplibregl-ctrl-group button:not(:disabled) {
+	box-shadow: none;
+	border-radius: 0;
+}
+
 .maplibregl-map .maplibregl-ctrl-group button + button {
 	border-top: 1px solid var(--ctrl-seam);
 }
@@ -192,19 +205,12 @@ body {
 	color: var(--color-paper);
 }
 
-.maplibregl-map .maplibregl-ctrl-group button:not(:disabled):active,
-.maplibregl-map .maplibregl-ctrl-group button[aria-expanded='true'],
-.maplibregl-map .maplibregl-ctrl-group button[aria-pressed='true'] {
+.maplibregl-map .maplibregl-ctrl.maplibregl-ctrl-group button:not(:disabled):active,
+.maplibregl-map .maplibregl-ctrl.maplibregl-ctrl-group button[aria-expanded='true'],
+.maplibregl-map .maplibregl-ctrl.maplibregl-ctrl-group button[aria-pressed='true'] {
 	background: var(--color-brass-500);
 	color: var(--color-table-900);
 	box-shadow: var(--sunk);
-}
-
-.maplibregl-map .maplibregl-ctrl-group button:focus,
-.maplibregl-map .maplibregl-ctrl-group button:focus:first-child,
-.maplibregl-map .maplibregl-ctrl-group button:focus:last-child {
-	box-shadow: none;
-	border-radius: 0;
 }
 
 .maplibregl-map .maplibregl-ctrl-group button:focus-visible {
@@ -371,15 +377,13 @@ body {
 	border: 0;
 }
 
-/* MapLibre rings a focused control in its own blue. Brass, like everything else. */
-.maplibregl-map .maplibregl-ctrl-attrib-button:focus {
+/*
+ * MapLibre rings a focused control in its own blue, on :focus as above. Brass,
+ * like everything else, and only for a keyboard. The open disc keeps its edge
+ * from the rule further up, which out-ranks this one.
+ */
+.maplibregl-map .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-button {
 	box-shadow: none;
-}
-
-.maplibregl-map
-	.maplibregl-ctrl-attrib.maplibregl-compact-show
-	.maplibregl-ctrl-attrib-button:focus {
-	box-shadow: 0 0 0 1px var(--ctrl-edge);
 }
 
 .maplibregl-map .maplibregl-ctrl-attrib-button:focus-visible {
