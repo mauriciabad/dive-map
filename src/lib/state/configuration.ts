@@ -158,11 +158,18 @@ export interface Recent {
 	readonly camera: Camera | undefined;
 	/** True once the opening hints have been dismissed, so no tab shows them again. */
 	readonly introSeen: boolean;
+	/**
+	 * The language the diver picked by hand, when they have. Kept apart from the
+	 * configurations, because which language the map speaks is a decision about
+	 * the person and not about the chart, and a new tab has to know it before any
+	 * configuration is read.
+	 */
+	readonly locale: Locale | undefined;
 }
 
 export const EMPTY_LIBRARY: Library = { saved: [], openWith: undefined };
 
-export const NOTHING_RECENT: Recent = { camera: undefined, introSeen: false };
+export const NOTHING_RECENT: Recent = { camera: undefined, introSeen: false, locale: undefined };
 
 export const shippedConfiguration = (locale: Locale): Configuration => ({
 	layers: DEFAULT_LAYERS,
@@ -505,7 +512,12 @@ export const writeWorking = (store: KeyValueStore, working: Working): boolean =>
 export const readRecent = (store: KeyValueStore): Recent => {
 	const blob = readBlob(store.read(RECENT_KEY));
 	if (blob.kind !== 'ok') return NOTHING_RECENT;
-	return { camera: parseCamera(blob.value['camera']), introSeen: blob.value['introSeen'] === true };
+	const locale = blob.value['locale'];
+	return {
+		camera: parseCamera(blob.value['camera']),
+		introSeen: blob.value['introSeen'] === true,
+		locale: typeof locale === 'string' && isLocale(locale) ? locale : undefined
+	};
 };
 
 export const writeRecent = (store: KeyValueStore, recent: Recent): boolean =>

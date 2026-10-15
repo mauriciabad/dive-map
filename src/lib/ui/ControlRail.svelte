@@ -65,7 +65,7 @@
 {:else if open === 'print'}
 	<PrintPanel {view} onclose={close} />
 {:else if open === 'language'}
-	<LanguagePanel {view} onclose={close} />
+	<LanguagePanel {view} {configurations} onclose={close} />
 {:else if open === 'configs'}
 	<ConfigsPanel {view} {configurations} onclose={close} />
 {/if}

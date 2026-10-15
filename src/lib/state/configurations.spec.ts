@@ -208,3 +208,63 @@ describe('the opening hints', () => {
 		expect(open(local, memoryStore()).introSeen).toBe(true);
 	});
 });
+
+describe('the language picked by hand', () => {
+	it('opens every new tab in it, over what the browser asked for', () => {
+		const local = memoryStore();
+		open(local).chooseLanguage('en');
+		expect(open(local, memoryStore()).opening().configuration.locale).toBe('en');
+	});
+
+	it('speaks the saved configuration a new tab opens with in it too', () => {
+		const local = memoryStore();
+		const configs = open(local);
+		configs.save('Nit', shippedConfiguration('es'));
+		configs.setOpenWith('Nit');
+		configs.chooseLanguage('en');
+		expect(open(local, memoryStore()).opening().configuration.locale).toBe('en');
+	});
+
+	it('leaves a reloaded tab speaking what it spoke', () => {
+		const local = memoryStore();
+		const session = memoryStore();
+		const configs = open(local, session);
+		configs.remember({
+			configuration: shippedConfiguration('es'),
+			camera: undefined,
+			from: undefined
+		});
+		configs.chooseLanguage('en');
+		expect(open(local, session).opening().configuration.locale).toBe('es');
+	});
+
+	it('is not kept from what the browser negotiated', () => {
+		const local = memoryStore();
+		open(local).remember({
+			configuration: shippedConfiguration('en'),
+			camera: { centre: { lng: 3, lat: 41 }, zoom: 12, bearing: 0 },
+			from: undefined
+		});
+		expect(open(local, memoryStore()).opening().configuration.locale).toBe('ca');
+	});
+
+	it('goes when forgotten, and hands back the browser language', () => {
+		const local = memoryStore();
+		const configs = open(local);
+		configs.chooseLanguage('en');
+		expect(configs.forgetLanguage()).toBe('ca');
+		expect(open(local, memoryStore()).opening().configuration.locale).toBe('ca');
+	});
+
+	it('survives the next camera a tab writes', () => {
+		const local = memoryStore();
+		const configs = open(local);
+		configs.chooseLanguage('es');
+		configs.remember({
+			configuration: ca,
+			camera: { centre: { lng: 3, lat: 41 }, zoom: 12, bearing: 0 },
+			from: undefined
+		});
+		expect(open(local, memoryStore()).opening().configuration.locale).toBe('es');
+	});
+});

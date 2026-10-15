@@ -57,6 +57,8 @@ export class Configurations {
 	readonly #session: KeyValueStore;
 	/** Fallback for a stored configuration that names no language of its own. */
 	readonly #locale: Locale;
+	/** What this browser asked for, which is what the map speaks once a choice is forgotten. */
+	readonly #negotiated: Locale;
 
 	saved = $state<readonly SavedConfiguration[]>([]);
 	/** Name of the configuration a new tab opens with. */
@@ -78,10 +80,11 @@ export class Configurations {
 		local: KeyValueStore = webStorage('local'),
 		session: KeyValueStore = webStorage('session')
 	) {
-		this.#locale = locale;
 		this.#local = local;
 		this.#session = session;
 		this.#recent = readRecent(local);
+		this.#negotiated = locale;
+		this.#locale = this.#recent.locale ?? locale;
 		this.refresh();
 	}
 
@@ -236,8 +239,9 @@ export class Configurations {
 		}
 		const chosen = this.openWith === undefined ? undefined : this.configurationNamed(this.openWith);
 		this.from = chosen === undefined ? undefined : this.openWith;
+		const configuration = chosen ?? shippedConfiguration(this.#locale);
 		return {
-			configuration: chosen ?? shippedConfiguration(this.#locale),
+			configuration: { ...configuration, locale: this.#recent.locale ?? configuration.locale },
 			from: this.from,
 			start: this.#lastSeen()
 		};
@@ -262,6 +266,21 @@ export class Configurations {
 	/** Called once the opening hints have done their job. They never come back. */
 	markIntroSeen(): void {
 		this.#keep({ introSeen: true });
+	}
+
+	/**
+	 * Called when the diver picks a language by hand, and only then. The language
+	 * the browser negotiated, or the one a saved configuration carried, is not a
+	 * choice, and keeping it would pin the map to it after the browser changed.
+	 */
+	chooseLanguage(locale: Locale): void {
+		this.#keep({ locale });
+	}
+
+	/** Drops the language picked by hand, and says what the map speaks without it. */
+	forgetLanguage(): Locale {
+		this.#keep({ locale: undefined });
+		return this.#negotiated;
 	}
 
 	/**

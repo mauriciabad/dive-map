@@ -164,6 +164,9 @@
 			return;
 		}
 		if (scope === 'everything') {
+			// Set before the wait below, so the working configuration this tab writes
+			// as it unloads carries the browser's language and not the forgotten one.
+			view.locale = configurations.forgetLanguage();
 			// The worker goes with them, so the load below installs one from scratch
 			// and precaches the whole shell rather than refilling it a file at a time.
 			await updates.forget();

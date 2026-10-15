@@ -6,14 +6,16 @@
 	import { FLAGS } from '$lib/i18n/flags';
 	import { LOCALES, LOCALE_NAMES, type Locale } from '$lib/i18n/locale';
 	import { t } from '$lib/i18n/messages';
+	import type { Configurations } from '$lib/state/configurations.svelte';
 	import type { MapState } from '$lib/state/map-view.svelte';
 
 	interface Props {
 		readonly view: MapState;
+		readonly configurations: Configurations;
 		readonly onclose: () => void;
 	}
 
-	const { view, onclose }: Props = $props();
+	const { view, configurations, onclose }: Props = $props();
 
 	const choices: readonly Choice<Locale>[] = LOCALES.map((value) => ({
 		value,
@@ -35,6 +37,7 @@
 		label={t(view.locale, 'language')}
 		onselect={(next: Locale) => {
 			view.locale = next;
+			configurations.chooseLanguage(next);
 		}}
 	/>
 </Panel>
